@@ -10,6 +10,26 @@
 - **Scope:** every Forever realm and both factions, with a picker; PvP Horde first.
 - **Languages:** English and French.
 
+## Blizzard probe result (17 Nov 2026)
+
+Battle.net client "Goldline Forever" created on the owner's account (credentials only in the gitignored `.env`).
+`npm run probe:blizzard` found:
+
+- Forever (`dynamic-forever-us`) has **no realm or connected-realm index** (404) and no region-wide commodities route.
+- It serves auctions **per ruleset**: `/data/wow/ruleset/index` lists rulesets 1 "PvP", 2 "Normal",
+  3 "Roleplay" and 15 "Roleplay PvP". Each lists the same 15 houses (110–125).
+  `/data/wow/ruleset/{any}/auctions/{houseId}` returns that house's item auctions (`item.id`, `buyout`,
+  `quantity`, `time_left`), and `.../commodities` its commodities (`unit_price`, `quantity`). The ruleset
+  number in the path does not change the answer; the house ID does.
+- Houses come in groups of three: Alliance, Horde, Blackwater (neutral). Live groups: 110/113/116,
+  111/114/117, 119/120/121 and 123/124/125; 112/115/118 are empty.
+- **110/113/116 is PvP**: house 113's lowest prices match TSM's PvP-Horde data on 100% of 5,186 shared
+  items (other Horde houses: 9–24%). The other three groups still need names (Normal, Roleplay, Roleplay PvP).
+  The page calls them Realm B, C and D for now.
+- Snapshots refresh hourly (Last-Modified about :25). The large houses hold about 90,000 item auctions plus
+  70,000 commodity auctions, roughly 5,000 distinct items per house.
+- So **Gemini's route was right**. What it lacked was the house list.
+
 ## Review of the Gemini draft (now in `docs/gemini-draft/`)
 
 What it described: a FastAPI + Postgres poller for "US PvP Horde (house 113)", hourly candles, 7-day
@@ -19,11 +39,10 @@ Problems found:
 
 - The README promises Docker Compose, the schema and views, 72 hours of seed data, `manifest.json` and a
   start script; none of them exist.
-- `/data/wow/ruleset/{id}/auctions/{house}` is not a documented Blizzard route (the documented one is
-  `/data/wow/connected-realm/{id}/auctions/{house}`), and Guilded's 7 Nov probe got 404 from the Forever
-  realm and connected-realm indexes. **But** the owner's TSM data (17 Nov) has Forever prices for realm
-  "PvP-Horde" and region "Forever-US", so Blizzard publishes them somewhere: `npm run probe:blizzard`
-  finds out where. TSM's own data must not be republished (TSM terms); it only proves the data exists.
+- `/data/wow/ruleset/{id}/auctions/{house}` is not in Blizzard's public docs (those use
+  `/data/wow/connected-realm/{id}/auctions/{house}`), but the probe showed it **is** the working Forever
+  route. The draft only knew one house ID (113) and had no house list. TSM's data was used once, locally,
+  to identify the PvP houses; it must not be republished (TSM terms).
 - Item IDs 90001/90002 ("Azerothium Bar", "Pitchblende") look invented; "Master Chef 1.5x" and the recipe
   data behind crafting margins are not defined.
 - Candle maths labelled listings as if they were trades; Goldline calls it "listed quantity".
@@ -34,8 +53,7 @@ Problems found:
 1. **First slice (this PR):** item chart page on sample data: candles/line, listed quantity, 1H/4H/1D/1W,
    SMA 20 and EMA 50, search (EN/FR, accents ignored), watchlist in the browser, realm/faction picker,
    light/dark, phone layout, tests and CI.
-2. **Probe** (needs the owner's Battle.net client): run `npm run probe:blizzard`, record which routes answer
-   for Forever, the realm list and the auction house IDs. Replace the placeholder realm list.
+2. **Probe (done 17 Nov):** live Forever routes and house IDs found, see above. Still owed: names for realm groups B, C and D.
 3. **Collector:** a Cloudflare Worker on an hourly cron fetches each Forever auction house (with
    `If-Modified-Since`), summarizes each item with `summarizeSnapshot`, and stores one row per item per
    hour in D1 (`item_id, house, hour, min_buyout, market, listed, auctions`). Old hours roll up to daily

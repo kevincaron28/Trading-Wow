@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { ITEMS, normalize, searchItems } from "../src/data/items";
 import { generateSampleSeries } from "../src/data/sample";
-import { createSampleSource, houseKey } from "../src/data/source";
+import { REALMS, blizzardHouseId, createSampleSource, houseKey } from "../src/data/source";
 import { MESSAGES, detectLang } from "../src/lib/i18n";
 import { summarize } from "../src/lib/stats";
 import { cleanWatchlist, readJson, toggleWatch, writeJson, type KeyValueStore } from "../src/lib/storage";
@@ -37,6 +37,14 @@ describe("sample data", () => {
     const points = await source.history(2589, { region: "us", realm: "pvp", faction: "horde" });
     expect(points.length).toBeGreaterThan(24 * 30);
     expect(houseKey({ region: "us", realm: "PvP", faction: "horde" })).toBe("us-pvp-horde");
+  });
+
+  it("maps realm and faction to the Blizzard house ID found by the probe", () => {
+    expect(blizzardHouseId({ region: "us", realm: "pvp", faction: "horde" })).toBe(113);
+    expect(blizzardHouseId({ region: "us", realm: "PvP", faction: "alliance" })).toBe(110);
+    expect(blizzardHouseId({ region: "us", realm: "nowhere", faction: "horde" })).toBeUndefined();
+    const ids = REALMS.flatMap((r) => Object.values(r.houses));
+    expect(new Set(ids).size).toBe(ids.length);
   });
 });
 

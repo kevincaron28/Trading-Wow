@@ -1,7 +1,7 @@
 import type { PricePoint } from "../lib/candles";
 import { generateSampleSeries } from "./sample";
 
-/** An auction house: one region, one realm, one faction (Forever realms keep faction auction houses). */
+/** An auction house: one region, one realm group, one faction. */
 export interface House {
   region: "us" | "eu";
   realm: string;
@@ -13,15 +13,25 @@ export function houseKey(house: House): string {
 }
 
 /**
- * Known houses. Placeholder until the Blizzard probe lists the real Forever realms: TSM's data on the
- * owner's PC names a "PvP" realm with a Horde house, so that is the default.
+ * Forever US auction houses, from the Blizzard probe of 17 Nov 2026
+ * (`/data/wow/ruleset/{any}/auctions/{houseId}?namespace=dynamic-forever-us`: the house ID decides,
+ * the ruleset number in the path does not). Houses come in groups of three (Alliance, Horde,
+ * Blackwater). Group "pvp" was identified by matching house 113 against TSM's PvP-Horde prices
+ * (100% of 5,186 items). The other groups are not identified yet; 112/115/118 are empty and skipped.
  */
-export const REALMS: readonly { id: string; label: string }[] = [
-  { id: "pvp", label: "PvP" },
-  { id: "pve", label: "PvE" },
+export const REALMS: readonly { id: string; label: string; houses: { alliance: number; horde: number; blackwater: number } }[] = [
+  { id: "pvp", label: "PvP", houses: { alliance: 110, horde: 113, blackwater: 116 } },
+  { id: "b", label: "Realm B", houses: { alliance: 111, horde: 114, blackwater: 117 } },
+  { id: "c", label: "Realm C", houses: { alliance: 119, horde: 120, blackwater: 121 } },
+  { id: "d", label: "Realm D", houses: { alliance: 123, horde: 124, blackwater: 125 } },
 ];
 
 export const DEFAULT_HOUSE: House = { region: "us", realm: "pvp", faction: "horde" };
+
+/** Blizzard auction house ID for a house, or undefined if the realm is unknown. */
+export function blizzardHouseId(house: House): number | undefined {
+  return REALMS.find((r) => r.id === house.realm.toLowerCase())?.houses[house.faction];
+}
 
 export interface PriceSource {
   /** True while prices are generated, so the page can say so. */

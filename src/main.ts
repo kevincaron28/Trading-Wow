@@ -28,7 +28,7 @@ function loadPrefs(): Prefs {
   const lang = LANGS.includes(saved.lang as Lang) ? (saved.lang as Lang) : detectLang(navigator.languages ?? [navigator.language]);
   return {
     lang,
-    house: { ...DEFAULT_HOUSE, ...(saved.house ?? {}) },
+    house: REALMS.some((r) => r.id === saved.house?.realm) ? { ...DEFAULT_HOUSE, ...saved.house } : DEFAULT_HOUSE,
     timeframe: TIMEFRAMES.includes(saved.timeframe as Timeframe) ? (saved.timeframe as Timeframe) : "4h",
     chartType: saved.chartType === "line" ? "line" : "candles",
     indicators: (saved.indicators ?? ["sma20"]).filter((id): id is IndicatorId => id in INDICATORS),

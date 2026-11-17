@@ -6,8 +6,8 @@
  *   (or put both in a gitignored .env file; `npm run probe:blizzard` loads it)
  *
  * Prints HTTP statuses, counts and field names only: never the token, the secret or listing contents.
- * Background: on 7 Nov 2026 Guilded's probe found the Forever realm and connected-realm indexes answering
- * 404, yet TSM ships Forever "PvP-Horde" prices, so some route must work.
+ * Result on 17 Nov 2026: Forever has no realm or connected-realm index (404) but serves auctions per
+ * ruleset: /data/wow/ruleset/{id}/auctions/{houseId}[/commodities]. See docs/PLAN.md.
  */
 
 const REGION = process.env.BNET_REGION ?? "us";
@@ -63,8 +63,23 @@ for (const ns of NAMESPACES) {
   const ids = (connected.body?.connected_realms ?? []).map((c) => idFromHref(c.href)).filter(Number.isFinite);
   show("connected-realm index", connected, `ids=${ids.slice(0, 8).join(",")}${ids.length > 8 ? "..." : ""}`);
   show("commodities (region-wide)", await get("/data/wow/auctions/commodities", ns));
-  // Gemini's draft used this route; it is not documented, so check it rather than assume.
-  show("Gemini draft route ruleset/1/auctions/113", await get("/data/wow/ruleset/1/auctions/113", ns));
+
+  // Forever's working layout (found 17 Nov 2026): rulesets instead of realms. Every ruleset lists the
+  // same houses; the house ID picks the auction house, the ruleset number in the path does not.
+  const rulesets = await get("/data/wow/ruleset/index", ns);
+  const rulesetIds = (rulesets.body?.rulesets ?? []).map((r) => r.id);
+  show("ruleset index", rulesets, `ids=${rulesetIds.join(",")}`);
+  for (const rs of rulesetIds.slice(0, 1)) {
+    const index = await get(`/data/wow/ruleset/${rs}/auctions/index`, ns);
+    const houses = index.body?.auctions ?? [];
+    show(`ruleset ${rs} auction index`, index, houses.map((h) => `${h.id}:${String(h.name).split(" ")[0]}`).join(" "));
+    for (const house of houses) {
+      const items = await get(`/data/wow/ruleset/${rs}/auctions/${house.id}`, ns);
+      const commodities = await get(`/data/wow/ruleset/${rs}/auctions/${house.id}/commodities`, ns);
+      const count = (r) => (Array.isArray(r.body?.auctions) ? r.body.auctions.length : 0);
+      show(`house ${house.id} items / commodities`, { ...items, body: null }, `items=${count(items)} commodities=${count(commodities)}`);
+    }
+  }
 
   // On the Classic namespace only peek at one realm: the point is to learn the Forever layout.
   for (const realmId of ns.startsWith("dynamic-forever") ? ids.slice(0, 10) : ids.slice(0, 1)) {
