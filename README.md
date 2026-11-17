@@ -70,3 +70,18 @@ listed, never quantity traded.
 
 Planned on Cloudflare Pages: build command `npm run build`, output directory `dist`. Price history will
 live in a Cloudflare Worker with a D1 database (see the plan). Nothing is deployed yet.
+
+## Android app
+
+`android/` is a [Capacitor](https://capacitorjs.com) wrapper around the web build (app ID `top.kcaron.goldline`).
+The APK is built by GitHub Actions (`.github/workflows/android.yml`), not on this PC:
+
+- **Actions → Android APK → Run workflow** builds an APK and attaches it to the run.
+- Pushing a tag such as `v0.1.1` (after bumping `package.json`) also publishes a release; the stable download link
+  is `https://github.com/kevincaron28/Trading-Wow/releases/latest/download/goldline.apk`.
+
+Signing: the release key lives outside the repo (`C:\Users\Kev\Desktop\wow-trading-signing`, keep it private and backed
+up). Until the repo has the `GOLDLINE_KEYSTORE_BASE64` and `GOLDLINE_KEYSTORE_PASSWORD` secrets, CI builds a
+debug-signed APK; switching to the release key later means uninstalling that preview once.
+
+Icons and splash screens come from `assets/` (`npx @capacitor/assets generate --android`).

@@ -7,3 +7,6 @@ coverage/
 .env.*
 .dev.vars
 *.log
+*.p12
+*.jks
+*.keystore
