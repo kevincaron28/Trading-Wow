@@ -1,0 +1,33 @@
+import { describe, expect, it } from "vitest";
+import { formatMoney, formatMoneyShort, percentChange, splitCopper } from "../src/lib/money";
+
+describe("money", () => {
+  it("splits copper into coins", () => {
+    expect(splitCopper(123_456)).toEqual({ negative: false, gold: 12, silver: 34, copper: 56 });
+    expect(splitCopper(-5)).toEqual({ negative: true, gold: 0, silver: 0, copper: 5 });
+  });
+
+  it("formats like the game in English and French", () => {
+    expect(formatMoney(123_456)).toBe("12g 34s 56c");
+    expect(formatMoney(120_000)).toBe("12g");
+    expect(formatMoney(10_005)).toBe("1g 5c");
+    expect(formatMoney(0)).toBe("0c");
+    expect(formatMoney(-250)).toBe("-2s 50c");
+    expect(formatMoney(123_456, "fr")).toBe("12po 34pa 56pc");
+    expect(formatMoney(25_000_000)).toBe("2,500g");
+    expect(formatMoney(25_000_000, "fr")).toBe("2 500po");
+  });
+
+  it("shortens axis labels", () => {
+    expect(formatMoneyShort(123_456)).toBe("12.35g");
+    expect(formatMoneyShort(123_456, "fr")).toBe("12,35po");
+    expect(formatMoneyShort(4_500)).toBe("45s");
+    expect(formatMoneyShort(80)).toBe("80c");
+    expect(formatMoneyShort(25_000_000)).toBe("2500g");
+  });
+
+  it("computes percent change", () => {
+    expect(percentChange(100, 110)).toBeCloseTo(10);
+    expect(percentChange(0, 10)).toBeNull();
+  });
+});

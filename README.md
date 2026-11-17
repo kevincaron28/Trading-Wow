@@ -1,13 +1,72 @@
-# WoW: Forever — Horde PvP Auction House TradingView Terminal
+# Goldline
 
-Pre-configured Docker Compose repository that automatically initializes PostgreSQL, applies the schema and crafting margin views (`v_latest_market_prices` and `v_live_crafting_margins`), pre-seeds 72 hours of US PvP Horde candlestick data, runs the Battle.net `dynamic-forever-us` poller, and serves the mobile TradingView PWA on port `8000`.
+Auction house price charts for **World of Warcraft Forever**: candles or lines per item, listed quantity,
+timeframes (1H, 4H, 1D, 1W), simple indicators (SMA 20, EMA 50), item search and a watchlist, in
+English and French.
 
-## Quick Start (Windows PowerShell)
-```powershell
-.\start-and-push.ps1
-```
-Or with Docker Compose directly:
+> **Status: first slice, sample data.** The charts run on generated prices until the Blizzard feed is
+> connected (see [docs/PLAN.md](docs/PLAN.md)). The page says so in a banner.
+
+Goldline is an original, independent fan project. It is not affiliated with Blizzard Entertainment.
+Charts use the open-source [Lightweight Charts](https://github.com/tradingview/lightweight-charts) library
+(Apache 2.0); its small attribution logo on the chart is required by that licence and stays.
+
+## Run it
+
+Needs Node 22 or newer.
+
 ```bash
-docker compose up -d --build
+npm install
+npm run dev        # http://localhost:5173
 ```
-Then open `http://localhost:8000` (or `http://<your-pc-ip>:8000` on your phone).
+
+Before calling anything done:
+
+```bash
+npm run typecheck
+npm test
+npm run build      # type check + production build into dist/
+```
+
+CI (`.github/workflows/ci.yml`) runs the same three on every pull request.
+
+## How it is built
+
+| Path | What |
+| --- | --- |
+| `src/lib/candles.ts` | Snapshot of listings → hourly price point → candles for any timeframe |
+| `src/lib/indicators.ts` | SMA and EMA |
+| `src/lib/money.ts` | Copper → `12g 34s 56c` / `12po 34pa 56pc` |
+| `src/lib/i18n.ts` | English and French texts (a test fails if a French text is missing) |
+| `src/data/source.ts` | `PriceSource` interface; today the sample source, later the live API |
+| `src/data/sample.ts` | Deterministic generated prices (same item + house = same chart) |
+| `src/data/items.ts` | Starter item list (EN/FR names) and accent-insensitive search |
+| `src/chart.ts` | The chart (price, listed quantity, indicator lines), light and dark themes |
+| `src/main.ts` | Page: search, realm/faction picker, timeframes, watchlist (saved in the browser) |
+| `scripts/probe-blizzard.mjs` | Read-only check of which Blizzard auction routes answer for Forever |
+| `docs/gemini-draft/` | The original Gemini draft, kept for reference (not used by the app) |
+
+### What the numbers mean
+
+The auction house shows **listings, not sales**. For each item and hourly snapshot Goldline keeps the
+lowest buyout, the **market price** (average of the cheapest 15% of the listed quantity, so one
+overpriced listing does not move it), the quantity listed and the number of auctions. Candles are
+built from the market price; each opens at the previous close. "Volume" is the average quantity
+listed, never quantity traded.
+
+## Blizzard API access (next step)
+
+1. Create a free client at <https://develop.battle.net/access/clients> (a separate one from Guilded's).
+2. Put the two values in a `.env` file at the repo root (gitignored, never committed):
+
+   ```
+   BNET_CLIENT_ID=...
+   BNET_CLIENT_SECRET=...
+   ```
+
+3. `npm run probe:blizzard` prints which Forever auction routes answer (statuses and field names only).
+
+## Hosting
+
+Planned on Cloudflare Pages: build command `npm run build`, output directory `dist`. Price history will
+live in a Cloudflare Worker with a D1 database (see the plan). Nothing is deployed yet.
