@@ -39,7 +39,8 @@ jobs:
       - name: Version
         run: |
           echo "GOLDLINE_VERSION_NAME=$(node -p "require('./package.json').version")" >> "$GITHUB_ENV"
-          echo "GOLDLINE_VERSION_CODE=$((100 + GITHUB_RUN_NUMBER))" >> "$GITHUB_ENV"
+          # Same code as the Play bundle: major*10000 + minor*100 + patch (0.6.0 -> 600), so APK installs update in place.
+          echo "GOLDLINE_VERSION_CODE=$(node -p "const [a,b,c]=require('./package.json').version.split('.').map(Number);a*10000+b*100+c")" >> "$GITHUB_ENV"
 
       - name: Build release APK (signed)
         if: env.HAS_KEY == 'true'
