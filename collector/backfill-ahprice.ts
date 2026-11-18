@@ -72,12 +72,25 @@ async function fetchAll(cacheDir: string, dataDir: string): Promise<void> {
   for (const { house } of MARKETS) latest.set(house, (JSON.parse(readFileSync(join(dataDir, "latest", `${house}.json`), "utf8")) as { items: Record<string, number[]> }).items);
   const order = itemOrder(latest);
   let requests = 0;
+  let failures = 0;
   for (const id of order) {
     for (const { market } of MARKETS) {
       const key = `${market}:${id}`;
       if (key in cache) continue;
       await new Promise((r) => setTimeout(r, GAP_MS));
-      const res = await fetch(`${API}/items/${id}/history?realm=${market}&days=${DAYS}`, { headers: { "user-agent": UA, accept: "application/json" } });
+      let res: Response;
+      try {
+        res = await fetch(`${API}/items/${id}/history?realm=${market}&days=${DAYS}`, { headers: { "user-agent": UA, accept: "application/json" }, signal: AbortSignal.timeout(30_000) });
+      } catch (error) {
+        // Network trouble (timeout, refused): wait 5 minutes, and stop after 5 in a row so the next run retries.
+        failures++;
+        console.log(`${key}: ${error instanceof Error ? error.message : String(error)} (${failures} in a row)`);
+        save();
+        if (failures >= 5) { console.log("site unreachable; stopping, resume later"); return; }
+        await new Promise((r) => setTimeout(r, 300_000));
+        continue;
+      }
+      failures = 0;
       requests++;
       const left = Number(res.headers.get("x-ratelimit-remaining-day") ?? "9999");
       if (res.status === 429) { console.log(`429 after ${requests} requests; stopping (resume later)`); return save(); }
@@ -90,7 +103,8 @@ async function fetchAll(cacheDir: string, dataDir: string): Promise<void> {
         console.log(`${key}: HTTP ${res.status} (will retry next run)`);
         if (res.status >= 500) await new Promise((r) => setTimeout(r, 60_000));
       }
-      if (requests % 25 === 0) { save(); console.log(`${new Date().toISOString().slice(11, 16)} ${requests} requests, ${Object.keys(cache).length} cached, day allowance left ${left}`); }
+      if (requests % 5 === 0) save();
+      if (requests % 25 === 0) { console.log(`${new Date().toISOString().slice(11, 16)} ${requests} requests, ${Object.keys(cache).length} cached, day allowance left ${left}`); }
       if (left < DAY_MARGIN) { console.log(`daily allowance nearly used (${left} left); stopping, resume tomorrow`); return save(); }
     }
   }
