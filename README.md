@@ -1,13 +1,76 @@
-# WoW: Forever — Horde PvP Auction House TradingView Terminal
+# Goldline
 
-Pre-configured Docker Compose repository that automatically initializes PostgreSQL, applies the schema and crafting margin views (`v_latest_market_prices` and `v_live_crafting_margins`), pre-seeds 72 hours of US PvP Horde candlestick data, runs the Battle.net `dynamic-forever-us` poller, and serves the mobile TradingView PWA on port `8000`.
+Live auction house price charts for **World of Warcraft Forever**, as a phone app (Android APK) and a web app,
+in English and French.
 
-## Quick Start (Windows PowerShell)
-```powershell
-.\start-and-push.ps1
-```
-Or with Docker Compose directly:
+- **Watchlists**: nine prebuilt lists (Flipping, Alchemy & Herbalism, Mining & Blacksmithing, Tailoring,
+  Leatherworking & Skinning, Enchanting, Engineering, Cooking & Fishing, Raid consumables) plus your own. Price,
+  24h change (% or gold), sort, edit, reset.
+- **Search**: every item seen on the Forever auction houses (~7,400), English or French names, item ID,
+  category filters, recent items, add to a list in one tap.
+- **Chart**: candles, bars, line, area or Heikin Ashi; 1H / 4H / 1D / 1W; listed quantity, SMA 20, EMA 50,
+  Bollinger bands, RSI and MACD panes; compare with another item (percent scale); market price or lowest buyout.
+- **Item details**: market price, lowest buyout, 24h change, 7-day average, quantity and auctions, and the same
+  item in the Alliance, Horde and Blackwater (neutral) houses after the house cut.
+- **Explore**: gainers, losers, most listed, below-average deals and a flip finder between your faction house
+  and the neutral house.
+- **Alerts**: price above/below, checked when the app opens and every 10 minutes while it is open; a phone
+  notification on Android.
+- Realm and faction picker (PvP and three other realm groups × Alliance / Horde / Blackwater), dark and light themes.
+
+Goldline is an independent fan project, not affiliated with Blizzard Entertainment. Charts use the open-source
+[Lightweight Charts](https://github.com/tradingview/lightweight-charts) library (Apache 2.0); its small
+attribution logo on the chart is required by that licence and stays.
+
+## Live data
+
+Prices come from Blizzard's official Game Data API for WoW Forever, collected hourly by `collector/` and
+published as JSON on the `data` branch, which the app reads. Details, verified routes and file formats:
+[docs/DATA.md](docs/DATA.md). The app contains no secret.
+
+To run the collection on GitHub instead of a PC, add two repository secrets (Settings → Secrets and variables →
+Actions): `BNET_CLIENT_ID` and `BNET_CLIENT_SECRET` from the "Goldline Forever" client at
+<https://develop.battle.net/access/clients>. `.github/workflows/collect.yml` then runs every hour (scheduled
+workflows run from `main`, so after this branch is merged).
+
+On a PC: put the same two values in a gitignored `.env`, check out the `data` branch next to the repo
+(`git worktree add ../wow-trading-data data`), then `bash collector/publish.sh ../wow-trading-data`.
+
+## Develop
+
+Needs Node 22+ (the collector uses Node 24's built-in TypeScript support).
+
 ```bash
-docker compose up -d --build
+npm install
+npm run dev
 ```
-Then open `http://localhost:8000` (or `http://<your-pc-ip>:8000` on your phone).
+
+Before calling anything done:
+
+```bash
+npm run typecheck
+npm test
+npm run build
+```
+
+CI runs the same on every pull request. `npm run probe:blizzard` re-checks which Blizzard routes answer.
+
+| Path | What |
+| --- | --- |
+| `src/ui/` | Preact screens: watchlist, search, chart, explore, alerts, menu |
+| `src/ui/chartEngine.ts` | Chart types, indicators, panes, comparison |
+| `src/app/store.ts` | Settings, watchlists, alerts (saved on the device) and the realm → house map |
+| `src/data/live.ts` | Reads the published data files |
+| `src/data/watchlists.ts` | Prebuilt lists (verified item IDs) and search categories |
+| `src/lib/` | Pure logic with tests: candles, indicators, explore (movers, deals, flips), alerts, money, i18n |
+| `collector/` | Hourly Blizzard collection and publishing |
+
+## Android app
+
+`android/` is a [Capacitor](https://capacitorjs.com) wrapper (app ID `top.kcaron.goldline`). GitHub Actions builds
+the APK (`.github/workflows/android.yml`); pushing a tag `vX.Y.Z` publishes it, and
+`https://github.com/kevincaron28/Trading-Wow/releases/latest/download/goldline.apk` always serves the newest one.
+
+Signing: the release key is kept outside the repo (`C:\Users\Kev\Desktop\wow-trading-signing`, private, back it
+up). Until the repo has the `GOLDLINE_KEYSTORE_BASE64` and `GOLDLINE_KEYSTORE_PASSWORD` secrets, CI builds a
+debug-signed APK; moving to the release key later means uninstalling once.

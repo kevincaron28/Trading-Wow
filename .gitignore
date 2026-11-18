@@ -1,0 +1,12 @@
+node_modules/
+dist/
+coverage/
+.wrangler/
+# Secrets: Battle.net client id/secret live here, never in git.
+.env
+.env.*
+.dev.vars
+*.log
+*.p12
+*.jks
+*.keystore
