@@ -2,7 +2,7 @@
  * One-time, polite backfill of daily price history from ahprice.com's public API (crowd-sourced scans from its addon),
  * used with the site's permission (owner, 18 Nov 2026). API only, never the HTML pages.
  *
- *   node collector/backfill-ahprice.ts fetch <cacheDir> <dataDir>     resumable; stops near the daily limit
+ *   node collector/backfill-ahprice.ts fetch <cacheDir> <dataDir> [--minutes N]   resumable; stops near the daily limit
  *   node collector/backfill-ahprice.ts write <cacheDir> <dataDir>     writes ext/ahprice/ into the data checkout
  *
  * One request every 7 seconds with a generic user agent, no personal data sent. It stops when the daily allowance
@@ -70,9 +70,22 @@ export function itemOrder(latest: Map<number, Record<string, number[]>>, extra: 
 
 type Cache = Record<string, ExtRow[] | null>; // "market:item" → rows (null = fetched, no data)
 
-async function fetchAll(cacheDir: string, dataDir: string): Promise<void> {
+/** Requests made per UTC day, kept next to the cache so runs on different machines share one daily allowance. */
+export interface Budget { day: string; used: number }
+export const DAILY_BUDGET = 1_900;
+export function budgetFor(saved: Budget | null, now = new Date()): Budget {
+  const day = now.toISOString().slice(0, 10);
+  return saved && saved.day === day ? saved : { day, used: 0 };
+}
+
+async function fetchAll(cacheDir: string, dataDir: string, maxMinutes = Infinity): Promise<void> {
   mkdirSync(cacheDir, { recursive: true });
   const cacheFile = join(cacheDir, "cache.json");
+  const budgetFile = join(cacheDir, "budget.json");
+  const doneFile = join(cacheDir, "done.json");
+  const stopAt = Date.now() + maxMinutes * 60_000;
+  let budget = budgetFor(existsSync(budgetFile) ? (JSON.parse(readFileSync(budgetFile, "utf8")) as Budget) : null);
+  if (budget.used >= DAILY_BUDGET) { console.log(`daily budget used (${budget.used} on ${budget.day}); nothing to do`); return; }
   const cache: Cache = existsSync(cacheFile) ? JSON.parse(readFileSync(cacheFile, "utf8")) : {};
   const latest = new Map<number, Record<string, number[]>>();
   for (const { house } of MARKETS) latest.set(house, (JSON.parse(readFileSync(join(dataDir, "latest", `${house}.json`), "utf8")) as { items: Record<string, number[]> }).items);
@@ -96,6 +109,9 @@ async function fetchAll(cacheDir: string, dataDir: string): Promise<void> {
     for (const { market } of MARKETS) {
       const key = `${market}:${id}`;
       if (key in cache || !wanted(market, id)) continue;
+      budget = budgetFor(budget);
+      if (budget.used >= DAILY_BUDGET) { console.log(`daily budget of ${DAILY_BUDGET} reached; stopping, resume tomorrow`); return save(); }
+      if (Date.now() >= stopAt) { console.log(`time limit reached after ${requests} requests; stopping, the next run resumes`); return save(); }
       await new Promise((r) => setTimeout(r, GAP_MS));
       let res: Response;
       try {
@@ -111,6 +127,7 @@ async function fetchAll(cacheDir: string, dataDir: string): Promise<void> {
       }
       failures = 0;
       requests++;
+      budget.used++;
       const left = Number(res.headers.get("x-ratelimit-remaining-day") ?? "9999");
       if (res.status === 429) { console.log(`429 after ${requests} requests; stopping (resume later)`); return save(); }
       if (res.status === 404) cache[key] = null;
@@ -129,7 +146,11 @@ async function fetchAll(cacheDir: string, dataDir: string): Promise<void> {
   }
   console.log("all items fetched");
   save();
-  function save(): void { writeFileSync(cacheFile, JSON.stringify(cache)); }
+  writeFileSync(doneFile, JSON.stringify({ done: new Date().toISOString(), entries: Object.keys(cache).length }));
+  function save(): void {
+    writeFileSync(cacheFile, JSON.stringify(cache));
+    writeFileSync(budgetFile, JSON.stringify(budget));
+  }
 }
 
 function writeExt(cacheDir: string, dataDir: string): void {
@@ -168,7 +189,8 @@ function writeExt(cacheDir: string, dataDir: string): void {
 const [mode, cacheDir, dataDir] = process.argv.slice(2);
 if (process.argv[1]?.endsWith("backfill-ahprice.ts")) {
   if (!cacheDir || !dataDir) throw new Error("usage: backfill-ahprice.ts fetch|write <cacheDir> <dataDir>");
-  if (mode === "fetch") await fetchAll(cacheDir, dataDir);
+  const minutesArg = process.argv.indexOf("--minutes");
+  if (mode === "fetch") await fetchAll(cacheDir, dataDir, minutesArg > 0 ? Number(process.argv[minutesArg + 1]) : Infinity);
   else if (mode === "write") writeExt(cacheDir, dataDir);
   else throw new Error(`unknown mode ${mode}`);
 }

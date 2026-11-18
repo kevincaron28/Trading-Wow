@@ -75,7 +75,19 @@ permission to search and record its price history (owner, 18 Nov 2026). `collect
 resumable backfill through its public API only (`/api/v1/items/{id}/history`, never the HTML pages): one request every
 7 seconds, a generic user agent, no personal data sent, and it stops when the site's daily allowance
 (`X-Ratelimit-Remaining-Day`, 2,000 per day) gets under 60 or on any 429, then resumes from its cache the next day.
-Order: every built-in watchlist item in every market first, then the most-listed items.
+Order: every built-in watchlist item in every market first, then the most-listed items, then every other item ahprice.com
+lists in that market.
+
+Since 18 Nov 2026 it runs on GitHub Actions (`.github/workflows/ahprice-backfill.yml`, every 3 hours, no secrets),
+not on the owner's PC. Each run:
+- resumes from the `backfill-state` branch: `cache.json`, plus `budget.json` with the requests per UTC day, so all
+  runs share one allowance of at most 1,900 a day;
+- fetches for up to 50 minutes with the same 7-second pacing and backoff;
+- saves its progress;
+- publishes `ext/ahprice` and `audit/coverage.json` with `collector/publish-ext.sh` (lease and retry, safe next to the
+  hourly collector).
+
+When every item is fetched it writes `done.json` and later runs do nothing.
 
 ahprice groups realms into markets (US and AU together). They were matched to Goldline's houses on 18 Nov 2026 by
 comparing current prices of 50 busy items (median gap 3–14%, RP Horde 29% but still the clear best):
