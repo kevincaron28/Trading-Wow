@@ -249,3 +249,32 @@ table.status { width: 100%; margin: 8px 0; }
   .row-price { font-size: 14px; }
   .row-price .money .g ~ .c { display: none; }
 }
+
+/* Explore > Browse: every item by auction house category */
+.mode-switch { padding: 4px 16px 8px; }
+.mode-switch .seg { width: 100%; }
+.browse-search { position: relative; display: flex; align-items: center; margin: 4px 16px 8px; }
+.browse-search input { flex: 1; min-width: 0; height: 42px; padding: 0 40px 0 38px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface); color: var(--text); font-size: 15px; }
+.browse-search input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+.browse-search .search-icon { position: absolute; left: 11px; top: 12px; color: var(--muted); pointer-events: none; }
+.browse-search .icon-btn { position: absolute; right: 2px; }
+.crumbs { display: flex; align-items: center; gap: 6px; padding: 0 12px 6px 8px; font-size: 13px; color: var(--muted); overflow-x: auto; white-space: nowrap; scrollbar-width: none; }
+.crumbs::-webkit-scrollbar { display: none; }
+.crumb, .crumb-back { background: none; border: 0; color: var(--muted); padding: 6px 2px; font: inherit; }
+.crumb-back { display: inline-grid; place-items: center; width: 34px; height: 34px; color: var(--text); }
+.crumb.on { color: var(--text); font-weight: 600; }
+.browse-tools { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 0 16px 8px; flex-wrap: wrap; }
+.toggle { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text); }
+.toggle input { width: 18px; height: 18px; accent-color: var(--accent); }
+.cat-list { list-style: none; margin: 0; padding: 0; }
+.cat-row { width: 100%; display: grid; grid-template-columns: 28px 1fr auto 18px; align-items: center; gap: 12px; min-height: 56px; padding: 8px 12px 8px 16px; background: none; border: 0; border-bottom: 1px solid var(--border); color: var(--text); text-align: left; font-size: 15px; }
+.cat-row:active { background: var(--surface); }
+.cat-row.all .cat-name { font-weight: 700; }
+.cat-icon { color: var(--accent); }
+.cat-icon.spacer { width: 24px; }
+.cat-count { color: var(--muted); font-variant-numeric: tabular-nums; font-size: 13px; }
+.browse-count { margin: 0; padding: 2px 16px 6px; }
+.vlist { position: relative; }
+.vrow { position: absolute; left: 0; right: 0; height: 64px; box-sizing: border-box; }
+.vrow .row-main { height: 63px; padding-top: 0; padding-bottom: 0; }
+.browse-search input::-webkit-search-cancel-button { -webkit-appearance: none; appearance: none; }

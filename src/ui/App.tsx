@@ -133,6 +133,9 @@ export function App() {
     };
   }, []);
 
+  // A new tab or a newly opened chart starts at the top (the scroll position of the previous screen does not carry over).
+  useEffect(() => { document.querySelector(".content")?.scrollTo({ top: 0 }); }, [s.tab, s.chartItem]);
+
   return (
     <div class="app">
       {offline && <p class="offline-bar" role="status">{t(s.lang, "offline")}</p>}

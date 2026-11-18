@@ -18,6 +18,7 @@ const PATHS: Record<string, string> = {
   star: "M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z",
   close: "M6 6l12 12M18 6 6 18",
   chevron: "M8 10l4 4 4-4",
+  chevronRight: "M10 7l5 5-5 5",
   check: "M5 12.5l4.5 4.5L19 7",
   layers: "M12 4 3 9l9 5 9-5zM3 14l9 5 9-5",
   compare: "M7 17 17 7M7 7h10v10",
@@ -40,7 +41,7 @@ export function ItemIcon({ item, meta, size = 34 }: { item: CatalogItem | undefi
   return src && failed !== src ? (
     <img class={`item-icon q${item?.quality ?? 1}`} src={src} width={size} height={size} alt="" loading="lazy" onError={() => setFailed(src)} />
   ) : (
-    <span class={`item-icon placeholder q${item?.quality ?? 1}`} style={{ width: size, height: size }}>
+    <span class={`item-icon placeholder q${item?.quality ?? 1}`} style={{ width: `${size}px`, height: `${size}px` }}>
       <svg width={Math.round(size * 0.6)} height={Math.round(size * 0.6)} viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
         <path d="M9 4h6l-1.5 3h-3z" /><path d="M10.5 7C6 9 4 13 4 16a4 4 0 0 0 4 4h8a4 4 0 0 0 4-4c0-3-2-7-6.5-9" /><path d="M12 11v6M10 12.5h3a1.2 1.2 0 0 1 0 2.4h-2a1.2 1.2 0 0 0 0 2.4h3" />
       </svg>
