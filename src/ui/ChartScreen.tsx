@@ -213,7 +213,7 @@ export function ChartScreen() {
           {earliest != null ? (
             <span class="history-since small">
               <b>{t(s.lang, "historySince")} {dateFmt(earliest)}</b>
-              <span class="muted"> · {sourceNames}</span>
+              <span class="muted">{sourceNames}</span>
               {earlierThanLive && !(daily && s.range === "all") && (
                 <button type="button" class="text-btn" onClick={() => setState({ timeframe: "1d", range: "all" })}>{t(s.lang, "showAllHistory")}</button>
               )}
