@@ -3,7 +3,7 @@ import { arbitrage, deals, mostListed, topMovers } from "../src/lib/explore";
 import type { Quote } from "../src/lib/quotes";
 
 const q = (id: number, o: Partial<Quote> = {}): Quote => ({
-  id, min: 100, market: 100, listed: 10, auctions: 5, prev24h: 100, avg7d: 100, ...o,
+  id, min: 100, market: 100, listed: 10, auctions: 5, prev24h: 100, avg7d: 100, soldPerDay: null, ...o,
 });
 
 describe("topMovers", () => {

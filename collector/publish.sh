@@ -24,6 +24,8 @@ cat > README.md <<'EOF'
 Published by the Goldline collector from Blizzard's WoW Forever auction house API, about once an hour.
 This branch is replaced on every update. File formats: docs/DATA.md on the main branch.
 EOF
+printf "state/
+" > .gitignore
 git add -A
 if git rev-parse -q --verify HEAD >/dev/null; then
   git commit -q --amend -m "Goldline data $(date -u +%Y-%m-%dT%H:%MZ)"

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { alertMet, evaluateAlerts, newAlertId, type PriceAlert } from "../src/lib/alerts";
 import type { Quote } from "../src/lib/quotes";
 
-const quote: Quote = { id: 7, min: 90, market: 100, listed: 5, auctions: 2, prev24h: null, avg7d: 100 };
+const quote: Quote = { id: 7, min: 90, market: 100, listed: 5, auctions: 2, prev24h: null, avg7d: 100, soldPerDay: null };
 const alert = (o: Partial<PriceAlert> = {}): PriceAlert => ({
   id: "a", itemId: 7, house: 1, field: "market", op: "above", price: 100, active: true, createdAt: 0, ...o,
 });

@@ -42,6 +42,13 @@ jobs:
         with:
           ref: data
           path: data-branch
+      # The previous snapshot's auction IDs (for estimated sales) are kept between runs, never published.
+      - uses: actions/cache@v4
+        if: steps.check.outputs.ok == 'true'
+        with:
+          path: data-branch/state
+          key: collect-state-${{ github.run_id }}
+          restore-keys: collect-state-
       - uses: actions/setup-node@v4
         if: steps.check.outputs.ok == 'true'
         with:

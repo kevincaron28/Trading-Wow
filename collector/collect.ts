@@ -10,7 +10,13 @@ import { mkdirSync, readFileSync, writeFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import {
   SHARDS,
+  SHARDS_V2,
   addPoint,
+  auctionState,
+  estimateSold,
+  shardOfV2,
+  type AuctionState,
+  type ItemHistory,
   emptyShard,
   latestRow,
   shardOf,
@@ -139,26 +145,43 @@ async function main(): Promise<void> {
       continue;
     }
 
-    // Update the history shards and the latest file.
-    const latest: Record<string, LatestRow> = {};
-    for (let s = 0; s < SHARDS; s++) {
-      const path = join(dataDir, "history", String(house.id), `${s}.json`);
-      const shard = readJson<Shard>(path, emptyShard());
-      for (const [id, point] of points) {
-        if (shardOf(id) !== s) continue;
-        shard.items[id] = addPoint(shard.items[id] ?? { h: [], d: [] }, point, time);
-      }
-      for (const [id, history] of Object.entries(shard.items)) {
-        // Items not listed this hour keep their history; their latest row shows the last time they were seen.
-        const row = latestRow(history);
-        if (row && history.h.at(-1)![0] * 3_600 > time - 3 * 86_400) latest[id] = row;
-      }
-      writeJson(path, shard);
+    // Load every item's history: the v2 layout (256 files) if present, else migrate from v1 (32 files).
+    const histories = new Map<string, ItemHistory>();
+    const v2Dir = join(dataDir, "h2", String(house.id));
+    const hasV2 = existsSync(join(v2Dir, "0.json"));
+    const shardFiles = hasV2
+      ? Array.from({ length: SHARDS_V2 }, (_, s) => join(v2Dir, `${s}.json`))
+      : Array.from({ length: SHARDS }, (_, s) => join(dataDir, "history", String(house.id), `${s}.json`));
+    for (const path of shardFiles) for (const [id, h] of Object.entries(readJson<Shard>(path, emptyShard()).items)) histories.set(id, h);
+
+    // Estimated sales since the previous snapshot (state kept next to the data, never published).
+    const statePath = join(dataDir, "state", `${house.id}.json`);
+    const prevState = readJson<{ t: number; a: AuctionState } | null>(statePath, null);
+    const sold = estimateSold(prevState?.a ?? null, prevState?.t ?? 0, auctions, time);
+    writeJson(statePath, { t: time, a: auctionState(auctions) });
+
+    for (const [id, point] of points) {
+      const key = String(id);
+      histories.set(key, addPoint(histories.get(key) ?? { h: [], d: [] }, point, time, sold ? (sold.get(id) ?? 0) : undefined));
     }
+
+    // Write both layouts and the latest file.
+    const latest: Record<string, LatestRow> = {};
+    const v1: Shard[] = Array.from({ length: SHARDS }, emptyShard);
+    const v2: Shard[] = Array.from({ length: SHARDS_V2 }, emptyShard);
+    for (const [id, history] of histories) {
+      v1[shardOf(Number(id))]!.items[id] = history;
+      v2[shardOfV2(Number(id))]!.items[id] = history;
+      // Items not listed this hour keep their history; their latest row shows the last time they were seen.
+      const row = latestRow(history);
+      if (row && history.h.at(-1)![0] * 3_600 > time - 3 * 86_400) latest[id] = row;
+    }
+    v1.forEach((shard, s) => writeJson(join(dataDir, "history", String(house.id), `${s}.json`), shard));
+    v2.forEach((shard, s) => writeJson(join(v2Dir, `${s}.json`), shard));
     writeJson(join(dataDir, "latest", `${house.id}.json`), { t: time, items: latest });
     const entry = { id: house.id, realm: house.realm, faction: house.faction, snapshot: time, lastModified, items: points.size };
     meta.houses = [...meta.houses.filter((h) => h.id !== house.id), entry].sort((a, b) => a.id - b.id);
-    log(`house ${house.id}: ${auctions.length} auctions, ${points.size} items @ ${new Date(time * 1000).toISOString()}`);
+    log(`house ${house.id}: ${auctions.length} auctions, ${points.size} items, sold ${sold ? [...sold.values()].reduce((a, b) => a + b, 0) : "n/a"} @ ${new Date(time * 1000).toISOString()}`);
   }
 
   // Catalog: names (en/fr), quality, class, subclass and icon for items not seen before.

@@ -44,7 +44,7 @@ describe("latestRow", () => {
   it("reports the newest point, the market 24h earlier and the 7-day average", () => {
     let h: ItemHistory = { h: [], d: [] };
     for (let i = 0; i <= 24; i++) h = addPoint(h, point(T0 + i * HOUR, i < 24 ? 100 : 130, 95, 7, 3));
-    expect(latestRow(h)).toEqual([95, 130, 7, 3, 100, 101]);
+    expect(latestRow(h)).toEqual([95, 130, 7, 3, 100, 101, -1]);
     expect(latestRow({ h: [], d: [] })).toBeNull();
   });
 
@@ -63,5 +63,31 @@ describe("helpers", () => {
 
   it("spreads items over shards", () => {
     expect(shardOf(13468)).toBe(13468 % 32);
+  });
+});
+
+import { auctionState, estimateSold, shardOfV2 } from "../collector/store";
+describe("estimated sales", () => {
+  const T = 1_800_000_000 - (1_800_000_000 % 3600);
+  it("counts long auctions that vanished and partly bought stacks, not short ones", () => {
+    const prev = auctionState([
+      { id: 1, item: { id: 10 }, quantity: 5, time_left: "LONG" },
+      { id: 2, item: { id: 10 }, quantity: 3, time_left: "SHORT" },
+      { id: 3, item: { id: 20 }, quantity: 20, time_left: "VERY_LONG" },
+      { id: 4, item: { id: 30 }, quantity: 1, time_left: "VERY_LONG" },
+    ]);
+    const sold = estimateSold(prev, T, [{ id: 3, item: { id: 20 }, quantity: 12 }, { id: 4, item: { id: 30 }, quantity: 1 }], T + 3600)!;
+    expect(sold.get(10)).toBe(5);
+    expect(sold.get(20)).toBe(8);
+    expect(sold.has(30)).toBe(false);
+  });
+  it("refuses snapshots too far apart and keeps sold in latest rows", () => {
+    expect(estimateSold({}, T, [], T + 3 * 3600)).toBeNull();
+    expect(estimateSold(null, 0, [], T)).toBeNull();
+    let h: ItemHistory = { h: [], d: [] };
+    h = addPoint(h, point(T0, 100), T0, 4);
+    h = addPoint(h, point(T0 + HOUR, 100), T0 + HOUR, 6);
+    expect(latestRow(h)![6]).toBe(10);
+    expect(shardOfV2(13468)).toBe(13468 % 256);
   });
 });

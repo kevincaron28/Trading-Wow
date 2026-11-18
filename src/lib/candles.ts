@@ -21,6 +21,8 @@ export interface PricePoint {
   listed: number;
   /** Number of separate auctions. */
   auctions: number;
+  /** Estimated quantity sold since the previous snapshot, when known. */
+  sold?: number;
 }
 
 export interface Candle {

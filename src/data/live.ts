@@ -8,6 +8,7 @@ import type { Lang } from "../lib/i18n";
 
 export const DATA_BASE = (import.meta.env.VITE_DATA_BASE as string | undefined) ?? "https://raw.githubusercontent.com/kevincaron28/Trading-Wow/data/";
 const SHARDS = 32;
+const SHARDS_V2 = 256;
 const HOUR = 3_600;
 const DAY = 86_400;
 
@@ -55,13 +56,61 @@ const cache = new Map<string, Promise<unknown>>();
 const MAX_AGE_MS = 10 * 60_000;
 const fetchedAt = new Map<string, number>();
 
+/** Files kept on the device so the app still shows the last prices offline. */
+const OFFLINE_PREFIX = "goldline:file:";
+const offlineWorthy = (path: string) => path === "meta.json" || path === "items.json" || path.startsWith("latest/");
+let offline = false;
+const offlineListeners = new Set<(offline: boolean) => void>();
+export function isOffline(): boolean {
+  return offline;
+}
+export function onOfflineChange(fn: (offline: boolean) => void): () => void {
+  offlineListeners.add(fn);
+  return () => offlineListeners.delete(fn);
+}
+function setOffline(value: boolean): void {
+  if (value === offline) return;
+  offline = value;
+  offlineListeners.forEach((fn) => fn(value));
+}
+function saveOffline(path: string, text: string): void {
+  if (!offlineWorthy(path) || text.length > 1_500_000) return;
+  try {
+    localStorage.setItem(OFFLINE_PREFIX + path, text);
+  } catch {
+    // Storage full: drop older price files and keep going without an offline copy.
+    try {
+      for (const key of Object.keys(localStorage)) if (key.startsWith(OFFLINE_PREFIX + "latest/")) localStorage.removeItem(key);
+    } catch {
+      /* ignore */
+    }
+  }
+}
+function readOffline(path: string): string | null {
+  try {
+    return localStorage.getItem(OFFLINE_PREFIX + path);
+  } catch {
+    return null;
+  }
+}
+
 async function getJson<T>(path: string, fresh = false): Promise<T> {
   const age = Date.now() - (fetchedAt.get(path) ?? 0);
   if (!fresh && cache.has(path) && age < MAX_AGE_MS) return cache.get(path) as Promise<T>;
-  const promise = fetch(`${DATA_BASE}${path}?t=${Math.floor(Date.now() / MAX_AGE_MS)}`).then((res) => {
-    if (!res.ok) throw new Error(`${path}: HTTP ${res.status}`);
-    return res.json() as Promise<T>;
-  });
+  const promise = fetch(`${DATA_BASE}${path}?t=${Math.floor(Date.now() / MAX_AGE_MS)}`)
+    .then(async (res) => {
+      if (!res.ok) throw new Error(`${path}: HTTP ${res.status}`);
+      const text = await res.text();
+      saveOffline(path, text);
+      setOffline(false);
+      return JSON.parse(text) as T;
+    })
+    .catch((error: unknown) => {
+      const saved = offlineWorthy(path) ? readOffline(path) : null;
+      if (saved == null) throw error;
+      setOffline(true);
+      return JSON.parse(saved) as T;
+    });
   cache.set(path, promise);
   fetchedAt.set(path, Date.now());
   promise.catch(() => cache.delete(path));
@@ -104,18 +153,20 @@ export function parseLatest(items: Record<string, LatestRow>): Map<number, Quote
   return map;
 }
 
-type HourRow = [number, number, number, number, number];
+type HourRow = [number, number, number, number, number, number?];
 type DayRow = [number, number, number, number, number, number, number];
 
 export async function loadHistory(house: number, itemId: number): Promise<ItemHistory> {
-  const shard = await getJson<{ items: Record<string, { h: HourRow[]; d: DayRow[] }> }>(`history/${house}/${itemId % SHARDS}.json`);
+  type ShardFile = { items: Record<string, { h: HourRow[]; d: DayRow[] }> };
+  // v2 layout (256 small files per house); older data only has the v1 layout (32 files).
+  const shard = await getJson<ShardFile>(`h2/${house}/${itemId % SHARDS_V2}.json`).catch(() => getJson<ShardFile>(`history/${house}/${itemId % SHARDS}.json`));
   return parseHistory(shard.items[itemId]);
 }
 
 export function parseHistory(raw: { h: HourRow[]; d: DayRow[] } | undefined): ItemHistory {
   if (!raw) return { hourly: [], daily: [] };
   return {
-    hourly: raw.h.map((r) => ({ time: r[0] * HOUR, minBuyout: r[1], market: r[2], listed: r[3], auctions: r[4] })),
+    hourly: raw.h.map((r) => (r[5] == null ? { time: r[0] * HOUR, minBuyout: r[1], market: r[2], listed: r[3], auctions: r[4] } : { time: r[0] * HOUR, minBuyout: r[1], market: r[2], listed: r[3], auctions: r[4], sold: r[5] })),
     daily: raw.d.map((r) => ({ time: r[0] * DAY, open: r[1], high: r[2], low: r[3], close: r[4], volume: r[5] })),
   };
 }

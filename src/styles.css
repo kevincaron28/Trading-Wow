@@ -206,3 +206,13 @@ table.status { width: 100%; margin: 8px 0; }
 @media (min-width: 761px) {
   .app { border-left: 1px solid var(--border); border-right: 1px solid var(--border); }
 }
+
+/* First-run setup */
+.onboarding { display: flex; align-items: center; justify-content: center; }
+.onboarding-body { width: 100%; max-width: 440px; padding: 24px 20px calc(24px + var(--safe-b)); display: flex; flex-direction: column; gap: 10px; }
+.onboarding-body h1 { margin: 4px 0 0; font-size: 24px; }
+.onboarding-body p { margin: 0; }
+.onboarding-body .sheet-label { margin: 14px 0 0; }
+.onboarding-mark { width: 56px; height: 56px; color: var(--accent); }
+.onboarding-notes { margin: 8px 0 0; padding-left: 18px; color: var(--muted); font-size: 13.5px; display: flex; flex-direction: column; gap: 6px; }
+.offline-bar { margin: 0; padding: 6px 16px; background: var(--surface-2); color: var(--muted); font-size: 12.5px; border-bottom: 1px solid var(--border); }

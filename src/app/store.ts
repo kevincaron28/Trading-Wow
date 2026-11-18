@@ -36,11 +36,18 @@ export interface State {
   activeList: string;
   alerts: PriceAlert[];
   recent: number[];
+  /** Horizontal price lines drawn on charts, per item ID (copper). */
+  drawings: Record<string, number[]>;
+  /** Chart range: how much history is shown ("all" = everything loaded). */
+  range: "1d" | "1w" | "1m" | "3m" | "1y" | "all";
+  logScale: boolean;
+  /** First-run setup finished. */
+  onboarded: boolean;
 }
 
 const KEY = "goldline:v2";
 const PERSISTED: (keyof State)[] = [
-  "lang", "realm", "faction", "theme", "chartItem", "timeframe", "chartType", "indicators", "priceField", "changeMode", "watchlists", "activeList", "alerts", "recent",
+  "lang", "realm", "faction", "theme", "chartItem", "timeframe", "chartType", "indicators", "priceField", "changeMode", "watchlists", "activeList", "alerts", "recent", "drawings", "range", "logScale", "onboarded",
 ];
 
 function initial(): State {
@@ -62,6 +69,10 @@ function initial(): State {
     activeList: "flipping",
     alerts: [],
     recent: [],
+    drawings: {},
+    range: "all",
+    logScale: false,
+    onboarded: false,
   };
   const saved = readJson<Partial<State>>(KEY, {});
   const merged = { ...base, ...pick(saved) };
@@ -122,5 +133,29 @@ export function toggleInList(listId: string, itemId: number): void {
     watchlists: s.watchlists.map((w) =>
       w.id !== listId ? w : { ...w, items: w.items.includes(itemId) ? w.items.filter((id) => id !== itemId) : [...w.items, itemId] },
     ),
+  }));
+}
+
+/** Move one item inside a watchlist (indices into its items array). */
+export function reorderInList(listId: string, from: number, to: number): void {
+  setState((s) => ({
+    watchlists: s.watchlists.map((w) => {
+      if (w.id !== listId || from === to || from < 0 || from >= w.items.length) return w;
+      const items = [...w.items];
+      const [moved] = items.splice(from, 1);
+      items.splice(Math.max(0, Math.min(items.length, to)), 0, moved!);
+      return { ...w, items };
+    }),
+  }));
+}
+
+/** Copy an item to another list (appended when missing); with `move`, also remove it from the source list. */
+export function copyToList(fromListId: string, toListId: string, itemId: number, move = false): void {
+  setState((s) => ({
+    watchlists: s.watchlists.map((w) => {
+      if (w.id === toListId && !w.items.includes(itemId)) return { ...w, items: [...w.items, itemId] };
+      if (move && w.id === fromListId && w.id !== toListId) return { ...w, items: w.items.filter((id) => id !== itemId) };
+      return w;
+    }),
   }));
 }

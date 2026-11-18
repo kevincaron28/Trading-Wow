@@ -19,7 +19,7 @@ describe("data files", () => {
     expect(catalog.get(2589)!.name.fr).toBe("Linen Cloth");
 
     const quotes = parseLatest({ "13468": [120000, 122577, 213, 39, 0, 122577] });
-    expect(quotes.get(13468)).toEqual({ id: 13468, min: 120000, market: 122577, listed: 213, auctions: 39, prev24h: null, avg7d: 122577 });
+    expect(quotes.get(13468)).toEqual({ id: 13468, min: 120000, market: 122577, listed: 213, auctions: 39, prev24h: null, avg7d: 122577, soldPerDay: null });
 
     const history = parseHistory({ h: [[T0 / HOUR, 90, 100, 5, 2]], d: [[T0 / 86400, 100, 110, 95, 105, 6, 90]] });
     expect(history.hourly[0]).toEqual({ time: T0, minBuyout: 90, market: 100, listed: 5, auctions: 2 });

@@ -10,11 +10,13 @@ export const DAY = 86_400;
 export const HOURLY_KEEP_SECONDS = 14 * DAY;
 /** Daily candles kept per item. */
 export const DAILY_KEEP_SECONDS = 730 * DAY;
-/** Items are split into this many history files per house (itemId % SHARDS). */
+/** Version-1 layout (`history/`): itemId % 32. Still written so the 0.2 app keeps working. */
 export const SHARDS = 32;
+/** Version-2 layout (`h2/`): itemId % 256, so one chart downloads about 1/256 of a house. */
+export const SHARDS_V2 = 256;
 
-/** Hourly row: [hour index, min buyout, market, listed qty, auctions]. Hour index = unix seconds / 3600. */
-export type HourRow = [number, number, number, number, number];
+/** Hourly row: [hour index, min buyout, market, listed qty, auctions, estimated sold qty?]. Hour index = unix seconds / 3600. */
+export type HourRow = [number, number, number, number, number, number?];
 /** Daily row: [day index, open, high, low, close, avg listed qty, lowest min buyout]. Day index = unix seconds / 86400. */
 export type DayRow = [number, number, number, number, number, number, number];
 
@@ -36,8 +38,14 @@ export function shardOf(itemId: number): number {
   return itemId % SHARDS;
 }
 
+export function shardOfV2(itemId: number): number {
+  return itemId % SHARDS_V2;
+}
+
 /** Raw Blizzard auction row (item auctions and commodities share this shape loosely). */
 export interface RawAuction {
+  id?: number;
+  time_left?: string;
   item: { id: number };
   quantity?: number;
   unit_price?: number;
@@ -64,9 +72,9 @@ export function summarizeHouse(time: number, auctions: readonly RawAuction[]): M
 }
 
 /** Add one snapshot point to an item's history: replaces the same hour, prunes old hours, refreshes that day's candle. */
-export function addPoint(history: ItemHistory, point: PricePoint, now: number = point.time): ItemHistory {
+export function addPoint(history: ItemHistory, point: PricePoint, now: number = point.time, sold?: number): ItemHistory {
   const hourIndex = Math.floor(point.time / HOUR);
-  const row: HourRow = [hourIndex, point.minBuyout, point.market, point.listed, point.auctions];
+  const row: HourRow = sold == null ? [hourIndex, point.minBuyout, point.market, point.listed, point.auctions] : [hourIndex, point.minBuyout, point.market, point.listed, point.auctions, sold];
   const minHour = Math.floor((now - HOURLY_KEEP_SECONDS) / HOUR);
   const h = history.h.filter((r) => r[0] !== hourIndex && r[0] > minHour);
   h.push(row);
@@ -92,8 +100,8 @@ export function addPoint(history: ItemHistory, point: PricePoint, now: number = 
   return { h, d };
 }
 
-/** Latest row per item for the house's latest file: [min, market, listed, auctions, market 24h ago | 0, 7-day avg market]. */
-export type LatestRow = [number, number, number, number, number, number];
+/** Latest row per item: [min, market, listed, auctions, market 24h ago | 0, 7-day avg market, estimated sold in the last 24h | -1 unknown]. */
+export type LatestRow = [number, number, number, number, number, number, number];
 
 export function latestRow(history: ItemHistory): LatestRow | null {
   const last = history.h.at(-1);
@@ -101,7 +109,10 @@ export function latestRow(history: ItemHistory): LatestRow | null {
   const dayAgo = [...history.h].reverse().find((r) => r[0] <= last[0] - 24);
   const week = history.h.filter((r) => r[0] > last[0] - 24 * 7);
   const avg = Math.round(week.reduce((s, r) => s + r[2], 0) / week.length);
-  return [last[1], last[2], last[3], last[4], dayAgo ? dayAgo[2] : 0, avg];
+  const day = history.h.filter((r) => r[0] > last[0] - 24);
+  const known = day.filter((r) => r[5] != null);
+  const sold = known.length === 0 ? -1 : known.reduce((s, r) => s + (r[5] ?? 0), 0);
+  return [last[1], last[2], last[3], last[4], dayAgo ? dayAgo[2] : 0, avg, sold];
 }
 
 /** Mark items that vanished from the house this hour: they keep their history but get no new point. */
@@ -109,4 +120,34 @@ export function snapshotHour(lastModified: string | null, fallback: number): num
   const parsed = lastModified ? Date.parse(lastModified) / 1000 : NaN;
   const t = Number.isFinite(parsed) ? parsed : fallback;
   return Math.floor(t / HOUR) * HOUR;
+}
+
+/** Previous snapshot of a house: auction id -> [item id, quantity, time-left code]. */
+export type AuctionState = Record<string, [number, number, number]>;
+const TIME_LEFT: Record<string, number> = { SHORT: 0, MEDIUM: 1, LONG: 2, VERY_LONG: 3 };
+
+export function auctionState(auctions: readonly RawAuction[]): AuctionState {
+  const out: AuctionState = {};
+  for (const a of auctions) if (a.id != null && a.item?.id) out[a.id] = [a.item.id, a.quantity ?? 1, TIME_LEFT[a.time_left ?? ""] ?? 0];
+  return out;
+}
+
+/**
+ * Estimated quantity sold per item between two snapshots: auctions that disappeared although they had at least
+ * 2 hours left (LONG or VERY_LONG) were bought or cancelled, not expired. Partly bought commodity stacks count the
+ * missing quantity. Returns null when the snapshots are too far apart to compare.
+ */
+export function estimateSold(previous: AuctionState | null, previousTime: number, auctions: readonly RawAuction[], time: number): Map<number, number> | null {
+  if (!previous || time - previousTime <= 0 || time - previousTime > 2 * HOUR) return null;
+  const now = new Map<number, number>();
+  for (const a of auctions) if (a.id != null) now.set(a.id, a.quantity ?? 1);
+  const sold = new Map<number, number>();
+  for (const [id, [item, qty, left]] of Object.entries(previous)) {
+    const current = now.get(Number(id));
+    let gone = 0;
+    if (current == null) gone = left >= 2 ? qty : 0;
+    else if (current < qty) gone = qty - current;
+    if (gone > 0) sold.set(item, (sold.get(item) ?? 0) + gone);
+  }
+  return sold;
 }

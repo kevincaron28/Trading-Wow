@@ -1,5 +1,11 @@
 # Goldline 0.2.0 review and ranked improvements (18 November 2026)
 
+**0.3.0 (18 Nov) did:** #2 (256-file history, live since 12:35 UTC), #3 onboarding, #4 estimated sales per day (live from
+the 13:35 UTC snapshot; Top sellers in Explore, Sold / day on the chart), #6 offline cache (pull-to-refresh not done),
+#7 watchlist drag/swipe/long-press, #8 horizontal price lines with alert-at-line, #14 chart screen-reader label, #16
+ranges and log scale; the APK on GitHub is now signed with the upload key. Still open: #1 and #13 (owner secrets), #5
+background alerts, #9 realm names, #10 gear variants, #11 crafting margins, #12 store polish, #15 widget/share.
+
 Measured on the live app and data: 12 houses collected hourly since 02:00 UTC with no gap (10 snapshots by
 11:00 UTC); app JS 250 KB (83 KB gzip); first load fetches `items.json` 549 KB (138 KB gzip) and one
 `latest` file 224 KB (77 KB gzip); a chart opens one history shard, 58 KB now but about 2 MB raw / 450 KB gzip once

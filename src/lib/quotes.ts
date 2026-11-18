@@ -13,13 +13,15 @@ export interface Quote {
   prev24h: number | null;
   /** Average market price over the last 7 days (or since collection started). */
   avg7d: number;
+  /** Estimated quantity sold in the last 24 hours (auctions bought or cancelled before expiring), or null when unknown. */
+  soldPerDay: number | null;
 }
 
-/** Latest file row: [min, market, listed, auctions, market 24h ago | 0, 7-day average]. */
-export type LatestRow = [number, number, number, number, number, number];
+/** Latest file row: [min, market, listed, auctions, market 24h ago | 0, 7-day average, sold last 24h | -1 (newer files)]. */
+export type LatestRow = [number, number, number, number, number, number, number?];
 
 export function toQuote(id: number, row: LatestRow): Quote {
-  return { id, min: row[0], market: row[1], listed: row[2], auctions: row[3], prev24h: row[4] > 0 ? row[4] : null, avg7d: row[5] };
+  return { id, min: row[0], market: row[1], listed: row[2], auctions: row[3], prev24h: row[4] > 0 ? row[4] : null, avg7d: row[5], soldPerDay: row[6] != null && row[6] >= 0 ? row[6] : null };
 }
 
 /** 24h change of the market price in percent, or null. */

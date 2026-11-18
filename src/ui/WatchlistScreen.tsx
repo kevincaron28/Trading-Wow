@@ -1,9 +1,12 @@
-import { useMemo, useState } from "preact/hooks";
+import "./watchlist.css";
+import type { ComponentChildren } from "preact";
+import { useEffect, useMemo, useRef, useState } from "preact/hooks";
+import type { Lang } from "../lib/i18n";
 import { houseUpdated } from "../data/live";
 import { BUILT_IN_WATCHLISTS } from "../data/watchlists";
 import { t } from "../lib/i18n";
 import { change24h } from "../lib/quotes";
-import { REALM_GROUPS, activeWatchlist, houseId, openChart, setState, toggleInList, useStore } from "../app/store";
+import { REALM_GROUPS, activeWatchlist, copyToList, houseId, openChart, reorderInList, setState, toggleInList, useStore } from "../app/store";
 import { bumpRefresh, useCatalog, useMeta, useQuotes } from "./data";
 import { ChangePill, ErrorMsg, Icon, ItemIcon, Loading, Money, Sheet, relativeTime } from "./parts";
 
@@ -54,6 +57,26 @@ export function WatchlistScreen({ onSearch }: { onSearch: () => void }) {
   const [sort, setSort] = useState<Sort>("list");
   const [editing, setEditing] = useState(false);
   const [picker, setPicker] = useState(false);
+  const [openId, setOpenId] = useState<number | null>(null);
+  const [menu, setMenu] = useState<{ id: number; name: string; step: "root" | "move" | "copy" } | null>(null);
+  const [drag, setDrag] = useState<{ from: number; dy: number; h: number } | null>(null);
+  const dragStart = useRef(0);
+  const canReorder = sort === "list";
+  const dropIndex = drag ? Math.max(0, Math.min(list.items.length - 1, drag.from + Math.round(drag.dy / drag.h))) : 0;
+  const endDrag = () => {
+    if (drag && dropIndex !== drag.from) reorderInList(list.id, drag.from, dropIndex);
+    setDrag(null);
+  };
+
+  useEffect(() => {
+    if (openId === null) return;
+    const onDown = (e: PointerEvent) => {
+      const el = (e.target as HTMLElement | null)?.closest?.("[data-wl]");
+      if (!el || el.getAttribute("data-wl") !== String(openId)) setOpenId(null);
+    };
+    document.addEventListener("pointerdown", onDown, true);
+    return () => document.removeEventListener("pointerdown", onDown, true);
+  }, [openId]);
 
   const rows = useMemo(() => {
     const items = list.items.map((id) => ({ id, item: catalog.data?.get(id), quote: quotes.data?.get(id) }));
@@ -102,25 +125,72 @@ export function WatchlistScreen({ onSearch }: { onSearch: () => void }) {
         <p class="state-msg">{t(s.lang, "emptyList")}</p>
       ) : (
         <ul class="rows">
-          {rows.map(({ id, item, quote }) => {
+          {rows.map(({ id, item, quote }, i) => {
             const pct = quote ? change24h(quote) : null;
             const abs = quote?.prev24h ? quote.market - quote.prev24h : null;
+            const name = item?.name[s.lang] ?? `#${id}`;
+            let shift = 0;
+            if (drag) {
+              if (i === drag.from) shift = drag.dy;
+              else if (drag.from < dropIndex && i > drag.from && i <= dropIndex) shift = -drag.h;
+              else if (drag.from > dropIndex && i >= dropIndex && i < drag.from) shift = drag.h;
+            }
             return (
-              <li key={id} class="row">
-                <button type="button" class="row-main" onClick={() => !editing && openChart(id)}>
-                  <ItemIcon item={item} meta={meta.data} />
-                  <span class="row-name">
-                    <span class={`name q${item?.quality ?? 1}`}>{item?.name[s.lang] ?? `#${id}`}</span>
-                    <span class="sub">{quote ? `${quote.listed.toLocaleString(s.lang === "fr" ? "fr-CA" : "en-US")} · ${quote.auctions}` : t(s.lang, "notListed")}</span>
-                  </span>
-                  <span class="row-price"><Money copper={quote?.[s.priceField]} lang={s.lang} short /></span>
-                  <ChangePill pct={pct} abs={abs} mode={s.changeMode} lang={s.lang} />
-                </button>
-                {editing && (
-                  <button type="button" class="icon-btn danger" onClick={() => toggleInList(list.id, id)} aria-label={t(s.lang, "remove")}>
-                    <Icon name="trash" size={20} />
+              <li key={id} data-wl={id} class={`wl-row${drag && i === drag.from ? " dragging" : drag ? " shifting" : ""}`}>
+                {!editing && (
+                  <button type="button" class="wl-under" tabIndex={openId === id ? 0 : -1} onClick={() => toggleInList(list.id, id)}>
+                    {L[s.lang].remove}
                   </button>
                 )}
+                <SwipeRow
+                  editing={editing}
+                  open={openId === id}
+                  shiftY={shift}
+                  onOpen={(o) => setOpenId(o ? id : null)}
+                  onRemove={() => toggleInList(list.id, id)}
+                  onMenu={() => { setOpenId(null); setMenu({ id, name, step: "root" }); }}
+                  onTap={() => openChart(id)}
+                >
+                  {editing && canReorder && (
+                    <>
+                      <button
+                        type="button"
+                        class="wl-handle"
+                        aria-label={L[s.lang].reorder}
+                        onPointerDown={(e) => {
+                          if (e.button !== 0) return;
+                          const h = e.currentTarget.closest("li")?.offsetHeight ?? 56;
+                          e.currentTarget.setPointerCapture(e.pointerId);
+                          dragStart.current = e.clientY;
+                          setDrag({ from: i, dy: 0, h });
+                        }}
+                        onPointerMove={(e) => drag && setDrag({ ...drag, dy: e.clientY - dragStart.current })}
+                        onPointerUp={endDrag}
+                        onPointerCancel={() => setDrag(null)}
+                      >
+                        <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 8h16M4 12h16M4 16h16" /></svg>
+                      </button>
+                      <span class="wl-move">
+                        <button type="button" aria-label={L[s.lang].up} disabled={i === 0} onClick={() => reorderInList(list.id, i, i - 1)}>▲</button>
+                        <button type="button" aria-label={L[s.lang].down} disabled={i === rows.length - 1} onClick={() => reorderInList(list.id, i, i + 1)}>▼</button>
+                      </span>
+                    </>
+                  )}
+                  <button type="button" class="row-main" data-main>
+                    <ItemIcon item={item} meta={meta.data} />
+                    <span class="row-name">
+                      <span class={`name q${item?.quality ?? 1}`}>{name}</span>
+                      <span class="sub">{quote ? `${quote.listed.toLocaleString(s.lang === "fr" ? "fr-CA" : "en-US")} · ${quote.auctions}` : t(s.lang, "notListed")}</span>
+                    </span>
+                    <span class="row-price"><Money copper={quote?.[s.priceField]} lang={s.lang} short /></span>
+                    <ChangePill pct={pct} abs={abs} mode={s.changeMode} lang={s.lang} />
+                  </button>
+                  {editing && (
+                    <button type="button" class="icon-btn danger" onClick={() => toggleInList(list.id, id)} aria-label={t(s.lang, "remove")}>
+                      <Icon name="trash" size={20} />
+                    </button>
+                  )}
+                </SwipeRow>
               </li>
             );
           })}
@@ -149,6 +219,29 @@ export function WatchlistScreen({ onSearch }: { onSearch: () => void }) {
           )}
         </div>
       )}
+      {menu && (
+        <Sheet title={menu.name} onClose={() => setMenu(null)}>
+          {menu.step === "root" ? (
+            <ul class="menu-list">
+              <li><button type="button" onClick={() => { openChart(menu.id); setMenu(null); }}>{L[s.lang].open}</button></li>
+              <li><button type="button" onClick={() => setMenu({ ...menu, step: "move" })}>{L[s.lang].moveTo}</button></li>
+              <li><button type="button" onClick={() => setMenu({ ...menu, step: "copy" })}>{L[s.lang].copyTo}</button></li>
+              <li><button type="button" class="danger" onClick={() => { toggleInList(list.id, menu.id); setMenu(null); }}>{L[s.lang].remove}</button></li>
+            </ul>
+          ) : (
+            <ul class="menu-list">
+              {s.watchlists.filter((w) => w.id !== list.id).map((w) => (
+                <li key={w.id}>
+                  <button type="button" onClick={() => { copyToList(list.id, w.id, menu.id, menu.step === "move"); setMenu(null); }}>
+                    <span>{w.name[s.lang]}</span>
+                    <span class="muted">{w.items.includes(menu.id) ? "✓" : w.items.length}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Sheet>
+      )}
       {picker && (
         <Sheet title={t(s.lang, "lists")} onClose={() => setPicker(false)}>
           <ul class="menu-list">
@@ -175,5 +268,90 @@ export function WatchlistScreen({ onSearch }: { onSearch: () => void }) {
         </Sheet>
       )}
     </section>
+  );
+}
+
+const L: Record<Lang, Record<"remove" | "reorder" | "up" | "down" | "open" | "moveTo" | "copyTo", string>> = {
+  en: { remove: "Remove", reorder: "Reorder", up: "Move up", down: "Move down", open: "Open chart", moveTo: "Move to list…", copyTo: "Copy to list…" },
+  fr: { remove: "Retirer", reorder: "Réordonner", up: "Monter", down: "Descendre", open: "Ouvrir le graphique", moveTo: "Déplacer vers la liste…", copyTo: "Copier vers la liste…" },
+};
+
+const REVEAL = 80;
+const REMOVE_AT = 140;
+
+/** Row wrapper: swipe left to reveal Remove, long-press / right-click for the menu, tap opens the chart. */
+function SwipeRow(props: {
+  editing: boolean;
+  open: boolean;
+  shiftY: number;
+  onOpen: (open: boolean) => void;
+  onRemove: () => void;
+  onMenu: () => void;
+  onTap: () => void;
+  children: ComponentChildren;
+}) {
+  const { editing, open, shiftY, onOpen, onRemove, onMenu, onTap, children } = props;
+  const g = useRef({ x: 0, y: 0, mode: "none" as "none" | "pending" | "swipe", timer: 0, suppress: false });
+  const [dx, setDx] = useState<number | null>(null);
+  const base = open ? -REVEAL : 0;
+  const x = editing ? 0 : dx ?? base;
+  const clear = () => window.clearTimeout(g.current.timer);
+
+  return (
+    <div
+      class="row"
+      style={{ transform: `translate(${x}px, ${shiftY}px)`, transition: dx !== null ? "none" : undefined }}
+      onPointerDown={(e) => {
+        if (editing || e.button !== 0) return;
+        const gs = g.current;
+        gs.x = e.clientX; gs.y = e.clientY; gs.mode = "pending"; gs.suppress = false;
+        clear();
+        gs.timer = window.setTimeout(() => {
+          if (gs.mode === "pending") { gs.mode = "none"; gs.suppress = true; onMenu(); }
+        }, 500);
+      }}
+      onPointerMove={(e) => {
+        const gs = g.current;
+        if (gs.mode === "none") return;
+        const mx = e.clientX - gs.x;
+        const my = e.clientY - gs.y;
+        if (gs.mode === "pending") {
+          if (Math.abs(mx) > 10 && Math.abs(mx) > Math.abs(my)) {
+            gs.mode = "swipe"; clear();
+            e.currentTarget.setPointerCapture(e.pointerId);
+          } else if (Math.abs(my) > 10 || Math.abs(mx) > 10) { gs.mode = "none"; clear(); }
+          return;
+        }
+        setDx(Math.max(-REMOVE_AT - 60, Math.min(0, base + mx)));
+      }}
+      onPointerUp={() => {
+        const gs = g.current;
+        clear();
+        if (gs.mode === "swipe") {
+          gs.suppress = true;
+          const final = dx ?? base;
+          setDx(null);
+          if (final <= -REMOVE_AT) onRemove();
+          else onOpen(final < -REVEAL / 2);
+        }
+        gs.mode = "none";
+      }}
+      onPointerCancel={() => { clear(); g.current.mode = "none"; setDx(null); }}
+      onContextMenu={(e) => {
+        if (editing) return;
+        e.preventDefault(); clear();
+        g.current.mode = "none"; g.current.suppress = true;
+        onMenu();
+      }}
+      onClickCapture={(e) => {
+        const gs = g.current;
+        if (gs.suppress) { gs.suppress = false; e.stopPropagation(); e.preventDefault(); return; }
+        if (editing) return;
+        if (open) { e.stopPropagation(); e.preventDefault(); onOpen(false); return; }
+        if ((e.target as HTMLElement).closest("[data-main]")) { e.stopPropagation(); onTap(); }
+      }}
+    >
+      {children}
+    </div>
   );
 }

@@ -7,8 +7,8 @@ import { bumpRefresh, useCatalog, useMeta, useQuotes } from "./data";
 import { ChangePill, ErrorMsg, ItemIcon, Loading, Money, formatPct } from "./parts";
 import { HouseBadge } from "./WatchlistScreen";
 
-type View = "gainers" | "losers" | "mostListed" | "deals" | "flips";
-const VIEWS: View[] = ["gainers", "losers", "mostListed", "deals", "flips"];
+type View = "gainers" | "losers" | "topSellers" | "mostListed" | "deals" | "flips";
+const VIEWS: View[] = ["gainers", "losers", "topSellers", "mostListed", "deals", "flips"];
 
 export function ExploreScreen() {
   const s = useStore();
@@ -41,6 +41,12 @@ export function ExploreScreen() {
         return topMovers(all, { direction: "up", minListed: 5, limit: 50 }).map((m) => ({ id: m.quote.id, quote: m.quote, extra: null as number | null }));
       case "losers":
         return topMovers(all, { direction: "down", minListed: 5, limit: 50 }).map((m) => ({ id: m.quote.id, quote: m.quote, extra: null }));
+      case "topSellers":
+        return all
+          .filter((q) => (q.soldPerDay ?? 0) > 0 && !isGear(q.id))
+          .sort((a, b) => b.soldPerDay! * b.market - a.soldPerDay! * a.market)
+          .slice(0, 50)
+          .map((q) => ({ id: q.id, quote: q, extra: null as number | null }));
       case "mostListed":
         return mostListed(all, 50).map((q) => ({ id: q.id, quote: q, extra: null }));
       case "deals":
@@ -111,14 +117,14 @@ export function ExploreScreen() {
                 <ItemIcon item={catalog.data!.get(id)} meta={meta.data} />
                 <span class="row-name">
                   <span class={`name q${catalog.data!.get(id)?.quality ?? 1}`}>{name(id)}</span>
-                  <span class="sub">{quote.listed.toLocaleString(s.lang === "fr" ? "fr-CA" : "en-US")} · {quote.auctions}</span>
+                  <span class="sub">{view === "topSellers" ? `${t(s.lang, "soldDay")}: ${(quote.soldPerDay ?? 0).toLocaleString(s.lang === "fr" ? "fr-CA" : "en-US")}` : `${quote.listed.toLocaleString(s.lang === "fr" ? "fr-CA" : "en-US")} · ${quote.auctions}`}</span>
                 </span>
                 <span class="row-price"><Money copper={view === "deals" ? quote.min : quote[s.priceField]} lang={s.lang} short /></span>
                 {extra != null ? <span class="pill down">-{formatPct(extra, s.lang, false)}</span> : <ChangePill pct={change24h(quote)} abs={quote.prev24h ? quote.market - quote.prev24h : null} mode={s.changeMode} lang={s.lang} />}
               </button>
             </li>
           ))}
-          {list.length === 0 && <p class="state-msg">{view === "gainers" || view === "losers" || view === "deals" ? t(s.lang, "needsHistory") : t(s.lang, "noResults")}</p>}
+          {list.length === 0 && <p class="state-msg">{view === "gainers" || view === "losers" || view === "deals" || view === "topSellers" ? t(s.lang, "needsHistory") : t(s.lang, "noResults")}</p>}
         </ul>
       )}
     </section>

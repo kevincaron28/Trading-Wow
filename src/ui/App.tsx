@@ -1,6 +1,6 @@
 import { useEffect, useState } from "preact/hooks";
 import { Capacitor } from "@capacitor/core";
-import { loadCatalog, loadQuotes } from "../data/live";
+import { isOffline, loadCatalog, loadQuotes, onOfflineChange } from "../data/live";
 import { evaluateAlerts, type PriceAlert } from "../lib/alerts";
 import { t, type MessageKey } from "../lib/i18n";
 import { formatMoney } from "../lib/money";
@@ -14,6 +14,7 @@ import { MenuScreen } from "./MenuScreen";
 import { Icon } from "./parts";
 import { SearchScreen } from "./SearchScreen";
 import { WatchlistScreen } from "./WatchlistScreen";
+import { Onboarding } from "./Onboarding";
 
 const TABS: { id: Tab; icon: string; label: MessageKey }[] = [
   { id: "watchlist", icon: "list", label: "tabWatchlist" },
@@ -64,6 +65,8 @@ export function App() {
   const s = useStore();
   const [searching, setSearching] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  const [offline, setOfflineState] = useState(isOffline());
+  useEffect(() => onOfflineChange(setOfflineState), []);
 
   useEffect(() => {
     document.documentElement.lang = s.lang;
@@ -95,6 +98,7 @@ export function App() {
 
   return (
     <div class="app">
+      {offline && <p class="offline-bar" role="status">{t(s.lang, "offline")}</p>}
       <main class="content">
         {s.tab === "watchlist" && <WatchlistScreen onSearch={() => setSearching(true)} />}
         {s.tab === "chart" && <ChartScreen />}
@@ -112,6 +116,7 @@ export function App() {
         ))}
       </nav>
       {searching && <SearchScreen onClose={() => setSearching(false)} />}
+      {!s.onboarded && <Onboarding />}
       {toast && (
         <div class="toast" role="status" onClick={() => setToast(null)}>
           <b>{t(s.lang, "alertFired")}</b>

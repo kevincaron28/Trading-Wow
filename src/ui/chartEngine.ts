@@ -17,6 +17,7 @@ import type { Candle } from "../lib/candles";
 import type { Lang } from "../lib/i18n";
 import { bollinger, ema, heikinAshi, macd, rsi, sma } from "../lib/indicators";
 import { formatMoneyAxis } from "../lib/money";
+import { visibleRange, type ChartRange } from "../lib/ranges";
 import type { ChartType, IndicatorKey } from "../app/store";
 
 export interface ChartInput {
@@ -25,6 +26,9 @@ export interface ChartInput {
   chartType: ChartType;
   indicators: readonly IndicatorKey[];
   lang: Lang;
+  lines: number[];
+  range: ChartRange;
+  logScale: boolean;
 }
 
 const css = (name: string) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
@@ -37,8 +41,12 @@ export class ChartEngine {
   private input: ChartInput | null = null;
   private onHover: (c: Candle | null) => void;
 
-  constructor(container: HTMLElement, onHover: (c: Candle | null) => void) {
+  private placing = false;
+  private onPlace: ((price: number) => void) | null;
+
+  constructor(container: HTMLElement, onHover: (c: Candle | null) => void, onPlace?: (price: number) => void) {
     this.onHover = onHover;
+    this.onPlace = onPlace ?? null;
     this.chart = createChart(container, {
       autoSize: true,
       crosshair: { mode: CrosshairMode.Normal },
@@ -46,11 +54,21 @@ export class ChartEngine {
       handleScale: { axisPressedMouseMove: true, pinch: true },
       handleScroll: { horzTouchDrag: true, vertTouchDrag: false },
     });
+    this.chart.subscribeClick((p) => {
+      if (!this.placing || !p.point || this.input?.compare) return;
+      const price = this.series[0]?.coordinateToPrice(p.point.y);
+      if (price == null || !(price > 0)) return;
+      this.onPlace?.(Math.round(price));
+    });
     this.chart.subscribeCrosshairMove((p) => {
       const time = p.time as number | undefined;
       const shown = this.shownCandles();
       this.onHover(time === undefined ? null : (shown.find((c) => c.time === time) ?? null));
     });
+  }
+
+  setPlacing(on: boolean): void {
+    this.placing = on;
   }
 
   private shownCandles(): Candle[] {
@@ -79,7 +97,7 @@ export class ChartEngine {
         panes: { separatorColor: css("--border") },
       },
       grid: { vertLines: { color: css("--grid") }, horzLines: { color: css("--grid") } },
-      rightPriceScale: { borderVisible: false, mode: comparing ? PriceScaleMode.Percentage : PriceScaleMode.Normal },
+      rightPriceScale: { borderVisible: false, mode: comparing ? PriceScaleMode.Percentage : input.logScale ? PriceScaleMode.Logarithmic : PriceScaleMode.Normal },
       timeScale: { borderVisible: false },
       localization: { locale: input.lang === "fr" ? "fr-CA" : "en-US", priceFormatter: comparing ? undefined : fmt },
     });
@@ -156,8 +174,21 @@ export class ChartEngine {
     for (let i = panes.length - 1; i >= pane; i--) this.chart.removePane(i);
     this.chart.panes().forEach((p, i) => i > 0 && p.setHeight(90));
 
-    this.chart.timeScale().fitContent();
-    requestAnimationFrame(() => this.chart.timeScale().fitContent());
+    // User horizontal lines on the main price series (not meaningful on a percent scale).
+    const mainSeries = this.series[0];
+    if (mainSeries && !comparing) {
+      for (const price of input.lines) {
+        mainSeries.createPriceLine({ price, color: accent, lineWidth: 1, lineStyle: 2, axisLabelVisible: true, title: "" });
+      }
+    }
+
+    const applyRange = () => {
+      const r = visibleRange(input.range, input.candles.at(-1)?.time);
+      if (r) this.chart.timeScale().setVisibleRange({ from: ts(r.from), to: ts(r.to) });
+      else this.chart.timeScale().fitContent();
+    };
+    applyRange();
+    requestAnimationFrame(applyRange);
     this.onHover(null);
   }
 }

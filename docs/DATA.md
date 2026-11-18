@@ -38,11 +38,19 @@ Both start from the latest published data, so they can overlap safely.
 | --- | --- |
 | `meta.json` | `{ updated, iconBase, houses: [{ id, realm, faction, snapshot, lastModified, items }] }` |
 | `items.json` | `{ [itemId]: [nameEn, nameFr, quality, itemClass, itemSubclass, iconFileId] }` (~7,400 items) |
-| `latest/{houseId}.json` | `{ t, items: { [itemId]: [minBuyout, market, listed, auctions, market24hAgo or 0, avg7d] } }`; items seen in the last 3 days |
-| `history/{houseId}/{itemId % 32}.json` | `{ v: 1, items: { [itemId]: { h: [[hourIndex, min, market, listed, auctions]], d: [[dayIndex, open, high, low, close, avgListed, lowestMin]] } } }` |
+| `latest/{houseId}.json` | `{ t, items: { [itemId]: [minBuyout, market, listed, auctions, market24hAgo or 0, avg7d, soldLast24h or -1] } }`; items seen in the last 3 days |
+| `h2/{houseId}/{itemId % 256}.json` (since 0.3.0) | Same content as `history/`, split 256 ways so one chart downloads about 1/256 of a house. Hourly rows may have a 6th value: estimated quantity sold since the previous snapshot |
+| `history/{houseId}/{itemId % 32}.json` (0.2 layout, still written) | `{ v: 1, items: { [itemId]: { h: [[hourIndex, min, market, listed, auctions]], d: [[dayIndex, open, high, low, close, avgListed, lowestMin]] } } }` |
 
 Hour index = unix seconds / 3600; day index = unix seconds / 86400 (UTC). Hourly rows are kept 14 days, daily
 candles two years. Prices are copper per unit. Icons: `{iconBase}{iconFileId}.jpg` on Blizzard's render CDN.
+
+## Estimated sales
+
+The collector keeps the previous snapshot's auction IDs in `state/` next to the data (gitignored, cached between GitHub
+Actions runs, never published). An auction that disappears while it still had 2+ hours left (`LONG`/`VERY_LONG`) is counted
+as sold, and a commodity stack that shrank counts the missing quantity. Cancellations look the same, so this is an
+estimate; auctions with less time left are ignored because they may simply have expired.
 
 ## Known limits
 

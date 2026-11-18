@@ -110,6 +110,16 @@ const en = {
   ago: "ago",
   minutes: "min",
   hours: "h",
+  soldDay: "Sold / day (est.)",
+  soldDayHint: "Estimated from auctions that disappeared before expiring (bought or cancelled).",
+  topSellers: "Top sellers",
+  offline: "Offline: showing the last prices saved on this device.",
+  welcomeTitle: "Welcome to Goldline",
+  welcomeText: "Live auction house prices for WoW Forever, refreshed every hour from Blizzard's data.",
+  welcomeHouse: "Choose your auction house",
+  welcomeNote1: "Prices are what is listed right now. Volume is the quantity listed, not sold.",
+  welcomeNote2: "Sales per day are an estimate from auctions that disappear early.",
+  start: "Start",
 } as const;
 
 export type MessageKey = keyof typeof en;
@@ -223,6 +233,16 @@ const fr: Record<MessageKey, string> = {
   ago: "",
   minutes: "min",
   hours: "h",
+  soldDay: "Ventes / jour (est.)",
+  soldDayHint: "Estimation à partir des enchères disparues avant d'expirer (achetées ou annulées).",
+  topSellers: "Plus vendus",
+  offline: "Hors ligne : derniers prix enregistrés sur cet appareil.",
+  welcomeTitle: "Bienvenue dans Goldline",
+  welcomeText: "Les prix de l'hôtel des ventes de WoW Forever en direct, mis à jour chaque heure à partir des données de Blizzard.",
+  welcomeHouse: "Choisissez votre hôtel des ventes",
+  welcomeNote1: "Les prix sont ceux des annonces actuelles. Le volume est la quantité en vente, pas vendue.",
+  welcomeNote2: "Les ventes par jour sont une estimation à partir des enchères qui disparaissent tôt.",
+  start: "Commencer",
 };
 
 export const MESSAGES: Record<Lang, Record<MessageKey, string>> = { en, fr };
