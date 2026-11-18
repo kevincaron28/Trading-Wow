@@ -6,7 +6,7 @@ const en = {
   tabChart: "Chart",
   tabExplore: "Explore",
   tabAlerts: "Alerts",
-  tabMenu: "Menu",
+  tabMenu: "Settings",
   search: "Search items",
   searchPlaceholder: "Item name or ID",
   noResults: "No item found",
@@ -124,6 +124,14 @@ const en = {
   seedNote: "Grey dots: lowest buyout from Auctionator scans by the owner and a guildmate, 5–17 Nov (PvP Horde, scanned days only)",
   seedHint: "Earlier daily prices: switch to 1D",
   extNote: "Purple dots: daily lowest buyout from ahprice.com's shared addon scans (used with permission)",
+  srcLive: "Goldline",
+  srcSeed: "Earlier scans",
+  srcExt: "ahprice.com",
+  sourcesNote: "Dots are daily lowest buyouts from before 18 Nov: grey = Auctionator scans by the owner and a guildmate (PvP Horde), purple = ahprice.com shared addon scans (used with permission).",
+  preparing: "Preparing image…",
+  listedShort: "listed",
+  auctionsShort: "auctions",
+  chartsBy: "Charts drawn with TradingView Lightweight Charts™ (Apache 2.0).",
 } as const;
 
 export type MessageKey = keyof typeof en;
@@ -133,7 +141,7 @@ const fr: Record<MessageKey, string> = {
   tabChart: "Graphique",
   tabExplore: "Explorer",
   tabAlerts: "Alertes",
-  tabMenu: "Menu",
+  tabMenu: "Réglages",
   search: "Chercher des objets",
   searchPlaceholder: "Nom ou ID de l'objet",
   noResults: "Aucun objet trouvé",
@@ -251,6 +259,14 @@ const fr: Record<MessageKey, string> = {
   seedNote: "Points gris : achat immédiat le plus bas des relevés Auctionator du propriétaire et d’un membre de la guilde, 5 au 17 nov. (JcJ Horde, jours relevés seulement)",
   seedHint: "Prix quotidiens antérieurs : passez en 1J",
   extNote: "Points violets : achat immédiat le plus bas du jour selon les relevés partagés d’ahprice.com (avec permission)",
+  srcLive: "Goldline",
+  srcSeed: "Relevés antérieurs",
+  srcExt: "ahprice.com",
+  sourcesNote: "Les points sont les achats immédiats les plus bas du jour avant le 18 nov. : gris = relevés Auctionator du propriétaire et d’un membre de la guilde (JcJ Horde), violet = relevés partagés d’ahprice.com (avec permission).",
+  preparing: "Préparation de l’image…",
+  listedShort: "en vente",
+  auctionsShort: "enchères",
+  chartsBy: "Graphiques tracés avec TradingView Lightweight Charts™ (Apache 2.0).",
 };
 
 export const MESSAGES: Record<Lang, Record<MessageKey, string>> = { en, fr };

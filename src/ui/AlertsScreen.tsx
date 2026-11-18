@@ -1,7 +1,7 @@
 import { t } from "../lib/i18n";
 import { REALM_GROUPS, openChart, setState, useStore } from "../app/store";
 import { useCatalog, useMeta } from "./data";
-import { Icon, ItemIcon, Money } from "./parts";
+import { Icon, ItemIcon, Money, EmptyState } from "./parts";
 
 function houseLabel(house: number, lang: "en" | "fr"): string {
   for (const g of REALM_GROUPS) {
@@ -21,7 +21,7 @@ export function AlertsScreen() {
     <section class="screen">
       <header class="topbar"><h1 class="title">{t(s.lang, "alerts")}</h1></header>
       {alerts.length === 0 ? (
-        <p class="state-msg">{t(s.lang, "alertsEmpty")}</p>
+        <EmptyState art="bell" text={t(s.lang, "alertsEmpty")} />
       ) : (
         <ul class="rows">
           {alerts.map((a) => {

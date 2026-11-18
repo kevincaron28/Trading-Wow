@@ -9,7 +9,7 @@ import { t } from "../lib/i18n";
 import { change24h } from "../lib/quotes";
 import { REALM_GROUPS, activeWatchlist, copyToList, houseId, openChart, reorderInList, setState, toggleInList, useStore } from "../app/store";
 import { bumpRefresh, useCatalog, useMeta, useQuotes } from "./data";
-import { ChangePill, ErrorMsg, Icon, ItemIcon, Loading, Money, Sheet, relativeTime } from "./parts";
+import { ChangePill, ErrorMsg, Icon, ItemIcon, Loading, Money, Sheet, relativeTime, EmptyState } from "./parts";
 
 type Sort = "list" | "name" | "price" | "sold" | "change";
 
@@ -124,7 +124,7 @@ export function WatchlistScreen({ onSearch }: { onSearch: () => void }) {
       ) : !quotes.data || !catalog.data ? (
         <Loading text={t(s.lang, "loading")} />
       ) : rows.length === 0 ? (
-        <p class="state-msg">{t(s.lang, "emptyList")}</p>
+        <EmptyState art="list" text={t(s.lang, "emptyList")} />
       ) : (
         <PullToRefresh onRefresh={async () => { clearCache(); bumpRefresh(); await new Promise((r) => setTimeout(r, 700)); }}>
         <ul class="rows">
@@ -183,7 +183,7 @@ export function WatchlistScreen({ onSearch }: { onSearch: () => void }) {
                     <ItemIcon item={item} meta={meta.data} />
                     <span class="row-name">
                       <span class={`name q${item?.quality ?? 1}`}>{name}</span>
-                      <span class="sub">{quote ? `${quote.listed.toLocaleString(s.lang === "fr" ? "fr-CA" : "en-US")} · ${quote.soldPerDay != null ? `~${Math.round(quote.soldPerDay).toLocaleString(s.lang === "fr" ? "fr-CA" : "en-US")} ${L[s.lang].soldPerDay}` : quote.auctions}` : t(s.lang, "notListed")}</span>
+                      <span class="sub">{quote ? `${quote.listed.toLocaleString(s.lang === "fr" ? "fr-CA" : "en-US")} ${L[s.lang].listed}${quote.soldPerDay != null ? ` · ~${Math.round(quote.soldPerDay).toLocaleString(s.lang === "fr" ? "fr-CA" : "en-US")}${L[s.lang].soldPerDay}` : ""}` : t(s.lang, "notListed")}</span>
                     </span>
                     <span class="row-price"><Money copper={quote?.[s.priceField]} lang={s.lang} short /></span>
                     <ChangePill pct={pct} abs={abs} mode={s.changeMode} lang={s.lang} />
@@ -275,9 +275,9 @@ export function WatchlistScreen({ onSearch }: { onSearch: () => void }) {
   );
 }
 
-const L: Record<Lang, Record<"remove" | "reorder" | "up" | "down" | "open" | "moveTo" | "copyTo" | "sold" | "soldPerDay", string>> = {
-  en: { remove: "Remove", reorder: "Reorder", up: "Move up", down: "Move down", open: "Open chart", moveTo: "Move to list…", copyTo: "Copy to list…", sold: "Sold", soldPerDay: "sold/day" },
-  fr: { remove: "Retirer", reorder: "Réordonner", up: "Monter", down: "Descendre", open: "Ouvrir le graphique", moveTo: "Déplacer vers la liste…", copyTo: "Copier vers la liste…", sold: "Vendus", soldPerDay: "vendus/j" },
+const L: Record<Lang, Record<"remove" | "reorder" | "up" | "down" | "open" | "moveTo" | "copyTo" | "sold" | "soldPerDay" | "listed", string>> = {
+  en: { remove: "Remove", reorder: "Reorder", up: "Move up", down: "Move down", open: "Open chart", moveTo: "Move to list…", copyTo: "Copy to list…", sold: "Sold", soldPerDay: "/day", listed: "listed" },
+  fr: { remove: "Retirer", reorder: "Réordonner", up: "Monter", down: "Descendre", open: "Ouvrir le graphique", moveTo: "Déplacer vers la liste…", copyTo: "Copier vers la liste…", sold: "Vendus", soldPerDay: "/j", listed: "en vente" },
 };
 
 const REVEAL = 80;

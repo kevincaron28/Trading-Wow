@@ -63,7 +63,7 @@ export function formatMoneyAxis(amount: number, lang: Lang = "en"): string {
   const s = COIN_SUFFIX[lang];
   const sign = c.negative ? "-" : "";
   if (c.gold >= 100) return `${sign}${c.gold.toLocaleString(lang === "fr" ? "fr-CA" : "en-US").replace(/ | /g, " ")}${s.gold}`;
-  if (c.gold > 0) return `${sign}${c.gold}${s.gold} ${c.silver}${s.silver}`;
-  if (c.silver > 0) return `${sign}${c.silver}${s.silver} ${c.copper}${s.copper}`;
+  if (c.gold > 0) return c.silver ? `${sign}${c.gold}${s.gold} ${c.silver}${s.silver}` : `${sign}${c.gold}${s.gold}`;
+  if (c.silver > 0) return c.copper ? `${sign}${c.silver}${s.silver} ${c.copper}${s.copper}` : `${sign}${c.silver}${s.silver}`;
   return `${sign}${c.copper}${s.copper}`;
 }

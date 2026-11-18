@@ -1,5 +1,5 @@
 import { useEffect, useState } from "preact/hooks";
-import { Capacitor } from "@capacitor/core";
+import { Capacitor, SystemBars, SystemBarsStyle } from "@capacitor/core";
 import { isOffline, loadCatalog, loadQuotes, onOfflineChange } from "../data/live";
 import { evaluateAlerts, type PriceAlert } from "../lib/alerts";
 import { t, type MessageKey } from "../lib/i18n";
@@ -105,6 +105,8 @@ export function App() {
     document.documentElement.lang = s.lang;
     const dark = s.theme === "dark" || (s.theme === "system" && matchMedia("(prefers-color-scheme: dark)").matches);
     document.documentElement.dataset.theme = dark ? "dark" : "light";
+    // The window behind the status and navigation bars is always Goldline's dark background: keep their icons light.
+    if (Capacitor.isNativePlatform()) void SystemBars.setStyle({ style: SystemBarsStyle.Dark }).catch(() => {});
   }, [s.lang, s.theme]);
 
   useEffect(() => {

@@ -39,5 +39,7 @@ describe("axis labels", () => {
     expect(formatMoneyAxis(12_345_678)).toBe("1,234g");
     expect(formatMoneyAxis(2_577, "fr")).toBe("25pa 77pc");
     expect(formatMoneyAxis(77)).toBe("77c");
+    expect(formatMoneyAxis(800_000)).toBe("80g");
+    expect(formatMoneyAxis(2_500)).toBe("25s");
   });
 });

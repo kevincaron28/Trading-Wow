@@ -40,6 +40,17 @@ export interface ChartInput {
 const css = (name: string) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 const ts = (t: number) => t as UTCTimestamp;
 
+type Autoscale = { priceRange: { minValue: number; maxValue: number } | null; margins?: { above: number; below: number } } | null;
+/** Widen a very narrow price range to ±2% around its middle (at least 2 copper), never below zero. */
+export function padFlatRange(original: () => Autoscale): Autoscale {
+  const r = original();
+  if (!r?.priceRange) return r;
+  const { minValue, maxValue } = r.priceRange;
+  const mid = (minValue + maxValue) / 2;
+  const half = Math.max((maxValue - minValue) / 2, Math.abs(mid) * 0.02, 2);
+  return { ...r, priceRange: { minValue: Math.max(0, mid - half), maxValue: mid + half } };
+}
+
 /** Owns one lightweight-charts instance; `render` rebuilds every series (cheap at these sizes). */
 export class ChartEngine {
   private chart: IChartApi;
@@ -55,6 +66,8 @@ export class ChartEngine {
     this.onPlace = onPlace ?? null;
     this.chart = createChart(container, {
       autoSize: true,
+      // The library's licence attribution is shown in Settings > About instead of a logo over every chart.
+      layout: { attributionLogo: false },
       crosshair: { mode: CrosshairMode.Normal },
       timeScale: { timeVisible: true, secondsVisible: false, rightOffset: 3 },
       handleScale: { axisPressedMouseMove: true, pinch: true },
@@ -117,6 +130,8 @@ export class ChartEngine {
     const priceFormat = comparing
       ? { type: "percent" as const }
       : { type: "custom" as const, minMove: 1, formatter: fmt };
+    // A flat price would otherwise zoom into a few copper and repeat the same axis label: keep at least ±2% in view.
+    const autoscaleInfoProvider = comparing ? undefined : padFlatRange;
     const add = <T extends SeriesType>(series: ISeriesApi<T>) => {
       this.series.push(series as unknown as ISeriesApi<SeriesType>);
       return series;
@@ -126,25 +141,25 @@ export class ChartEngine {
     if (input.chartType === "line" || input.chartType === "area") {
       const s =
         input.chartType === "line"
-          ? add(this.chart.addSeries(LineSeries, { color: accent, lineWidth: 2, priceFormat }))
-          : add(this.chart.addSeries(AreaSeries, { lineColor: accent, topColor: css("--accent-soft"), bottomColor: "rgba(0,0,0,0)", lineWidth: 2, priceFormat }));
+          ? add(this.chart.addSeries(LineSeries, { color: accent, lineWidth: 2, priceFormat, autoscaleInfoProvider }))
+          : add(this.chart.addSeries(AreaSeries, { lineColor: accent, topColor: css("--accent-soft"), bottomColor: "rgba(0,0,0,0)", lineWidth: 2, priceFormat, autoscaleInfoProvider }));
       s.setData(candles.map((c) => ({ time: ts(c.time), value: c.close })));
     } else {
       const s =
         input.chartType === "bars"
-          ? add(this.chart.addSeries(BarSeries, { upColor: up, downColor: down, priceFormat }))
-          : add(this.chart.addSeries(CandlestickSeries, { upColor: up, downColor: down, borderUpColor: up, borderDownColor: down, wickUpColor: up, wickDownColor: down, priceFormat }));
+          ? add(this.chart.addSeries(BarSeries, { upColor: up, downColor: down, priceFormat, autoscaleInfoProvider }))
+          : add(this.chart.addSeries(CandlestickSeries, { upColor: up, downColor: down, borderUpColor: up, borderDownColor: down, wickUpColor: up, wickDownColor: down, priceFormat, autoscaleInfoProvider }));
       s.setData(candles.map((c) => ({ time: ts(c.time), open: c.open, high: c.high, low: c.low, close: c.close })));
     }
 
     // Earlier scans: real days only, dotted with point markers, never joined to the live candles.
     if (input.seed && input.seed.length > 0 && !comparing) {
-      const s = add(this.chart.addSeries(LineSeries, { color: css("--muted"), lineWidth: 2, lineVisible: false, pointMarkersVisible: true, pointMarkersRadius: 4, title: input.seedLabel ?? "", priceLineVisible: false, lastValueVisible: false, priceFormat }));
+      const s = add(this.chart.addSeries(LineSeries, { color: css("--muted"), lineWidth: 2, lineVisible: false, pointMarkersVisible: true, pointMarkersRadius: 4, priceLineVisible: false, lastValueVisible: false, priceFormat }));
       s.setData(input.seed.map((p) => ({ time: ts(p.time), value: p.low })));
     }
 
     if (input.ext && input.ext.length > 0 && !comparing) {
-      const s = add(this.chart.addSeries(LineSeries, { color: css("--ind-2"), lineWidth: 2, lineVisible: false, pointMarkersVisible: true, pointMarkersRadius: 3, title: input.extLabel ?? "", priceLineVisible: false, lastValueVisible: false, priceFormat }));
+      const s = add(this.chart.addSeries(LineSeries, { color: css("--ind-2"), lineWidth: 2, lineVisible: false, pointMarkersVisible: true, pointMarkersRadius: 3, priceLineVisible: false, lastValueVisible: false, priceFormat }));
       s.setData(input.ext.map((p) => ({ time: ts(p.time), value: p.low })));
     }
 

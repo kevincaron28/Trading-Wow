@@ -1,5 +1,7 @@
 # Goldline 0.2.0 review and ranked improvements (18 November 2026)
 
+**0.5.0 (18 Nov) polish:** dark launch splash and system bars with light icons; no TradingView logo over charts (licence credit moved to Settings > About); clean price axis ("80g", flat prices padded to ±2%); earlier-history notes moved under the chart as a legend (Goldline, Earlier scans, ahprice.com); realms named Normal, RP and RP-PvP; list rows say "329 listed · ~43/day"; Explore movers only among traded items (no ±500%+ noise); share shows it is working; search rows use the full width; empty-state illustrations for lists, alerts and search; item-icon fallback glyph; pulsing logo while loading and on first paint; compact rows on phones under 380 dp; the Menu tab is now Settings.
+
 **0.4.0 (18 Nov) did:** #5 background alerts on Android (Capacitor Background Runner about every 30 min, public/runners/alerts.js,
 tested in Node with mocked Android globals; not yet tried on a phone), #6 pull-to-refresh on Watchlist and Explore, #15 share a chart as an
 image, estimated sold/day on watchlist rows with a Sold sort, and a kcaron.top privacy page (Guilded PR #1101). Still open: #9 realm names,

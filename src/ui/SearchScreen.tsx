@@ -6,7 +6,7 @@ import { CATEGORIES } from "../data/watchlists";
 import { t } from "../lib/i18n";
 import { activeWatchlist, houseId, openChart, toggleInList, useStore } from "../app/store";
 import { useCatalog, useMeta, useQuotes } from "./data";
-import { Icon, ItemIcon, Loading, Money } from "./parts";
+import { Icon, ItemIcon, Loading, Money, EmptyState } from "./parts";
 
 export function SearchScreen({ onClose, onPick }: { onClose: () => void; onPick?: (id: number) => void }) {
   const s = useStore();
@@ -51,14 +51,14 @@ export function SearchScreen({ onClose, onPick }: { onClose: () => void; onPick?
       ) : (
         <>
           {!query.trim() && !category && results.length > 0 && <p class="section-label">{t(s.lang, "recent")}</p>}
-          {(query.trim() || category) && results.length === 0 && <p class="state-msg">{t(s.lang, "noResults")}</p>}
+          {(query.trim() || category) && results.length === 0 && <EmptyState art="search" text={t(s.lang, "noResults")} />}
           <ul class="rows">
             {results.map((item) => {
               const quote = quotes.data?.get(item.id);
               const inList = list.items.includes(item.id);
               return (
                 <li key={item.id} class="row">
-                  <button type="button" class="row-main" onClick={() => pick(item.id)}>
+                  <button type="button" class="row-main no-pill" onClick={() => pick(item.id)}>
                     <ItemIcon item={item} meta={meta.data} />
                     <span class="row-name">
                       <span class={`name q${item.quality}`}>{item.name[s.lang]}</span>
