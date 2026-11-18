@@ -105,7 +105,38 @@ estimate; auctions with less time left are ignored because they may simply have 
 
 ## Known limits
 
-- History starts on 18 November 2026, 02:00 UTC: nothing earlier exists (Blizzard publishes only the current snapshot).
+- Goldline's own hourly history starts on 18 November 2026, 02:00 UTC (Blizzard publishes only the current snapshot);
+  earlier days come only from the Auctionator scans and ahprice.com (below).
 - Listings, not sales: "volume" is the quantity listed.
 - Gear with random suffixes ("of the Eagle") shares one item ID, so its prices mix variants. Explore leaves gear
   out of deals and flips.
+
+## Catalogue audit and coverage (18 Nov 2026)
+
+`collector/audit-catalog.ts` compares items.json with every item ID Goldline can see. The sources are:
+- the history of every house (h2/),
+- the Auctionator seed,
+- the ahprice.com series and its per-market price exports,
+- the item IDs in the guildmate's TSM trade logs (IDs only).
+
+Missing items are filled from Blizzard's static data, in this order: static-forever, static-classic1x, static-classic,
+then retail. Some items are WoW Forever's own new ones (IDs above 200,000) that Blizzard does not list yet. They get:
+- their English name from the ahprice.com export,
+- no icon (the app shows a fallback glyph),
+- class -1, so they appear under Browse > Other.
+
+The summary is `audit/catalog.json` on the data branch.
+
+`collector/coverage.ts` writes `audit/coverage.json`, refreshed with every ahprice.com publish. For every house and item
+it holds:
+- the first and last day with a real price since 4 Nov,
+- the covered and missing days,
+- the sources: 1 = Goldline, 2 = Auctionator scans, 4 = ahprice.com.
+
+Not obtainable:
+- anything before 5 Nov: no source has 4 Nov, launch day;
+- the Blackwater (neutral) houses before 18 Nov: no source covers them;
+- days nobody scanned.
+
+The ahprice.com backfill covers every item it lists. That is about 50,000 item-market requests at 1,900 a day (the
+site's limit is 2,000), so roughly four weeks from 18 Nov, most-listed items first.

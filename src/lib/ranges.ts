@@ -17,6 +17,12 @@ export function visibleRange(range: ChartRange, lastTime: number | null | undefi
   return { from: lastTime - SPAN[range], to: lastTime };
 }
 
+/** Earliest of the given times (unix seconds), ignoring missing ones; null when there are none. */
+export function earliestPoint(times: readonly (number | null | undefined)[]): number | null {
+  const real = times.filter((t): t is number => typeof t === "number" && Number.isFinite(t) && t > 0);
+  return real.length ? Math.min(...real) : null;
+}
+
 export const MAX_LINES = 10;
 
 /** Add a horizontal line (copper, rounded). Ignores invalid, duplicate or beyond-limit prices. */

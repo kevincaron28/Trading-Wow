@@ -3,7 +3,7 @@ import type { Candle } from "../lib/candles";
 import { candlesFor } from "../data/series";
 import { t, type Lang } from "../lib/i18n";
 import { newAlertId } from "../lib/alerts";
-import { MAX_LINES, RANGES, addLine, alertOpFor, removeLine, type ChartRange } from "../lib/ranges";
+import { MAX_LINES, RANGES, addLine, alertOpFor, earliestPoint, removeLine, type ChartRange } from "../lib/ranges";
 import { formatMoneyAxis } from "../lib/money";
 import "./chart-tools.css";
 import { change24h, houseCut } from "../lib/quotes";
@@ -101,6 +101,15 @@ export function ChartScreen() {
   const inList = list.items.includes(s.chartItem);
   const name = item?.name[s.lang] ?? `#${s.chartItem}`;
   const firstPoint = history.data?.hourly[0]?.time;
+  // Earliest real price from any source, for "History since <date>" (unix seconds).
+  const earliest = earliestPoint([history.data?.daily[0]?.time, firstPoint, seed.data?.[0]?.time, ext.data?.[0]?.time]);
+  const earlierThanLive = earliest != null && firstPoint != null && earliest < firstPoint - 86_400;
+  const dateFmt = (t: number) => new Date(t * 1000).toLocaleDateString(s.lang === "fr" ? "fr-CA" : "en-US", { dateStyle: "medium" });
+  const sourceNames = [
+    firstPoint ? `Goldline (${t(s.lang, "hourlySince")} ${dateFmt(firstPoint)})` : null,
+    (seed.data?.length ?? 0) > 0 ? t(s.lang, "srcSeed") : null,
+    (ext.data?.length ?? 0) > 0 ? "ahprice.com" : null,
+  ].filter(Boolean).join(" · ");
   const [sharing, setSharing] = useState(false);
   const onShare = () => {
     if (sharing) return;
@@ -201,7 +210,15 @@ export function ChartScreen() {
       <div class="details">
         <div class="subbar">
           <HouseBadge />
-          {firstPoint ? <span class="muted small">{t(s.lang, "collecting")} {new Date(firstPoint * 1000).toLocaleString(s.lang === "fr" ? "fr-CA" : "en-US", { dateStyle: "medium", timeStyle: "short" })} · {history.data?.hourly.length} {t(s.lang, "points")}</span> : null}
+          {earliest != null ? (
+            <span class="history-since small">
+              <b>{t(s.lang, "historySince")} {dateFmt(earliest)}</b>
+              <span class="muted"> · {sourceNames}</span>
+              {earlierThanLive && !(daily && s.range === "all") && (
+                <button type="button" class="text-btn" onClick={() => setState({ timeframe: "1d", range: "all" })}>{t(s.lang, "showAllHistory")}</button>
+              )}
+            </span>
+          ) : null}
         </div>
         <dl class="stats">
           <div><dt>{t(s.lang, "market")}</dt><dd><Money copper={quote?.market} lang={s.lang} /></dd></div>
