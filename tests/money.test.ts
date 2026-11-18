@@ -31,3 +31,13 @@ describe("money", () => {
     expect(percentChange(0, 10)).toBeNull();
   });
 });
+
+import { formatMoneyAxis } from "../src/lib/money";
+describe("axis labels", () => {
+  it("shows at most two coin units", () => {
+    expect(formatMoneyAxis(122_577)).toBe("12g 25s");
+    expect(formatMoneyAxis(12_345_678)).toBe("1,234g");
+    expect(formatMoneyAxis(2_577, "fr")).toBe("25pa 77pc");
+    expect(formatMoneyAxis(77)).toBe("77c");
+  });
+});

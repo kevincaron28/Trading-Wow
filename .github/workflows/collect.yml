@@ -1,0 +1,54 @@
+name: Collect prices
+
+# Hourly: fetch every WoW Forever auction house from Blizzard and publish the price files to the `data` branch.
+# Needs two repository secrets: BNET_CLIENT_ID and BNET_CLIENT_SECRET (the "Goldline Forever" Battle.net client).
+# Without them the job only prints a notice.
+
+on:
+  schedule:
+    - cron: "35 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: collect-prices
+  cancel-in-progress: false
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      BNET_CLIENT_ID: ${{ secrets.BNET_CLIENT_ID }}
+      BNET_CLIENT_SECRET: ${{ secrets.BNET_CLIENT_SECRET }}
+    steps:
+      - name: Check secrets
+        id: check
+        run: |
+          if [ -z "$BNET_CLIENT_ID" ] || [ -z "$BNET_CLIENT_SECRET" ]; then
+            echo "::notice::BNET_CLIENT_ID / BNET_CLIENT_SECRET are not set; skipping. See README > Live data."
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/checkout@v4
+        if: steps.check.outputs.ok == 'true'
+        with:
+          ref: main
+      - uses: actions/checkout@v4
+        if: steps.check.outputs.ok == 'true'
+        with:
+          ref: data
+          path: data-branch
+      - uses: actions/setup-node@v4
+        if: steps.check.outputs.ok == 'true'
+        with:
+          node-version: 24
+      - name: Collect and publish
+        if: steps.check.outputs.ok == 'true'
+        run: |
+          git -C data-branch config user.name "goldline-collector"
+          git -C data-branch config user.email "goldline-collector@users.noreply.github.com"
+          bash collector/publish.sh data-branch

@@ -1,5 +1,23 @@
 # Goldline plan (17 November 2026)
 
+## Status, 18 November 2026 (0.2.0)
+
+Owner, 18 Nov: "finish the goldline app, make it very similar to trading view mobile, have prebuild watchlists for
+main crafting professions and main flipping materials, make the app as complete as possible and link with blizzard
+live feed". Done in 0.2.0:
+
+- **Live Blizzard data** for all 12 live Forever auction houses, hourly, through the collector and the `data`
+  branch (docs/DATA.md). History starts 18 Nov 2026 02:00 UTC. Hosting decision changed from "Worker + D1" to
+  "collector + static files on GitHub": Blizzard house files are 20–30 MB each, too heavy for a free Worker,
+  and static files need no server.
+- **Mobile app** in the style of a trading-chart app (original look): bottom tabs (Watchlist, Chart, Explore,
+  Alerts, Menu), nine prebuilt watchlists plus custom ones, search with categories, full chart with five chart
+  types, four timeframes, six indicators and comparison, explore (movers, most listed, deals, flip finder),
+  price alerts with Android notifications, EN/FR, dark/light.
+- Still owed: the hourly collection runs on the owner's PC tonight; for 24/7 collection the owner adds the
+  `BNET_CLIENT_ID` / `BNET_CLIENT_SECRET` repository secrets and merges to `main`. Realm groups B, C and D
+  need names (one in-game check). Release signing secrets for the APK (see README).
+
 ## Owner decisions (17 Nov 2026)
 
 - **Name:** Goldline. Original look; works like a trading chart site without copying any brand.

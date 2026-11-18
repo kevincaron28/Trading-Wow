@@ -129,3 +129,27 @@ function finish(c: Candle & { samples: number; listedSum: number }): Candle {
     volume: Math.round(c.listedSum / c.samples),
   };
 }
+
+/** Merge candles (e.g. daily) into larger buckets (e.g. weekly): first open, max high, min low, last close, average volume. */
+export function aggregateCandles(candles: readonly Candle[], timeframe: Timeframe): Candle[] {
+  const out: Candle[] = [];
+  let count = 0;
+  for (const c of [...candles].sort((a, b) => a.time - b.time)) {
+    const start = bucketStart(c.time, timeframe);
+    const last = out.at(-1);
+    if (!last || last.time !== start) {
+      if (last) last.volume = Math.round(last.volume / count);
+      out.push({ ...c, time: start });
+      count = 1;
+    } else {
+      last.high = Math.max(last.high, c.high);
+      last.low = Math.min(last.low, c.low);
+      last.close = c.close;
+      last.volume += c.volume;
+      count++;
+    }
+  }
+  const last = out.at(-1);
+  if (last && count > 0) last.volume = Math.round(last.volume / count);
+  return out;
+}
