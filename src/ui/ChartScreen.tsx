@@ -20,14 +20,15 @@ import {
   type Timeframe,
 } from "../app/store";
 import { ChartEngine } from "./chartEngine";
-import { useCatalog, useHistory, useSeed, useMeta, useQuotes } from "./data";
-import { ChangePill, Icon, ItemIcon, Loading, Money, Sheet, formatPct } from "./parts";
+import { useCatalog, useHistory, useSeed, useMeta, useQuotes , bumpRefresh } from "./data";
+import { ChangePill, Icon, ItemIcon, Loading, Money, Sheet, formatPct , ErrorMsg } from "./parts";
 import { SearchScreen } from "./SearchScreen";
 import { HouseBadge } from "./WatchlistScreen";
+import { shareChart } from "./share";
 
 const L = {
-  en: { lines: "Lines", placeLine: "Place price line", log: "Log", tapChart: "Tap the chart to place a line", alertHere: "Alert at this price", del: "Delete", noLines: "No lines yet. Use the line tool, then tap the chart.", alertMade: "Alert created", max: `Max ${MAX_LINES} lines`, ranges: { "1d": "1D", "1w": "1W", "1m": "1M", "3m": "3M", "1y": "1Y", all: "All" } as Record<ChartRange, string> },
-  fr: { lines: "Lignes", placeLine: "Placer une ligne de prix", log: "Log", tapChart: "Touchez le graphique pour placer une ligne", alertHere: "Alerte à ce prix", del: "Supprimer", noLines: "Aucune ligne. Utilisez l'outil ligne, puis touchez le graphique.", alertMade: "Alerte créée", max: `Max ${MAX_LINES} lignes`, ranges: { "1d": "1J", "1w": "1S", "1m": "1M", "3m": "3M", "1y": "1A", all: "Tout" } as Record<ChartRange, string> },
+  en: { share: "Share chart", lines: "Lines", placeLine: "Place price line", log: "Log", tapChart: "Tap the chart to place a line", alertHere: "Alert at this price", del: "Delete", noLines: "No lines yet. Use the line tool, then tap the chart.", alertMade: "Alert created", max: `Max ${MAX_LINES} lines`, ranges: { "1d": "1D", "1w": "1W", "1m": "1M", "3m": "3M", "1y": "1Y", all: "All" } as Record<ChartRange, string> },
+  fr: { share: "Partager le graphique", lines: "Lignes", placeLine: "Placer une ligne de prix", log: "Log", tapChart: "Touchez le graphique pour placer une ligne", alertHere: "Alerte à ce prix", del: "Supprimer", noLines: "Aucune ligne. Utilisez l'outil ligne, puis touchez le graphique.", alertMade: "Alerte créée", max: `Max ${MAX_LINES} lignes`, ranges: { "1d": "1J", "1w": "1S", "1m": "1M", "3m": "3M", "1y": "1A", all: "Tout" } as Record<ChartRange, string> },
 };
 
 const TIMEFRAMES: Timeframe[] = ["1h", "4h", "1d", "1w"];
@@ -97,6 +98,13 @@ export function ChartScreen() {
   const inList = list.items.includes(s.chartItem);
   const name = item?.name[s.lang] ?? `#${s.chartItem}`;
   const firstPoint = history.data?.hourly[0]?.time;
+  const onShare = () => {
+    const chart = engine.current?.screenshot();
+    if (!chart) return;
+    const realm = REALM_GROUPS.find((r) => r.id === s.realm) ?? REALM_GROUPS[0]!;
+    const faction = s.faction === "blackwater" ? t(s.lang, "blackwaterShort") : t(s.lang, s.faction);
+    void shareChart({ itemId: s.chartItem, name, price: quote?.[s.priceField], houseLabel: `${realm.label[s.lang]} · ${faction}`, lang: s.lang, chart }).catch(() => {});
+  };
 
   return (
     <section class="screen chart-screen">
@@ -114,6 +122,9 @@ export function ChartScreen() {
         <div class="topbar-actions">
           <button type="button" class={`icon-btn ${inList ? "accent" : ""}`} aria-pressed={inList} aria-label={`${t(s.lang, "addTo")} ${list.name[s.lang]}`} onClick={() => toggleInList(list.id, s.chartItem)}>
             <Icon name="star" filled={inList} />
+          </button>
+          <button type="button" class="icon-btn" aria-label={lt.share} title={lt.share} onClick={onShare}>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12M7 8l5-5 5 5" /><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7" /></svg>
           </button>
           <button type="button" class="icon-btn" aria-label={t(s.lang, "setAlert")} onClick={() => setSheet("alert")}>
             <Icon name="bell" />
@@ -157,6 +168,9 @@ export function ChartScreen() {
         <div ref={holder} class={`chart ${placing ? "placing" : ""}`} role="img" aria-label={`${name}: ${candles.length} ${t(s.lang, "points")}`} />
         {history.loading && !history.data && <div class="chart-overlay"><Loading text={t(s.lang, "loading")} /></div>}
         {history.data && candles.length === 0 && <div class="chart-overlay"><p class="state-msg">{t(s.lang, "noHistory")}</p></div>}
+        {history.error && !history.data && !history.loading && (
+          <div class="chart-overlay interactive"><ErrorMsg text={t(s.lang, "loadError")} retry={bumpRefresh} retryLabel={t(s.lang, "retry")} /></div>
+        )}
       </div>
 
       <div class="chart-toolbar ranges-bar">

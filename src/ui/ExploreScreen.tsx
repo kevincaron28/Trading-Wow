@@ -3,6 +3,8 @@ import { arbitrage, deals, mostListed, topMovers } from "../lib/explore";
 import { t, type MessageKey } from "../lib/i18n";
 import { change24h, houseCut, type Quote } from "../lib/quotes";
 import { REALM_GROUPS, houseId, openChart, useStore, type Faction } from "../app/store";
+import { clearCache } from "../data/live";
+import { PullToRefresh } from "./PullToRefresh";
 import { bumpRefresh, useCatalog, useMeta, useQuotes } from "./data";
 import { ChangePill, ErrorMsg, ItemIcon, Loading, Money, formatPct } from "./parts";
 import { HouseBadge } from "./WatchlistScreen";
@@ -69,6 +71,11 @@ export function ExploreScreen() {
 
   const factionName = (f: Faction) => t(s.lang, f === "blackwater" ? "blackwaterShort" : f);
   const name = (id: number) => catalog.data?.get(id)?.name[s.lang] ?? `#${id}`;
+  const refresh = async () => {
+    clearCache();
+    bumpRefresh();
+    await new Promise((r) => setTimeout(r, 700));
+  };
 
   return (
     <section class="screen">
@@ -88,6 +95,7 @@ export function ExploreScreen() {
           </button>
         </div>
       )}
+      <PullToRefresh onRefresh={refresh}>
       {quotes.error && !quotes.data ? (
         <ErrorMsg text={t(s.lang, "loadError")} retry={bumpRefresh} retryLabel={t(s.lang, "retry")} />
       ) : !quotes.data || !catalog.data ? (
@@ -127,6 +135,7 @@ export function ExploreScreen() {
           {list.length === 0 && <p class="state-msg">{view === "gainers" || view === "losers" || view === "deals" || view === "topSellers" ? t(s.lang, "needsHistory") : t(s.lang, "noResults")}</p>}
         </ul>
       )}
+      </PullToRefresh>
     </section>
   );
 }

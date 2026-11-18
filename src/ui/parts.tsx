@@ -1,6 +1,7 @@
 import type { ComponentChildren } from "preact";
 import { useEffect } from "preact/hooks";
 import { iconUrl, type CatalogItem, type Meta } from "../data/live";
+import { onBack } from "../app/back";
 import type { Lang } from "../lib/i18n";
 import { splitCopper, COIN_SUFFIX } from "../lib/money";
 
@@ -70,7 +71,11 @@ export function Sheet({ title, onClose, children }: { title: string; onClose: ()
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    const offBack = onBack(onClose);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      offBack();
+    };
   }, [onClose]);
   return (
     <div class="sheet-backdrop" onClick={(e) => e.target === e.currentTarget && onClose()}>

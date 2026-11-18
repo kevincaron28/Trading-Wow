@@ -14,8 +14,8 @@ in English and French.
   item in the Alliance, Horde and Blackwater (neutral) houses after the house cut.
 - **Explore**: gainers, losers, most listed, below-average deals and a flip finder between your faction house
   and the neutral house.
-- **Alerts**: price above/below, checked when the app opens and every 10 minutes while it is open; a phone
-  notification on Android.
+- **Alerts**: price above/below, checked while the app is open and on Android about every 30 minutes in the
+  background (Capacitor Background Runner, `public/runners/alerts.js`), with a phone notification.
 - Realm and faction picker (PvP and three other realm groups × Alliance / Horde / Blackwater), dark and light themes.
 
 Goldline is an independent fan project, not affiliated with Blizzard Entertainment. Charts use the open-source

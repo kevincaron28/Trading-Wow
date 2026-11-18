@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import type { CatalogItem } from "../data/live";
 import { searchCatalog } from "../lib/search";
+import { onBack } from "../app/back";
 import { CATEGORIES } from "../data/watchlists";
 import { t } from "../lib/i18n";
 import { activeWatchlist, houseId, openChart, toggleInList, useStore } from "../app/store";
@@ -17,6 +18,7 @@ export function SearchScreen({ onClose, onPick }: { onClose: () => void; onPick?
   const [category, setCategory] = useState<string | null>(null);
   const input = useRef<HTMLInputElement>(null);
   useEffect(() => input.current?.focus(), []);
+  useEffect(() => onBack(onClose), [onClose]);
 
   const results = useMemo(() => {
     if (!catalog.data) return [];

@@ -58,7 +58,7 @@ const fetchedAt = new Map<string, number>();
 
 /** Files kept on the device so the app still shows the last prices offline. */
 const OFFLINE_PREFIX = "goldline:file:";
-const offlineWorthy = (path: string) => path === "meta.json" || path === "items.json" || path.startsWith("latest/");
+const offlineWorthy = (path: string) => path === "meta.json" || path === "items.json" || path.startsWith("latest/") || path.startsWith("h2/");
 let offline = false;
 const offlineListeners = new Set<(offline: boolean) => void>();
 export function isOffline(): boolean {
@@ -80,7 +80,7 @@ function saveOffline(path: string, text: string): void {
   } catch {
     // Storage full: drop older price files and keep going without an offline copy.
     try {
-      for (const key of Object.keys(localStorage)) if (key.startsWith(OFFLINE_PREFIX + "latest/")) localStorage.removeItem(key);
+      for (const key of Object.keys(localStorage)) if (key.startsWith(OFFLINE_PREFIX + "latest/") || key.startsWith(OFFLINE_PREFIX + "h2/")) localStorage.removeItem(key);
     } catch {
       /* ignore */
     }

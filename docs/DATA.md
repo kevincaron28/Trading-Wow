@@ -38,7 +38,7 @@ Both start from the latest published data, so they can overlap safely.
 | --- | --- |
 | `meta.json` | `{ updated, iconBase, houses: [{ id, realm, faction, snapshot, lastModified, items }] }` |
 | `items.json` | `{ [itemId]: [nameEn, nameFr, quality, itemClass, itemSubclass, iconFileId] }` (~7,400 items) |
-| `latest/{houseId}.json` | `{ t, items: { [itemId]: [minBuyout, market, listed, auctions, market24hAgo or 0, avg7d, soldLast24h or -1] } }`; items seen in the last 3 days |
+| `latest/{houseId}.json` | `{ t, items: { [itemId]: [minBuyout, market, listed, auctions, market24hAgo or 0, avg7d, soldLast24h or -1] } }`; items seen in the last 3 days. The 24h reference is the newest point at least 24 hours old, or (while less than a day exists) the oldest point if it is at least 12 hours old |
 | `h2/{houseId}/{itemId % 256}.json` (since 0.3.0) | Same content as `history/`, split 256 ways so one chart downloads about 1/256 of a house. Hourly rows may have a 6th value: estimated quantity sold since the previous snapshot |
 | `history/{houseId}/{itemId % 32}.json` (0.2 layout, still written) | `{ v: 1, items: { [itemId]: { h: [[hourIndex, min, market, listed, auctions]], d: [[dayIndex, open, high, low, close, avgListed, lowestMin]] } } }` |
 

@@ -48,9 +48,14 @@ describe("latestRow", () => {
     expect(latestRow({ h: [], d: [] })).toBeNull();
   });
 
-  it("has no 24h reference for a new item", () => {
+  it("has no 24h reference for a new item, and uses the oldest point after 12 hours", () => {
     const h = addPoint({ h: [], d: [] }, point(T0, 100));
     expect(latestRow(h)![4]).toBe(0);
+    let g: ItemHistory = { h: [], d: [] };
+    for (let i = 0; i <= 11; i++) g = addPoint(g, point(T0 + i * HOUR, 100 + i));
+    expect(latestRow(g)![4]).toBe(0);
+    g = addPoint(g, point(T0 + 12 * HOUR, 150));
+    expect(latestRow(g)![4]).toBe(100);
   });
 });
 

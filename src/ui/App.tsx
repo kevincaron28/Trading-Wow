@@ -6,6 +6,8 @@ import { t, type MessageKey } from "../lib/i18n";
 import { formatMoney } from "../lib/money";
 import type { Quote } from "../lib/quotes";
 import { getState, setState, useStore, type Tab } from "../app/store";
+import { ensureNotificationPermission, popBackgroundFired, syncBackgroundAlerts } from "../app/background";
+import { handleBack } from "../app/back";
 import { bumpRefresh } from "./data";
 import { AlertsScreen } from "./AlertsScreen";
 import { ChartScreen } from "./ChartScreen";
@@ -35,6 +37,14 @@ async function checkAlerts(): Promise<void> {
   if (fired.length === 0) return;
   setState({ alerts });
   await notify(fired);
+}
+
+/** Alerts the background runner fired while the app was closed: mark them triggered here too. */
+async function collectBackgroundFired(): Promise<void> {
+  const ids = await popBackgroundFired();
+  if (ids.length === 0) return;
+  const now = Math.floor(Date.now() / 1000);
+  setState((st) => ({ alerts: st.alerts.map((a) => (ids.includes(a.id) && a.active ? { ...a, active: false, triggeredAt: now } : a)) }));
 }
 
 async function notify(fired: PriceAlert[]): Promise<void> {
@@ -68,6 +78,29 @@ export function App() {
   const [offline, setOfflineState] = useState(isOffline());
   useEffect(() => onOfflineChange(setOfflineState), []);
 
+  // Android back button: close the open search/sheet, else go back to the watchlist, else leave the app.
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+    let remove: (() => void) | undefined;
+    void import("@capacitor/app").then(({ App: NativeApp }) =>
+      NativeApp.addListener("backButton", () => {
+        if (handleBack()) return;
+        if (getState().tab !== "watchlist") setState({ tab: "watchlist" });
+        else void NativeApp.exitApp();
+      }).then((h) => (remove = () => void h.remove())),
+    );
+    return () => remove?.();
+  }, []);
+
+  // Keep the background runner (alerts while the app is closed) in step with the app's alerts.
+  useEffect(() => {
+    if (s.alerts.some((a) => a.active)) void ensureNotificationPermission();
+    void loadCatalog()
+      .then((catalog) => Object.fromEntries(s.alerts.map((a) => [a.itemId, catalog.get(a.itemId)?.name[s.lang] ?? `#${a.itemId}`])))
+      .catch(() => ({}))
+      .then((names) => syncBackgroundAlerts(s.alerts, s.lang, names));
+  }, [s.alerts, s.lang]);
+
   useEffect(() => {
     document.documentElement.lang = s.lang;
     const dark = s.theme === "dark" || (s.theme === "system" && matchMedia("(prefers-color-scheme: dark)").matches);
@@ -83,11 +116,13 @@ export function App() {
     // New snapshots arrive about hourly: refresh every 10 minutes while open, and when the app comes back.
     const tick = () => {
       bumpRefresh();
+      void collectBackgroundFired();
       void checkAlerts();
     };
     const timer = setInterval(tick, 10 * 60_000);
     const onVisible = () => document.visibilityState === "visible" && tick();
     document.addEventListener("visibilitychange", onVisible);
+    void collectBackgroundFired();
     void checkAlerts();
     return () => {
       clearInterval(timer);

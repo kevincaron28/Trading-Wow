@@ -83,6 +83,11 @@ export class ChartEngine {
     this.chart.remove();
   }
 
+  /** Snapshot of the chart as a canvas (for sharing). */
+  screenshot(): HTMLCanvasElement {
+    return this.chart.takeScreenshot();
+  }
+
   render(input: ChartInput): void {
     this.input = input;
     for (const s of this.series) this.chart.removeSeries(s);
