@@ -7,6 +7,7 @@ import { formatMoney } from "../lib/money";
 import type { Quote } from "../lib/quotes";
 import { getState, setState, useStore, type Tab } from "../app/store";
 import { ensureNotificationPermission, popBackgroundFired, syncBackgroundAlerts } from "../app/background";
+import { handleBack } from "../app/back";
 import { bumpRefresh } from "./data";
 import { AlertsScreen } from "./AlertsScreen";
 import { ChartScreen } from "./ChartScreen";
@@ -76,6 +77,20 @@ export function App() {
   const [toast, setToast] = useState<string | null>(null);
   const [offline, setOfflineState] = useState(isOffline());
   useEffect(() => onOfflineChange(setOfflineState), []);
+
+  // Android back button: close the open search/sheet, else go back to the watchlist, else leave the app.
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+    let remove: (() => void) | undefined;
+    void import("@capacitor/app").then(({ App: NativeApp }) =>
+      NativeApp.addListener("backButton", () => {
+        if (handleBack()) return;
+        if (getState().tab !== "watchlist") setState({ tab: "watchlist" });
+        else void NativeApp.exitApp();
+      }).then((h) => (remove = () => void h.remove())),
+    );
+    return () => remove?.();
+  }, []);
 
   // Keep the background runner (alerts while the app is closed) in step with the app's alerts.
   useEffect(() => {

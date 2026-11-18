@@ -106,7 +106,8 @@ export type LatestRow = [number, number, number, number, number, number, number]
 export function latestRow(history: ItemHistory): LatestRow | null {
   const last = history.h.at(-1);
   if (!last) return null;
-  const dayAgo = [...history.h].reverse().find((r) => r[0] <= last[0] - 24);
+  // 24 hours earlier; while less than a day has been collected, the oldest point if it is at least 12 hours old.
+  const dayAgo = [...history.h].reverse().find((r) => r[0] <= last[0] - 24) ?? (history.h[0] && history.h[0][0] <= last[0] - 12 ? history.h[0] : undefined);
   const week = history.h.filter((r) => r[0] > last[0] - 24 * 7);
   const avg = Math.round(week.reduce((s, r) => s + r[2], 0) / week.length);
   const day = history.h.filter((r) => r[0] > last[0] - 24);
