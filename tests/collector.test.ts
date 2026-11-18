@@ -88,6 +88,9 @@ describe("estimated sales", () => {
   });
   it("refuses snapshots too far apart and keeps sold in latest rows", () => {
     expect(estimateSold({}, T, [], T + 3 * 3600)).toBeNull();
+    // After a missed hour (2h gap) a LONG auction (2-12h left) may simply have expired: only VERY_LONG counts.
+    const two = estimateSold(auctionState([{ id: 1, item: { id: 10 }, quantity: 5, time_left: "LONG" }, { id: 2, item: { id: 10 }, quantity: 3, time_left: "VERY_LONG" }]), T, [], T + 2 * 3600)!;
+    expect(two.get(10)).toBe(3);
     expect(estimateSold(null, 0, [], T)).toBeNull();
     let h: ItemHistory = { h: [], d: [] };
     h = addPoint(h, point(T0, 100), T0, 4);
