@@ -61,8 +61,8 @@ their permission).
 ## Estimated sales
 
 The collector keeps the previous snapshot's auction IDs in `state/` next to the data (gitignored, cached between GitHub
-Actions runs, never published). An auction that disappears while it still had 2+ hours left (`LONG`/`VERY_LONG`) is counted
-as sold, and a commodity stack that shrank counts the missing quantity. Cancellations look the same, so this is an
+Actions runs, never published). An auction that disappears although its shortest possible remaining time was longer than the gap between snapshots
+(`LONG` = 2+ h for the usual 1-hour gap, `VERY_LONG` = 12+ h after a missed hour) is counted as sold, and a commodity stack that shrank counts the missing quantity. Cancellations look the same, so this is an
 estimate; auctions with less time left are ignored because they may simply have expired.
 
 ## Known limits

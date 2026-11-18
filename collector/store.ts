@@ -126,6 +126,8 @@ export function snapshotHour(lastModified: string | null, fallback: number): num
 /** Previous snapshot of a house: auction id -> [item id, quantity, time-left code]. */
 export type AuctionState = Record<string, [number, number, number]>;
 const TIME_LEFT: Record<string, number> = { SHORT: 0, MEDIUM: 1, LONG: 2, VERY_LONG: 3 };
+/** Shortest remaining time per time-left code: SHORT < 30 min, MEDIUM 30 min-2 h, LONG 2-12 h, VERY_LONG 12-48 h. */
+const MIN_LEFT_SECONDS = [0, 30 * 60, 2 * HOUR, 12 * HOUR];
 
 export function auctionState(auctions: readonly RawAuction[]): AuctionState {
   const out: AuctionState = {};
@@ -146,7 +148,8 @@ export function estimateSold(previous: AuctionState | null, previousTime: number
   for (const [id, [item, qty, left]] of Object.entries(previous)) {
     const current = now.get(Number(id));
     let gone = 0;
-    if (current == null) gone = left >= 2 ? qty : 0;
+    // Gone before it could have expired: its shortest possible remaining time was longer than the gap.
+    if (current == null) gone = MIN_LEFT_SECONDS[left]! > time - previousTime ? qty : 0;
     else if (current < qty) gone = qty - current;
     if (gone > 0) sold.set(item, (sold.get(item) ?? 0) + gone);
   }

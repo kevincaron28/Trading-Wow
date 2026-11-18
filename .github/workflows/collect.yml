@@ -6,7 +6,9 @@ name: Collect prices
 
 on:
   schedule:
+    # Two slots: GitHub sometimes skips a scheduled run; the second one fills the gap (an already stored snapshot is skipped).
     - cron: "35 * * * *"
+    - cron: "50 * * * *"
   workflow_dispatch:
 
 permissions:
