@@ -48,15 +48,32 @@ candles two years. Prices are copper per unit. Icons: `{iconBase}{iconFileId}.jp
 ## History before 18 November (seed)
 
 Blizzard only serves the current snapshot, so nothing before collection started (18 Nov 2026, 02:00 UTC) can be fetched.
-The only genuine earlier prices found are the owner's own **Auctionator** scans (SavedVariables, realm "PvP"; the account only
-has Horde characters there, so house 113). `collector/import-auctionator.ts` decodes Auctionator's CBOR price database and
-writes `seed/113/{itemId % 256}.json` = `{ items: { [itemId]: [[dayIndex, lowestBuyoutLow, lowestBuyoutHigh, quantityAvailable or -1]] } }`
-plus `seed/113.meta.json` (source and coverage). Only scanned days exist: **8 Nov (4,172 items), 10 Nov (332), 11 Nov (5,449)**;
-nothing for 4–7 Nov. No values are interpolated. The app draws them on 1D/1W charts as separate grey points labelled
-"Earlier scans", never merged into the live candles (they measure the lowest buyout, not the market price).
+The earlier prices come from **Auctionator** scans (SavedVariables, realm "PvP", Horde characters only, so house 113):
 
-Not used: TSM's AppHelper data (TSM's own data, not ours to republish) and third-party sites such as timesaver.gg (would need
-their permission).
+| # | Source label | Days (items scanned) |
+|---|---|---|
+| 0 | Auctionator scans by the owner | 8 Nov (4,172), 10 Nov (332), 11 Nov (5,449) |
+| 1 | guildmate Auctionator scan (sent to the owner 18 Nov 2026) | 5 Nov (1,669), 6 (808), 7 (400), 8 (262), 9 (4,893), 10 (4,410), 11 (302), 12 (6,100), 13 (311), 14 (6,211), 15 (6,653), 16 (6,827), 17 (6,814) |
+
+`collector/import-auctionator.ts` decodes Auctionator's CBOR price database (nothing else in the file is read: no character
+names) and writes `seed/113/{itemId % 256}.json` = `{ items: { [itemId]: [[dayIndex, lowestBuyoutLow, lowestBuyoutHigh, quantityAvailable or -1, sourceIndex]] } }`
+plus `seed/113.meta.json` (`sources` with each source's label and days). Only days from WoW Forever's launch (4 Nov) to
+17 Nov are kept. `--merge` dedupes: an item-day already present (the owner's scan) is never replaced; the guildmate's
+file only adds days the owner did not scan. On the 9,878 item-days both scanned, the two agree (median ratio 1.00), which
+confirms the same auction house. Nothing for 4 Nov; no values are interpolated. The raw SavedVariables files are not
+committed. The app draws these on 1D/1W charts as separate grey points labelled "Earlier scans", never merged into the
+live candles (they measure the lowest buyout, not the market price).
+
+The guildmate's TradeSkillMaster file was checked too: its only price records are that player's own sales, purchases and
+cancellations with character names (personal accounting), and its AuctionDB values come from TSM's servers (not ours to
+republish), so nothing from it is used.
+
+**ahprice.com** (not ahprices.com): the owner has the site's permission to search and record its price history
+(owner, 18 Nov 2026). Any backfill from it uses its public API only, rate-limited, with a generic user agent and no
+personal data, and is labelled "ahprice.com (crowd-sourced addon scans)".
+
+Not used: TSM's AppHelper data (TSM's own data, not ours to republish) and third-party sites such as timesaver.gg or
+ahprices.com (would need their permission).
 
 ## Estimated sales
 

@@ -1,15 +1,19 @@
 /**
- * One-off import of the owner's own Auctionator scans (WoW Forever, realm "PvP", Horde characters only) as
- * genuine daily history from before Goldline started collecting (18 Nov 2026).
+ * One-off import of Auctionator scans (WoW Forever, realm "PvP", Horde) as genuine daily history from before Goldline
+ * started collecting (18 Nov 2026).
  *
- *   node collector/import-auctionator.ts <Auctionator.lua> <dataDir> <houseId>
+ *   node collector/import-auctionator.ts <Auctionator.lua> <dataDir> <houseId> "<source label>" [--merge]
  *
  * Auctionator keeps, per item and per scan day, the lowest buyout it saw (h = highest of the day's minimums,
  * l = lowest when different) and the quantity available (a). Days are counted from 1 Jan 2020. Nothing is
- * interpolated: only days that were actually scanned are written. Output: seed/{house}/{itemId % 256}.json
- * (see docs/DATA.md).
+ * interpolated: only days that were actually scanned are written, and only days from WoW Forever's launch (4 Nov 2026)
+ * up to the day before collection started. Only the price database is read: no character names, no other fields.
+ *
+ * With --merge the existing seed is kept and wins on any item-day it already has (dedupe); the new file only adds the
+ * days the existing seed lacks. Each row's 5th value is the index of its source in meta.sources.
+ * Output: seed/{house}/{itemId % 256}.json and seed/{house}.meta.json (see docs/DATA.md).
  */
-import { readFileSync, mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 /** Minimal CBOR decoder (RFC 8949): unsigned/negative ints, byte/text strings, arrays, maps, simple values, floats. */
@@ -74,8 +78,12 @@ export function luaStringBytes(body: string): Uint8Array {
 
 /** Auctionator day number (days since 1 Jan 2020) to a unix day index (days since 1 Jan 1970). */
 export const AUCTIONATOR_DAY0 = Date.UTC(2020, 0, 1) / 86_400_000;
+/** WoW Forever launched 4 Nov 2026; Goldline's own collection started 18 Nov 2026 (unix day indexes). */
+export const FOREVER_LAUNCH_DAY = Date.UTC(2026, 10, 4) / 86_400_000;
+export const COLLECTION_START_DAY = Date.UTC(2026, 10, 18) / 86_400_000;
 
-export type SeedRow = [number, number, number, number];
+/** [unix day index, lowest buyout low, lowest buyout high, quantity available or -1, source index]. */
+export type SeedRow = [number, number, number, number] | [number, number, number, number, number];
 
 /** Daily rows [unix day index, lowest buyout low, lowest buyout high, quantity available] per numeric item ID. */
 export function seedRows(db: Record<string, unknown>): Map<number, SeedRow[]> {
@@ -98,9 +106,41 @@ export function seedRows(db: Record<string, unknown>): Map<number, SeedRow[]> {
   return out;
 }
 
-function main(): void {
-  const [file, dataDir, house] = process.argv.slice(2);
-  if (!file || !dataDir || !house) throw new Error("usage: import-auctionator.ts <Auctionator.lua> <dataDir> <houseId>");
+/**
+ * Add `incoming` (tagged with `source`) to `existing`: keeps only days in [from, until), and an item-day already in
+ * `existing` is never replaced (the earlier source wins). Existing rows without a source get source 0.
+ */
+export function mergeSeed(
+  existing: Map<number, SeedRow[]>,
+  incoming: Map<number, SeedRow[]>,
+  source: number,
+  from = FOREVER_LAUNCH_DAY,
+  until = COLLECTION_START_DAY,
+): { rows: Map<number, SeedRow[]>; added: number; skipped: number } {
+  const rows = new Map<number, SeedRow[]>();
+  for (const [id, r] of existing) rows.set(id, r.map((x) => [x[0], x[1], x[2], x[3], x[4] ?? 0] as SeedRow));
+  let added = 0;
+  let skipped = 0;
+  for (const [id, r] of incoming) {
+    const have = rows.get(id) ?? [];
+    const days = new Set(have.map((x) => x[0]));
+    for (const x of r) {
+      if (x[0] < from || x[0] >= until || days.has(x[0])) { skipped++; continue; }
+      have.push([x[0], x[1], x[2], x[3], source]);
+      days.add(x[0]);
+      added++;
+    }
+    if (have.length) rows.set(id, have.sort((a, b) => a[0] - b[0]));
+  }
+  return { rows, added, skipped };
+}
+
+interface SeedMeta {
+  sources?: { label: string }[];
+  source?: string;
+}
+
+function readPriceDatabase(file: string): Record<string, unknown> {
   const text = readFileSync(file, "latin1");
   const start = text.indexOf('["PvP"] = "');
   if (start < 0) throw new Error('no ["PvP"] entry in AUCTIONATOR_PRICE_DATABASE');
@@ -111,30 +151,64 @@ function main(): void {
     if (text[i] === '"') break;
     body += text[i];
   }
-  const db = decodeCbor(luaStringBytes(body)) as Record<string, unknown>;
-  const rows = seedRows(db);
+  return decodeCbor(luaStringBytes(body)) as Record<string, unknown>;
+}
+
+const dateOf = (d: number) => new Date(d * 86_400_000).toISOString().slice(0, 10);
+
+function main(): void {
+  const args = process.argv.slice(2);
+  const merge = args.includes("--merge");
+  const [file, dataDir, house, label] = args.filter((a) => a !== "--merge");
+  if (!file || !dataDir || !house || !label) throw new Error('usage: import-auctionator.ts <Auctionator.lua> <dataDir> <houseId> "<source label>" [--merge]');
+  const dir = join(dataDir, "seed", house);
+  const metaFile = join(dataDir, "seed", `${house}.meta.json`);
+
+  const existing = new Map<number, SeedRow[]>();
+  let sources: { label: string }[] = [];
+  if (merge && existsSync(metaFile)) {
+    const meta = JSON.parse(readFileSync(metaFile, "utf8")) as SeedMeta;
+    sources = meta.sources ?? [{ label: meta.source ?? "earlier scans" }];
+    for (let s = 0; s < 256; s++) {
+      const f = join(dir, `${s}.json`);
+      if (!existsSync(f)) continue;
+      for (const [id, r] of Object.entries((JSON.parse(readFileSync(f, "utf8")) as { items: Record<string, SeedRow[]> }).items)) existing.set(Number(id), r);
+    }
+  }
+  const sourceIndex = sources.length;
+  sources.push({ label });
+  const { rows, added, skipped } = mergeSeed(existing, seedRows(readPriceDatabase(file)), sourceIndex);
+
   const shards = new Map<number, Record<string, SeedRow[]>>();
-  const dayCounts = new Map<number, number>();
+  const perSource = sources.map(() => new Map<number, number>());
   for (const [id, r] of rows) {
     const s = id % 256;
     if (!shards.has(s)) shards.set(s, {});
     shards.get(s)![id] = r;
-    for (const row of r) dayCounts.set(row[0], (dayCounts.get(row[0]) ?? 0) + 1);
+    for (const row of r) {
+      const m = perSource[row[4] ?? 0]!;
+      m.set(row[0], (m.get(row[0]) ?? 0) + 1);
+    }
   }
-  const dir = join(dataDir, "seed", house);
   mkdirSync(dir, { recursive: true });
   for (let s = 0; s < 256; s++) writeFileSync(join(dir, `${s}.json`), JSON.stringify({ items: shards.get(s) ?? {} }));
-  const days = [...dayCounts].sort((a, b) => a[0] - b[0]);
+  const allDays = new Map<number, number>();
+  for (const m of perSource) for (const [d, n] of m) allDays.set(d, (allDays.get(d) ?? 0) + n);
   writeFileSync(
-    join(dataDir, "seed", `${house}.meta.json`),
+    metaFile,
     JSON.stringify({
-      source: "Auctionator scans by the owner (WoW Forever, PvP, Horde)",
+      source: sources.map((s) => s.label).join("; "),
       measure: "lowest buyout seen that day (low and high of the day's minimums) and quantity available",
-      days: days.map(([d, n]) => ({ day: d, date: new Date(d * 86_400_000).toISOString().slice(0, 10), items: n })),
+      sources: sources.map((s, i) => ({
+        label: s.label,
+        days: [...perSource[i]!].sort((a, b) => a[0] - b[0]).map(([d, n]) => ({ day: d, date: dateOf(d), items: n })),
+      })),
+      days: [...allDays].sort((a, b) => a[0] - b[0]).map(([d, n]) => ({ day: d, date: dateOf(d), items: n })),
       items: rows.size,
     }),
   );
-  console.log(`items ${rows.size}; days ${days.map(([d, n]) => `${new Date(d * 86_400_000).toISOString().slice(0, 10)}:${n}`).join(" ")}`);
+  console.log(`added ${added} item-days, skipped ${skipped} (outside ${dateOf(FOREVER_LAUNCH_DAY)}..${dateOf(COLLECTION_START_DAY - 1)} or already present); items ${rows.size}`);
+  sources.forEach((s, i) => console.log(`${i} ${s.label}: ${[...perSource[i]!].sort((a, b) => a[0] - b[0]).map(([d, n]) => `${dateOf(d)}:${n}`).join(" ")}`));
 }
 
 if (process.argv[1]?.endsWith("import-auctionator.ts")) main();

@@ -35,3 +35,18 @@ describe("Auctionator import", () => {
     expect(new Date((AUCTIONATOR_DAY0 + 2506) * 86_400_000).toISOString().slice(0, 10)).toBe("2026-11-11");
   });
 });
+
+describe("seed merge", () => {
+  it("keeps existing item-days, adds only new days inside the Forever window, and tags the source", async () => {
+    const { mergeSeed, FOREVER_LAUNCH_DAY: L, COLLECTION_START_DAY: C } = await import("../collector/import-auctionator");
+    const existing = new Map([[1, [[L + 4, 100, 100, 5]] as [number, number, number, number][]]]);
+    const incoming = new Map([
+      [1, [[L - 1, 1, 1, 1], [L + 4, 999, 999, 9], [L + 5, 120, 130, 6], [C, 2, 2, 2]] as [number, number, number, number][]],
+      [2, [[L, 50, 50, -1]] as [number, number, number, number][]],
+    ]);
+    const { rows, added, skipped } = mergeSeed(existing, incoming, 1);
+    expect(rows.get(1)).toEqual([[L + 4, 100, 100, 5, 0], [L + 5, 120, 130, 6, 1]]);
+    expect(rows.get(2)).toEqual([[L, 50, 50, -1, 1]]);
+    expect([added, skipped]).toEqual([2, 3]);
+  });
+});

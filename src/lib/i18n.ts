@@ -121,7 +121,7 @@ const en = {
   welcomeNote2: "Sales per day are an estimate from auctions that disappear early.",
   start: "Start",
   seedLabel: "Earlier scans",
-  seedNote: "Grey dots: lowest buyout from Auctionator scans before 18 Nov (PvP Horde, scanned days only)",
+  seedNote: "Grey dots: lowest buyout from Auctionator scans by the owner and a guildmate, 5–17 Nov (PvP Horde, scanned days only)",
   seedHint: "Earlier daily prices: switch to 1D",
 } as const;
 
@@ -247,7 +247,7 @@ const fr: Record<MessageKey, string> = {
   welcomeNote2: "Les ventes par jour sont une estimation à partir des enchères qui disparaissent tôt.",
   start: "Commencer",
   seedLabel: "Relevés antérieurs",
-  seedNote: "Points gris : achat immédiat le plus bas des relevés Auctionator avant le 18 nov. (JcJ Horde, jours relevés seulement)",
+  seedNote: "Points gris : achat immédiat le plus bas des relevés Auctionator du propriétaire et d’un membre de la guilde, 5 au 17 nov. (JcJ Horde, jours relevés seulement)",
   seedHint: "Prix quotidiens antérieurs : passez en 1J",
 };
 
