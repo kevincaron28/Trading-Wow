@@ -8,13 +8,18 @@ import { PullToRefresh } from "./PullToRefresh";
 import { bumpRefresh, useCatalog, useMeta, useQuotes } from "./data";
 import { ChangePill, ErrorMsg, ItemIcon, Loading, Money, formatPct } from "./parts";
 import { HouseBadge } from "./WatchlistScreen";
+import { BrowseView } from "./BrowseView";
 
 type View = "gainers" | "losers" | "topSellers" | "mostListed" | "deals" | "flips";
 const VIEWS: View[] = ["gainers", "losers", "topSellers", "mostListed", "deals", "flips"];
+/** Browse (every item by category) or Markets (movers, deals, flips); kept while the app runs. */
+let rememberedMode: "browse" | "markets" = "browse";
 
 export function ExploreScreen() {
   const s = useStore();
   const [view, setView] = useState<View>("gainers");
+  const [mode, setModeState] = useState(rememberedMode);
+  const setMode = (m: "browse" | "markets") => { rememberedMode = m; setModeState(m); };
   const house = houseId(s);
   const quotes = useQuotes(house);
   const catalog = useCatalog();
@@ -84,6 +89,14 @@ export function ExploreScreen() {
     <section class="screen">
       <header class="topbar"><h1 class="title">{t(s.lang, "tabExplore")}</h1></header>
       <div class="subbar"><HouseBadge /></div>
+      <div class="mode-switch">
+        <div class="seg" role="tablist">
+          {(["browse", "markets"] as const).map((m) => (
+            <button type="button" role="tab" aria-selected={mode === m} class={mode === m ? "on" : ""} onClick={() => setMode(m)}>{t(s.lang, m)}</button>
+          ))}
+        </div>
+      </div>
+      {mode === "browse" ? <BrowseView /> : (<>
       <div class="chips" role="tablist">
         {VIEWS.map((v) => (
           <button type="button" role="tab" aria-selected={v === view} class={v === view ? "chip on" : "chip"} onClick={() => setView(v)}>{t(s.lang, v as MessageKey)}</button>
@@ -139,6 +152,7 @@ export function ExploreScreen() {
         </ul>
       )}
       </PullToRefresh>
+      </>)}
     </section>
   );
 }
