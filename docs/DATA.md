@@ -68,9 +68,30 @@ The guildmate's TradeSkillMaster file was checked too: its only price records ar
 cancellations with character names (personal accounting), and its AuctionDB values come from TSM's servers (not ours to
 republish), so nothing from it is used.
 
-**ahprice.com** (not ahprices.com): the owner has the site's permission to search and record its price history
-(owner, 18 Nov 2026). Any backfill from it uses its public API only, rate-limited, with a generic user agent and no
-personal data, and is labelled "ahprice.com (crowd-sourced addon scans)".
+## ahprice.com history (separate series)
+
+**ahprice.com** (not ahprices.com) collects auction scans from players running its free addon. The owner has the site's
+permission to search and record its price history (owner, 18 Nov 2026). `collector/backfill-ahprice.ts` is a one-time,
+resumable backfill through its public API only (`/api/v1/items/{id}/history`, never the HTML pages): one request every
+7 seconds, a generic user agent, no personal data sent, and it stops when the site's daily allowance
+(`X-Ratelimit-Remaining-Day`, 2,000 per day) gets under 60 or on any 429, then resumes from its cache the next day.
+Order: every built-in watchlist item in every market first, then the most-listed items.
+
+ahprice groups realms into markets (US and AU together). They were matched to Goldline's houses on 18 Nov 2026 by
+comparing current prices of 50 busy items (median gap 3–14%, RP Horde 29% but still the clear best):
+
+| ahprice market | Alliance | Horde |
+|---|---|---|
+| us-pvp | 110 | 113 |
+| us-normal | 111 | 114 |
+| us-rp | 119 | 120 |
+| us-rppvp | 123 | 124 |
+
+Blackwater (neutral) houses have no match. Output on the data branch: `ext/ahprice/{house}/{itemId % 256}.json` =
+`{ items: { [itemId]: [[dayIndex, lowestBuyout, quantity]] } }` (one row per day, the day's last scan, 4–17 Nov only)
+and `ext/ahprice/meta.json` (label "ahprice.com (crowd-sourced addon scans)", permission, market map, coverage). The app
+draws it on 1D/1W charts as purple points labelled "ahprice.com", separate from Goldline's own data and from the
+Auctionator seed.
 
 Not used: TSM's AppHelper data (TSM's own data, not ours to republish) and third-party sites such as timesaver.gg or
 ahprices.com (would need their permission).

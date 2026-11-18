@@ -123,6 +123,7 @@ const en = {
   seedLabel: "Earlier scans",
   seedNote: "Grey dots: lowest buyout from Auctionator scans by the owner and a guildmate, 5–17 Nov (PvP Horde, scanned days only)",
   seedHint: "Earlier daily prices: switch to 1D",
+  extNote: "Purple dots: daily lowest buyout from ahprice.com's shared addon scans (used with permission)",
 } as const;
 
 export type MessageKey = keyof typeof en;
@@ -249,6 +250,7 @@ const fr: Record<MessageKey, string> = {
   seedLabel: "Relevés antérieurs",
   seedNote: "Points gris : achat immédiat le plus bas des relevés Auctionator du propriétaire et d’un membre de la guilde, 5 au 17 nov. (JcJ Horde, jours relevés seulement)",
   seedHint: "Prix quotidiens antérieurs : passez en 1J",
+  extNote: "Points violets : achat immédiat le plus bas du jour selon les relevés partagés d’ahprice.com (avec permission)",
 };
 
 export const MESSAGES: Record<Lang, Record<MessageKey, string>> = { en, fr };

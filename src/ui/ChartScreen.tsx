@@ -20,7 +20,7 @@ import {
   type Timeframe,
 } from "../app/store";
 import { ChartEngine } from "./chartEngine";
-import { useCatalog, useHistory, useSeed, useMeta, useQuotes , bumpRefresh } from "./data";
+import { useCatalog, useExt, useHistory, useSeed, useMeta, useQuotes, bumpRefresh } from "./data";
 import { ChangePill, Icon, ItemIcon, Loading, Money, Sheet, formatPct , ErrorMsg } from "./parts";
 import { SearchScreen } from "./SearchScreen";
 import { HouseBadge } from "./WatchlistScreen";
@@ -48,6 +48,7 @@ export function ChartScreen() {
   const quotes = useQuotes(house);
   const history = useHistory(house, s.chartItem);
   const seed = useSeed(house, s.chartItem);
+  const ext = useExt(house, s.chartItem);
   const daily = s.timeframe === "1d" || s.timeframe === "1w";
   const compareHistory = useHistory(house, s.compareItem);
   const item = catalog.data?.get(s.chartItem);
@@ -88,8 +89,10 @@ export function ChartScreen() {
       logScale: s.logScale,
       seed: daily ? (seed.data ?? []) : [],
       seedLabel: t(s.lang, "seedLabel"),
+      ext: daily ? (ext.data ?? []) : [],
+      extLabel: "ahprice.com",
     });
-  }, [candles, compareCandles, s.chartType, s.indicators, s.lang, s.theme, lines.join(","), s.range, s.logScale, seed.data, daily]);
+  }, [candles, compareCandles, s.chartType, s.indicators, s.lang, s.theme, lines.join(","), s.range, s.logScale, seed.data, ext.data, daily]);
   useEffect(() => { engine.current?.setPlacing(placing); }, [placing]);
   useEffect(() => { setPlacing(false); setLineMsg(""); }, [s.chartItem]);
 
@@ -163,7 +166,8 @@ export function ChartScreen() {
             </>
           ) : null}
           {s.compareItem && <span class="compare-tag">vs {catalog.data?.get(s.compareItem)?.name[s.lang]}</span>}
-          {(seed.data?.length ?? 0) > 0 && (daily ? <span class="seed-tag">{t(s.lang, "seedNote")}</span> : <span class="seed-tag">{t(s.lang, "seedHint")}</span>)}
+          {(ext.data?.length ?? 0) > 0 && daily && <span class="seed-tag ext-tag">{t(s.lang, "extNote")}</span>}
+          {((seed.data?.length ?? 0) > 0 || (ext.data?.length ?? 0) > 0) && (daily ? ((seed.data?.length ?? 0) > 0 && <span class="seed-tag">{t(s.lang, "seedNote")}</span>) : <span class="seed-tag">{t(s.lang, "seedHint")}</span>)}
         </div>
         <div ref={holder} class={`chart ${placing ? "placing" : ""}`} role="img" aria-label={`${name}: ${candles.length} ${t(s.lang, "points")}`} />
         {history.loading && !history.data && <div class="chart-overlay"><Loading text={t(s.lang, "loading")} /></div>}

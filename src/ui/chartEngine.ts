@@ -32,6 +32,9 @@ export interface ChartInput {
   /** Genuine daily points from before collection started (lowest buyout per scanned day); drawn as separate points (no line between days). */
   seed?: { time: number; low: number }[];
   seedLabel?: string;
+  /** ahprice.com daily lowest buyout (shared addon scans), drawn as its own labelled points. */
+  ext?: { time: number; low: number }[];
+  extLabel?: string;
 }
 
 const css = (name: string) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
@@ -138,6 +141,11 @@ export class ChartEngine {
     if (input.seed && input.seed.length > 0 && !comparing) {
       const s = add(this.chart.addSeries(LineSeries, { color: css("--muted"), lineWidth: 2, lineVisible: false, pointMarkersVisible: true, pointMarkersRadius: 4, title: input.seedLabel ?? "", priceLineVisible: false, lastValueVisible: false, priceFormat }));
       s.setData(input.seed.map((p) => ({ time: ts(p.time), value: p.low })));
+    }
+
+    if (input.ext && input.ext.length > 0 && !comparing) {
+      const s = add(this.chart.addSeries(LineSeries, { color: css("--ind-2"), lineWidth: 2, lineVisible: false, pointMarkersVisible: true, pointMarkersRadius: 3, title: input.extLabel ?? "", priceLineVisible: false, lastValueVisible: false, priceFormat }));
+      s.setData(input.ext.map((p) => ({ time: ts(p.time), value: p.low })));
     }
 
     // Comparison line (both on a percent scale from the first visible bar).
