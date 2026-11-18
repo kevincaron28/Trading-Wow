@@ -1,0 +1,74 @@
+name: Android APK
+
+# Builds the Goldline Android app (Capacitor wrapper around the web build).
+# - Manual run (Actions tab > Android APK > Run workflow): APK attached to the run as an artifact.
+# - Pushing a tag v*: also publishes a GitHub release with goldline.apk, so
+#   https://github.com/kevincaron28/Trading-Wow/releases/latest/download/goldline.apk always points at the newest one.
+# Signing: with the GOLDLINE_KEYSTORE_BASE64 and GOLDLINE_KEYSTORE_PASSWORD secrets set, a release-signed APK;
+# without them, a debug-signed APK (installs fine, but a later release-signed version needs an uninstall first).
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      HAS_KEY: ${{ secrets.GOLDLINE_KEYSTORE_BASE64 != '' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+      - run: npx cap sync android
+
+      - name: Version
+        run: |
+          echo "GOLDLINE_VERSION_NAME=$(node -p "require('./package.json').version")" >> "$GITHUB_ENV"
+          echo "GOLDLINE_VERSION_CODE=$((100 + GITHUB_RUN_NUMBER))" >> "$GITHUB_ENV"
+
+      - name: Build release APK (signed)
+        if: env.HAS_KEY == 'true'
+        env:
+          GOLDLINE_KEYSTORE_PASSWORD: ${{ secrets.GOLDLINE_KEYSTORE_PASSWORD }}
+        run: |
+          echo "${{ secrets.GOLDLINE_KEYSTORE_BASE64 }}" | base64 -d > "$RUNNER_TEMP/goldline.p12"
+          export GOLDLINE_KEYSTORE="$RUNNER_TEMP/goldline.p12"
+          cd android && ./gradlew --no-daemon assembleRelease
+          cp app/build/outputs/apk/release/app-release.apk "$GITHUB_WORKSPACE/goldline.apk"
+
+      - name: Build debug-signed APK (no release key configured)
+        if: env.HAS_KEY != 'true'
+        run: |
+          cd android && ./gradlew --no-daemon assembleDebug
+          cp app/build/outputs/apk/debug/app-debug.apk "$GITHUB_WORKSPACE/goldline.apk"
+
+      - run: cp goldline.apk "goldline-${GOLDLINE_VERSION_NAME}.apk"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: goldline-apk
+          path: goldline*.apk
+
+      - name: Publish release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" goldline.apk "goldline-${GOLDLINE_VERSION_NAME}.apk" \
+            --title "Goldline ${GOLDLINE_VERSION_NAME} for Android" \
+            --notes "Goldline for Android. On your phone, open the download link, allow installs from your browser when asked, then open goldline.apk. This preview shows sample prices; live WoW Forever prices come in a later version."
