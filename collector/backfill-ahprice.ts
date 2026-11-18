@@ -86,7 +86,10 @@ async function fetchAll(cacheDir: string, dataDir: string): Promise<void> {
         const body = (await res.json()) as { points?: { t: number; floor_copper: number; qty?: number }[] };
         const rows = dailyRows(body.points ?? []);
         cache[key] = rows.length ? rows : null;
-      } else console.log(`${key}: HTTP ${res.status} (will retry next run)`);
+      } else {
+        console.log(`${key}: HTTP ${res.status} (will retry next run)`);
+        if (res.status >= 500) await new Promise((r) => setTimeout(r, 60_000));
+      }
       if (requests % 25 === 0) { save(); console.log(`${new Date().toISOString().slice(11, 16)} ${requests} requests, ${Object.keys(cache).length} cached, day allowance left ${left}`); }
       if (left < DAY_MARGIN) { console.log(`daily allowance nearly used (${left} left); stopping, resume tomorrow`); return save(); }
     }

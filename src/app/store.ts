@@ -11,12 +11,12 @@ export type ChartType = "candles" | "bars" | "line" | "area" | "heikin";
 export type IndicatorKey = "volume" | "sma20" | "ema50" | "bb" | "rsi" | "macd";
 export type PriceField = "market" | "min";
 
-/** Realm groups and their auction house IDs (probe of 17 Nov 2026, docs/PLAN.md). */
+/** Realm groups and their auction house IDs (probe of 17 Nov 2026, docs/PLAN.md); realm types matched 18 Nov (docs/DATA.md). */
 export const REALM_GROUPS: readonly { id: string; label: Record<Lang, string>; houses: Record<Faction, number> }[] = [
   { id: "pvp", label: { en: "PvP", fr: "JcJ" }, houses: { alliance: 110, horde: 113, blackwater: 116 } },
-  { id: "b", label: { en: "Realm B", fr: "Royaume B" }, houses: { alliance: 111, horde: 114, blackwater: 117 } },
-  { id: "c", label: { en: "Realm C", fr: "Royaume C" }, houses: { alliance: 119, horde: 120, blackwater: 121 } },
-  { id: "d", label: { en: "Realm D", fr: "Royaume D" }, houses: { alliance: 123, horde: 124, blackwater: 125 } },
+  { id: "b", label: { en: "Normal", fr: "Normal" }, houses: { alliance: 111, horde: 114, blackwater: 117 } },
+  { id: "c", label: { en: "RP", fr: "JdR" }, houses: { alliance: 119, horde: 120, blackwater: 121 } },
+  { id: "d", label: { en: "RP-PvP", fr: "JdR-JcJ" }, houses: { alliance: 123, horde: 124, blackwater: 125 } },
 ];
 
 export interface State {

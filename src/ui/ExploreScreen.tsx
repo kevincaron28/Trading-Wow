@@ -35,14 +35,17 @@ export function ExploreScreen() {
     return c === 2 || c === 4;
   };
 
+  // Movers only among items that really trade: thin or relisted junk swings by thousands of percent.
+  const movable = (q: Quote) => q.auctions >= 3 && (q.soldPerDay ?? 0) >= 1 && !isGear(q.id);
+
   const list = useMemo(() => {
     const all = quotes.data ? [...quotes.data.values()] : [];
     const withHistory = all.filter((q) => q.prev24h != null && !isGear(q.id));
     switch (view) {
       case "gainers":
-        return topMovers(all, { direction: "up", minListed: 5, limit: 50 }).map((m) => ({ id: m.quote.id, quote: m.quote, extra: null as number | null }));
+        return topMovers(all.filter(movable), { direction: "up", minListed: 20, limit: 500 }).filter((m) => Math.abs(m.change) <= 500).slice(0, 50).map((m) => ({ id: m.quote.id, quote: m.quote, extra: null as number | null }));
       case "losers":
-        return topMovers(all, { direction: "down", minListed: 5, limit: 50 }).map((m) => ({ id: m.quote.id, quote: m.quote, extra: null }));
+        return topMovers(all.filter(movable), { direction: "down", minListed: 20, limit: 500 }).filter((m) => Math.abs(m.change) <= 500).slice(0, 50).map((m) => ({ id: m.quote.id, quote: m.quote, extra: null }));
       case "topSellers":
         return all
           .filter((q) => (q.soldPerDay ?? 0) > 0 && !isGear(q.id))
@@ -125,7 +128,7 @@ export function ExploreScreen() {
                 <ItemIcon item={catalog.data!.get(id)} meta={meta.data} />
                 <span class="row-name">
                   <span class={`name q${catalog.data!.get(id)?.quality ?? 1}`}>{name(id)}</span>
-                  <span class="sub">{view === "topSellers" ? `${t(s.lang, "soldDay")}: ${(quote.soldPerDay ?? 0).toLocaleString(s.lang === "fr" ? "fr-CA" : "en-US")}` : `${quote.listed.toLocaleString(s.lang === "fr" ? "fr-CA" : "en-US")} · ${quote.auctions}`}</span>
+                  <span class="sub">{view === "topSellers" ? `${t(s.lang, "soldDay")}: ${(quote.soldPerDay ?? 0).toLocaleString(s.lang === "fr" ? "fr-CA" : "en-US")}` : `${quote.listed.toLocaleString(s.lang === "fr" ? "fr-CA" : "en-US")} ${t(s.lang, "listedShort")} · ${quote.auctions} ${t(s.lang, "auctionsShort")}`}</span>
                 </span>
                 <span class="row-price"><Money copper={view === "deals" ? quote.min : quote[s.priceField]} lang={s.lang} short /></span>
                 {extra != null ? <span class="pill down">-{formatPct(extra, s.lang, false)}</span> : <ChangePill pct={change24h(quote)} abs={quote.prev24h ? quote.market - quote.prev24h : null} mode={s.changeMode} lang={s.lang} />}

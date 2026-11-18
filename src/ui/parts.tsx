@@ -1,5 +1,5 @@
 import type { ComponentChildren } from "preact";
-import { useEffect } from "preact/hooks";
+import { useEffect, useState } from "preact/hooks";
 import { iconUrl, type CatalogItem, type Meta } from "../data/live";
 import { onBack } from "../app/back";
 import type { Lang } from "../lib/i18n";
@@ -36,10 +36,15 @@ export function Icon({ name, size = 22, filled = false }: { name: keyof typeof P
 
 export function ItemIcon({ item, meta, size = 34 }: { item: CatalogItem | undefined; meta: Meta | null; size?: number }) {
   const src = item ? iconUrl(meta, item.icon) : "";
-  return src ? (
-    <img class={`item-icon q${item?.quality ?? 1}`} src={src} width={size} height={size} alt="" loading="lazy" />
+  const [failed, setFailed] = useState<string | null>(null);
+  return src && failed !== src ? (
+    <img class={`item-icon q${item?.quality ?? 1}`} src={src} width={size} height={size} alt="" loading="lazy" onError={() => setFailed(src)} />
   ) : (
-    <span class="item-icon placeholder" style={{ width: size, height: size }} />
+    <span class={`item-icon placeholder q${item?.quality ?? 1}`} style={{ width: size, height: size }}>
+      <svg width={Math.round(size * 0.6)} height={Math.round(size * 0.6)} viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M9 4h6l-1.5 3h-3z" /><path d="M10.5 7C6 9 4 13 4 16a4 4 0 0 0 4 4h8a4 4 0 0 0 4-4c0-3-2-7-6.5-9" /><path d="M12 11v6M10 12.5h3a1.2 1.2 0 0 1 0 2.4h-2a1.2 1.2 0 0 0 0 2.4h3" />
+      </svg>
+    </span>
   );
 }
 
@@ -92,8 +97,57 @@ export function Sheet({ title, onClose, children }: { title: string; onClose: ()
   );
 }
 
+/** Small original illustrations for empty screens (inline SVG, theme colours, no text). */
+export function EmptyArt({ kind }: { kind: "list" | "bell" | "search" }) {
+  return (
+    <svg class="empty-art" width="132" height="104" viewBox="0 0 132 104" aria-hidden="true" fill="none" stroke-linecap="round" stroke-linejoin="round">
+      <ellipse cx="66" cy="94" rx="46" ry="6" fill="var(--surface-2)" />
+      {kind === "list" && (
+        <>
+          <rect x="26" y="18" width="80" height="62" rx="10" fill="var(--surface)" stroke="var(--border)" stroke-width="2" />
+          <path d="M38 64 L54 50 L66 56 L82 38 L94 44" stroke="var(--accent)" stroke-width="4" />
+          <circle cx="94" cy="44" r="4" fill="var(--accent)" />
+          <ellipse cx="40" cy="84" rx="12" ry="4" fill="var(--accent)" />
+          <ellipse cx="40" cy="79" rx="12" ry="4" fill="var(--accent)" stroke="var(--accent-ink)" stroke-width="1" />
+          <ellipse cx="40" cy="74" rx="12" ry="4" fill="var(--accent)" stroke="var(--accent-ink)" stroke-width="1" />
+        </>
+      )}
+      {kind === "bell" && (
+        <>
+          <path d="M66 16 C50 16 42 28 42 44 V60 L34 72 H98 L90 60 V44 C90 28 82 16 66 16 Z" fill="var(--surface)" stroke="var(--accent)" stroke-width="3" />
+          <path d="M58 78 C58 84 74 84 74 78" stroke="var(--accent)" stroke-width="3" />
+          <path d="M104 22 l4 -6 M110 32 h7 M22 22 l-4 -6 M16 32 h-7" stroke="var(--muted)" stroke-width="3" />
+          <path d="M52 50 L60 44 L68 48 L78 38" stroke="var(--up)" stroke-width="3" />
+        </>
+      )}
+      {kind === "search" && (
+        <>
+          <circle cx="58" cy="46" r="24" fill="var(--surface)" stroke="var(--accent)" stroke-width="4" />
+          <path d="M76 64 L94 82" stroke="var(--accent)" stroke-width="7" />
+          <circle cx="58" cy="46" r="9" fill="none" stroke="var(--muted)" stroke-width="3" />
+          <path d="M53 46 h10" stroke="var(--muted)" stroke-width="3" />
+        </>
+      )}
+    </svg>
+  );
+}
+
+export function EmptyState({ art, text }: { art: "list" | "bell" | "search"; text: string }) {
+  return (
+    <div class="empty-state">
+      <EmptyArt kind={art} />
+      <p>{text}</p>
+    </div>
+  );
+}
+
 export function Loading({ text }: { text: string }) {
-  return <p class="state-msg">{text}</p>;
+  return (
+    <div class="state-msg loading" role="status">
+      <svg width="40" height="40" viewBox="0 0 48 48" fill="none" stroke="var(--accent)" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="24" cy="24" r="19" /><path d="M15 29 L21 23 L26 26 L33 18" /></svg>
+      <p>{text}</p>
+    </div>
+  );
 }
 
 export function ErrorMsg({ text, retry, retryLabel }: { text: string; retry: () => void; retryLabel: string }) {

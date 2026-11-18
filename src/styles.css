@@ -84,7 +84,7 @@ button { cursor: pointer; }
 /* Top bars */
 .topbar { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 56px; padding: 8px 12px 8px 16px; background: var(--bg); border-bottom: 1px solid var(--border); }
 .topbar .title { font-size: 20px; margin: 0; }
-.topbar-actions { display: flex; gap: 2px; }
+.topbar-actions { display: flex; flex: none; gap: 2px; }
 .icon-btn { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 10px; border: 0; background: none; color: var(--text); flex: none; }
 .icon-btn:active, .icon-btn:hover { background: var(--surface-2); }
 .icon-btn.accent { color: var(--accent); }
@@ -110,6 +110,7 @@ button { cursor: pointer; }
 .row.inactive { opacity: 0.65; }
 .row-main { flex: 1; min-width: 0; display: grid; grid-template-columns: 34px 1fr auto 84px; align-items: center; gap: 10px; padding: 10px 6px 10px 16px; background: none; border: 0; text-align: left; }
 .row-main:active { background: var(--surface); }
+.row-main.no-pill { grid-template-columns: 34px 1fr auto; }
 .row-name { min-width: 0; display: flex; flex-direction: column; }
 .row-name .name { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .row-name .sub { color: var(--muted); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -119,6 +120,7 @@ button { cursor: pointer; }
 .pill.down { background: var(--down); color: #fff; }
 .q0 { color: var(--q0); } .q1 { color: var(--q1); } .q2 { color: var(--q2); } .q3 { color: var(--q3); } .q4 { color: var(--q4); } .q5 { color: var(--q5); }
 .item-icon { border-radius: 7px; border: 1.5px solid var(--border); background: var(--surface-2); object-fit: cover; flex: none; }
+.item-icon.placeholder { display: inline-grid; place-items: center; color: var(--muted); box-sizing: border-box; }
 .item-icon.q2 { border-color: var(--q2); } .item-icon.q3 { border-color: var(--q3); } .item-icon.q4 { border-color: var(--q4); } .item-icon.q5 { border-color: var(--q5); }
 .money { white-space: nowrap; }
 .money > span + span { margin-left: 3px; }
@@ -129,7 +131,21 @@ button { cursor: pointer; }
 
 .edit-bar { display: flex; gap: 8px; padding: 12px 16px; flex-wrap: wrap; }
 .state-msg { padding: 32px 20px; text-align: center; color: var(--muted); }
+.empty-state { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 40px 28px 24px; text-align: center; color: var(--muted); }
+.empty-state p { margin: 8px 0 0; max-width: 32ch; line-height: 1.45; }
+.sources { padding: 4px 16px 8px; font-size: 12px; color: var(--muted); }
+.sources p { margin: 4px 0 0; line-height: 1.4; }
+.sources-keys { display: flex; flex-wrap: wrap; gap: 4px 14px; color: var(--text); }
+.sources-keys .key { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 6px; vertical-align: 0; }
+.key.live { background: var(--accent); border-radius: 2px; }
+.key.seed { background: var(--muted); }
+.key.ext { background: var(--ind-2); }
+.icon-btn.busy { opacity: 0.55; animation: busy-pulse 0.9s ease-in-out infinite alternate; }
+@keyframes busy-pulse { from { opacity: 0.35; } to { opacity: 0.8; } }
 .state-msg.error { color: var(--text); }
+.state-msg.loading { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.state-msg.loading svg { animation: busy-pulse 0.9s ease-in-out infinite alternate; }
+.state-msg.loading p { margin: 0; }
 .section-label, .sheet-label { margin: 16px 16px 6px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 600; }
 .sheet .sheet-label { margin: 14px 0 6px; }
 .hint { margin: 4px 16px 8px; color: var(--muted); font-size: 13px; }
@@ -160,7 +176,8 @@ button { cursor: pointer; }
 .chart-screen { display: flex; flex-direction: column; }
 .symbol { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .symbol h1 { margin: 0; font-size: 17px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.symbol-price { display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 700; }
+.symbol > div { min-width: 0; }
+.symbol-price { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 8px; font-size: 15px; font-weight: 700; }
 .symbol-price .pill { min-width: 0; padding: 2px 6px; font-size: 12px; }
 .chart-toolbar { display: flex; align-items: center; gap: 6px; padding: 8px 12px; border-bottom: 1px solid var(--border); overflow-x: auto; scrollbar-width: none; }
 .chart-toolbar .seg { flex: none; flex-wrap: nowrap; }
@@ -187,7 +204,7 @@ button { cursor: pointer; }
 /* Bottom sheet */
 .sheet-backdrop { position: fixed; inset: 0; z-index: 40; background: rgba(0, 0, 0, 0.5); display: flex; align-items: flex-end; justify-content: center; }
 .sheet { width: 100%; max-width: 760px; max-height: 85dvh; overflow-y: auto; background: var(--surface); border-radius: 16px 16px 0 0; padding: 8px 16px calc(20px + var(--safe-b)); }
-.sheet-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.sheet-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; position: sticky; top: -8px; z-index: 2; background: var(--surface); margin: -8px -16px 0; padding: 8px 16px 0; }
 .sheet-head h2 { font-size: 17px; margin: 8px 0; }
 .menu-list { list-style: none; margin: 0; padding: 0; }
 .menu-list button { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 8px; border: 0; background: none; padding: 13px 4px; border-bottom: 1px solid var(--border); text-align: left; font-size: 15px; }
@@ -221,3 +238,14 @@ table.status { width: 100%; margin: 8px 0; }
 .ext-tag { color: var(--ind-2); }
 
 .chart-overlay.interactive { pointer-events: auto; background: color-mix(in srgb, var(--chart-bg) 80%, transparent); }
+
+/* Small phones (under ~380 dp): give item names room; copper is dropped next to gold in list prices. */
+@media (max-width: 380px) {
+  .row-main { grid-template-columns: 30px 1fr auto 62px; gap: 8px; padding-left: 12px; }
+  .row-main.no-pill { grid-template-columns: 30px 1fr auto; }
+  .row-main .item-icon { width: 30px; height: 30px; }
+  .table-head { grid-template-columns: 1fr auto 80px 62px; padding: 6px 12px; }
+  .pill { min-width: 58px; padding: 4px 4px; font-size: 12px; }
+  .row-price { font-size: 14px; }
+  .row-price .money .g ~ .c { display: none; }
+}

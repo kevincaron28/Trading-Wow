@@ -72,4 +72,4 @@ jobs:
         run: |
           gh release create "$GITHUB_REF_NAME" goldline.apk "goldline-${GOLDLINE_VERSION_NAME}.apk" \
             --title "Goldline ${GOLDLINE_VERSION_NAME} for Android" \
-            --notes "Goldline for Android. On your phone, open the download link, allow installs from your browser when asked, then open goldline.apk. This preview shows sample prices; live WoW Forever prices come in a later version."
+            --notes "Goldline for Android: live WoW Forever auction house prices, refreshed about every hour. On your phone, open the download link, allow installs from your browser when asked, then open goldline.apk."

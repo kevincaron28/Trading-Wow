@@ -101,12 +101,15 @@ export function ChartScreen() {
   const inList = list.items.includes(s.chartItem);
   const name = item?.name[s.lang] ?? `#${s.chartItem}`;
   const firstPoint = history.data?.hourly[0]?.time;
+  const [sharing, setSharing] = useState(false);
   const onShare = () => {
+    if (sharing) return;
     const chart = engine.current?.screenshot();
     if (!chart) return;
+    setSharing(true);
     const realm = REALM_GROUPS.find((r) => r.id === s.realm) ?? REALM_GROUPS[0]!;
     const faction = s.faction === "blackwater" ? t(s.lang, "blackwaterShort") : t(s.lang, s.faction);
-    void shareChart({ itemId: s.chartItem, name, price: quote?.[s.priceField], houseLabel: `${realm.label[s.lang]} · ${faction}`, lang: s.lang, chart }).catch(() => {});
+    void shareChart({ itemId: s.chartItem, name, price: quote?.[s.priceField], houseLabel: `${realm.label[s.lang]} · ${faction}`, lang: s.lang, chart }).catch(() => {}).finally(() => setSharing(false));
   };
 
   return (
@@ -126,7 +129,7 @@ export function ChartScreen() {
           <button type="button" class={`icon-btn ${inList ? "accent" : ""}`} aria-pressed={inList} aria-label={`${t(s.lang, "addTo")} ${list.name[s.lang]}`} onClick={() => toggleInList(list.id, s.chartItem)}>
             <Icon name="star" filled={inList} />
           </button>
-          <button type="button" class="icon-btn" aria-label={lt.share} title={lt.share} onClick={onShare}>
+          <button type="button" class={`icon-btn ${sharing ? "busy" : ""}`} aria-busy={sharing} aria-label={sharing ? t(s.lang, "preparing") : lt.share} title={lt.share} onClick={onShare}>
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12M7 8l5-5 5 5" /><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7" /></svg>
           </button>
           <button type="button" class="icon-btn" aria-label={t(s.lang, "setAlert")} onClick={() => setSheet("alert")}>
@@ -166,8 +169,7 @@ export function ChartScreen() {
             </>
           ) : null}
           {s.compareItem && <span class="compare-tag">vs {catalog.data?.get(s.compareItem)?.name[s.lang]}</span>}
-          {(ext.data?.length ?? 0) > 0 && daily && <span class="seed-tag ext-tag">{t(s.lang, "extNote")}</span>}
-          {((seed.data?.length ?? 0) > 0 || (ext.data?.length ?? 0) > 0) && (daily ? ((seed.data?.length ?? 0) > 0 && <span class="seed-tag">{t(s.lang, "seedNote")}</span>) : <span class="seed-tag">{t(s.lang, "seedHint")}</span>)}
+          {!daily && ((seed.data?.length ?? 0) > 0 || (ext.data?.length ?? 0) > 0) && <span class="seed-tag">{t(s.lang, "seedHint")}</span>}
         </div>
         <div ref={holder} class={`chart ${placing ? "placing" : ""}`} role="img" aria-label={`${name}: ${candles.length} ${t(s.lang, "points")}`} />
         {history.loading && !history.data && <div class="chart-overlay"><Loading text={t(s.lang, "loading")} /></div>}
@@ -184,6 +186,17 @@ export function ChartScreen() {
           ))}
         </div>
       </div>
+
+      {daily && ((seed.data?.length ?? 0) > 0 || (ext.data?.length ?? 0) > 0) && !s.compareItem && (
+        <div class="sources">
+          <div class="sources-keys">
+            <span><i class="key live" />{t(s.lang, "srcLive")}</span>
+            {(seed.data?.length ?? 0) > 0 && <span><i class="key seed" />{t(s.lang, "srcSeed")}</span>}
+            {(ext.data?.length ?? 0) > 0 && <span><i class="key ext" />{t(s.lang, "srcExt")}</span>}
+          </div>
+          <p>{t(s.lang, "sourcesNote")}</p>
+        </div>
+      )}
 
       <div class="details">
         <div class="subbar">
