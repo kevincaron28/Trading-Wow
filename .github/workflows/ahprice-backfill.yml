@@ -1,0 +1,67 @@
+name: ahprice.com backfill
+
+# Daily price history since WoW Forever's launch from ahprice.com's public API (used with the site's permission,
+# owner, 18 Nov 2026; docs/DATA.md). Every 3 hours: resume from the progress kept on the `backfill-state` branch,
+# fetch for up to 50 minutes (one request every 7 s, at most 1,900 a UTC day across all runs, backing off on errors),
+# save the progress, then publish ext/ahprice and audit/coverage.json to the `data` branch with a lease (safe next to
+# the hourly collector). Once every item is fetched (`done.json` on the state branch) the runs do nothing.
+# No secrets: the API is public.
+
+on:
+  schedule:
+    - cron: "10 */3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ahprice-backfill
+  cancel-in-progress: false
+
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 80
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Git identity
+        run: |
+          git config --global user.name "goldline-backfill"
+          git config --global user.email "goldline-backfill@users.noreply.github.com"
+      - name: Progress (backfill-state branch)
+        id: state
+        run: |
+          git fetch -q origin backfill-state
+          git worktree add -q state FETCH_HEAD
+          if [ -f state/done.json ]; then
+            echo "::notice::Backfill finished ($(cat state/done.json)); nothing to do."
+            echo "done=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "done=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Data branch
+        if: steps.state.outputs.done == 'false'
+        run: |
+          git fetch -q --depth 1 origin data
+          git worktree add -q data-branch FETCH_HEAD
+          cd data-branch && git switch -q -c data-local
+      - name: Fetch (up to 50 minutes)
+        if: steps.state.outputs.done == 'false'
+        run: node collector/backfill-ahprice.ts fetch state data-branch --minutes 50
+      - name: Save progress
+        if: always() && steps.state.outputs.done == 'false'
+        run: |
+          cd state
+          git add -A
+          if git diff --cached --quiet; then echo "no progress to save"; exit 0; fi
+          git commit -q --amend -m "ahprice.com backfill state $(date -u +%Y-%m-%dT%H:%MZ)"
+          git push -q -f origin HEAD:backfill-state
+      - name: Publish
+        if: steps.state.outputs.done == 'false'
+        run: bash collector/publish-ext.sh data-branch state

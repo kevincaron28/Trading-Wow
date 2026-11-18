@@ -33,3 +33,14 @@ describe("ahprice backfill", () => {
     expect(MARKETS.some((m) => [116, 117, 121, 125].includes(m.house))).toBe(false);
   });
 });
+
+describe("ahprice daily budget", () => {
+  it("keeps counting within a UTC day and starts over the next day", async () => {
+    const { budgetFor, DAILY_BUDGET } = await import("../collector/backfill-ahprice");
+    const now = new Date("2026-11-19T01:00:00Z");
+    expect(budgetFor({ day: "2026-11-19", used: 120 }, now)).toEqual({ day: "2026-11-19", used: 120 });
+    expect(budgetFor({ day: "2026-11-18", used: 1900 }, now)).toEqual({ day: "2026-11-19", used: 0 });
+    expect(budgetFor(null, now)).toEqual({ day: "2026-11-19", used: 0 });
+    expect(DAILY_BUDGET).toBeLessThan(2000);
+  });
+});
