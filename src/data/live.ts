@@ -176,3 +176,20 @@ export function iconUrl(meta: Meta | null, icon: string): string {
   const base = meta?.iconBase || "https://render.worldofwarcraft.com/forever-us/icons/56/";
   return `${base}${icon}.jpg`;
 }
+
+/** Genuine daily rows from before collection started (the owner's Auctionator scans; PvP Horde only). */
+export interface SeedPoint {
+  time: number;
+  low: number;
+  high: number;
+  available: number | null;
+}
+
+export async function loadSeed(house: number, itemId: number): Promise<SeedPoint[]> {
+  try {
+    const file = await getJson<{ items: Record<string, [number, number, number, number][]> }>(`seed/${house}/${itemId % SHARDS_V2}.json`);
+    return (file.items[itemId] ?? []).map((r) => ({ time: r[0] * DAY, low: r[1], high: r[2], available: r[3] >= 0 ? r[3] : null }));
+  } catch {
+    return [];
+  }
+}

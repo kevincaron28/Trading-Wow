@@ -45,6 +45,19 @@ Both start from the latest published data, so they can overlap safely.
 Hour index = unix seconds / 3600; day index = unix seconds / 86400 (UTC). Hourly rows are kept 14 days, daily
 candles two years. Prices are copper per unit. Icons: `{iconBase}{iconFileId}.jpg` on Blizzard's render CDN.
 
+## History before 18 November (seed)
+
+Blizzard only serves the current snapshot, so nothing before collection started (18 Nov 2026, 02:00 UTC) can be fetched.
+The only genuine earlier prices found are the owner's own **Auctionator** scans (SavedVariables, realm "PvP"; the account only
+has Horde characters there, so house 113). `collector/import-auctionator.ts` decodes Auctionator's CBOR price database and
+writes `seed/113/{itemId % 256}.json` = `{ items: { [itemId]: [[dayIndex, lowestBuyoutLow, lowestBuyoutHigh, quantityAvailable or -1]] } }`
+plus `seed/113.meta.json` (source and coverage). Only scanned days exist: **8 Nov (4,172 items), 10 Nov (332), 11 Nov (5,449)**;
+nothing for 4–7 Nov. No values are interpolated. The app draws them on 1D/1W charts as separate grey points labelled
+"Earlier scans", never merged into the live candles (they measure the lowest buyout, not the market price).
+
+Not used: TSM's AppHelper data (TSM's own data, not ours to republish) and third-party sites such as timesaver.gg (would need
+their permission).
+
 ## Estimated sales
 
 The collector keeps the previous snapshot's auction IDs in `state/` next to the data (gitignored, cached between GitHub

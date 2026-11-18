@@ -29,6 +29,9 @@ export interface ChartInput {
   lines: number[];
   range: ChartRange;
   logScale: boolean;
+  /** Genuine daily points from before collection started (lowest buyout per scanned day); drawn as separate points (no line between days). */
+  seed?: { time: number; low: number }[];
+  seedLabel?: string;
 }
 
 const css = (name: string) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
@@ -124,6 +127,12 @@ export class ChartEngine {
           ? add(this.chart.addSeries(BarSeries, { upColor: up, downColor: down, priceFormat }))
           : add(this.chart.addSeries(CandlestickSeries, { upColor: up, downColor: down, borderUpColor: up, borderDownColor: down, wickUpColor: up, wickDownColor: down, priceFormat }));
       s.setData(candles.map((c) => ({ time: ts(c.time), open: c.open, high: c.high, low: c.low, close: c.close })));
+    }
+
+    // Earlier scans: real days only, dotted with point markers, never joined to the live candles.
+    if (input.seed && input.seed.length > 0 && !comparing) {
+      const s = add(this.chart.addSeries(LineSeries, { color: css("--muted"), lineWidth: 2, lineVisible: false, pointMarkersVisible: true, pointMarkersRadius: 4, title: input.seedLabel ?? "", priceLineVisible: false, lastValueVisible: false, priceFormat }));
+      s.setData(input.seed.map((p) => ({ time: ts(p.time), value: p.low })));
     }
 
     // Comparison line (both on a percent scale from the first visible bar).

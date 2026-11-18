@@ -120,6 +120,9 @@ const en = {
   welcomeNote1: "Prices are what is listed right now. Volume is the quantity listed, not sold.",
   welcomeNote2: "Sales per day are an estimate from auctions that disappear early.",
   start: "Start",
+  seedLabel: "Earlier scans",
+  seedNote: "Grey dots: lowest buyout from Auctionator scans before 18 Nov (PvP Horde, scanned days only)",
+  seedHint: "Earlier daily prices: switch to 1D",
 } as const;
 
 export type MessageKey = keyof typeof en;
@@ -243,6 +246,9 @@ const fr: Record<MessageKey, string> = {
   welcomeNote1: "Les prix sont ceux des annonces actuelles. Le volume est la quantité en vente, pas vendue.",
   welcomeNote2: "Les ventes par jour sont une estimation à partir des enchères qui disparaissent tôt.",
   start: "Commencer",
+  seedLabel: "Relevés antérieurs",
+  seedNote: "Points gris : achat immédiat le plus bas des relevés Auctionator avant le 18 nov. (JcJ Horde, jours relevés seulement)",
+  seedHint: "Prix quotidiens antérieurs : passez en 1J",
 };
 
 export const MESSAGES: Record<Lang, Record<MessageKey, string>> = { en, fr };

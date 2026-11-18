@@ -20,7 +20,7 @@ import {
   type Timeframe,
 } from "../app/store";
 import { ChartEngine } from "./chartEngine";
-import { useCatalog, useHistory, useMeta, useQuotes } from "./data";
+import { useCatalog, useHistory, useSeed, useMeta, useQuotes } from "./data";
 import { ChangePill, Icon, ItemIcon, Loading, Money, Sheet, formatPct } from "./parts";
 import { SearchScreen } from "./SearchScreen";
 import { HouseBadge } from "./WatchlistScreen";
@@ -46,6 +46,8 @@ export function ChartScreen() {
   const meta = useMeta();
   const quotes = useQuotes(house);
   const history = useHistory(house, s.chartItem);
+  const seed = useSeed(house, s.chartItem);
+  const daily = s.timeframe === "1d" || s.timeframe === "1w";
   const compareHistory = useHistory(house, s.compareItem);
   const item = catalog.data?.get(s.chartItem);
   const quote = quotes.data?.get(s.chartItem);
@@ -83,8 +85,10 @@ export function ChartScreen() {
       lines,
       range: s.range,
       logScale: s.logScale,
+      seed: daily ? (seed.data ?? []) : [],
+      seedLabel: t(s.lang, "seedLabel"),
     });
-  }, [candles, compareCandles, s.chartType, s.indicators, s.lang, s.theme, lines.join(","), s.range, s.logScale]);
+  }, [candles, compareCandles, s.chartType, s.indicators, s.lang, s.theme, lines.join(","), s.range, s.logScale, seed.data, daily]);
   useEffect(() => { engine.current?.setPlacing(placing); }, [placing]);
   useEffect(() => { setPlacing(false); setLineMsg(""); }, [s.chartItem]);
 
@@ -148,6 +152,7 @@ export function ChartScreen() {
             </>
           ) : null}
           {s.compareItem && <span class="compare-tag">vs {catalog.data?.get(s.compareItem)?.name[s.lang]}</span>}
+          {(seed.data?.length ?? 0) > 0 && (daily ? <span class="seed-tag">{t(s.lang, "seedNote")}</span> : <span class="seed-tag">{t(s.lang, "seedHint")}</span>)}
         </div>
         <div ref={holder} class={`chart ${placing ? "placing" : ""}`} role="img" aria-label={`${name}: ${candles.length} ${t(s.lang, "points")}`} />
         {history.loading && !history.data && <div class="chart-overlay"><Loading text={t(s.lang, "loading")} /></div>}
