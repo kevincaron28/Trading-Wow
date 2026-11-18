@@ -1,5 +1,10 @@
 # Goldline 0.2.0 review and ranked improvements (18 November 2026)
 
+**0.4.0 (18 Nov) did:** #5 background alerts on Android (Capacitor Background Runner about every 30 min, public/runners/alerts.js,
+tested in Node with mocked Android globals; not yet tried on a phone), #6 pull-to-refresh on Watchlist and Explore, #15 share a chart as an
+image, estimated sold/day on watchlist rows with a Sold sort, and a kcaron.top privacy page (Guilded PR #1101). Still open: #9 realm names,
+#10 gear variants, #11 crafting margins, home-screen widget, store screenshots after a week of data.
+
 **0.3.0 (18 Nov) did:** #2 (256-file history, live since 12:35 UTC), #3 onboarding, #4 estimated sales per day (live from
 the 13:35 UTC snapshot; Top sellers in Explore, Sold / day on the chart), #6 offline cache (pull-to-refresh not done),
 #7 watchlist drag/swipe/long-press, #8 horizontal price lines with alert-at-line, #14 chart screen-reader label, #16
