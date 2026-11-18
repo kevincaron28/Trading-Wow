@@ -15,13 +15,15 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { BUILT_IN_WATCHLISTS } from "../src/data/watchlists.ts";
 import { COLLECTION_START_DAY, FOREVER_LAUNCH_DAY } from "./import-auctionator.ts";
+import { parseAhpriceCsv } from "./audit-catalog.ts";
 
 export const LABEL = "ahprice.com (crowd-sourced addon scans)";
 const API = "https://ahprice.com/api/v1";
 const UA = "Mozilla/5.0 (compatible; price-history-backfill/1.0)";
 const GAP_MS = 7000;
 const DAY_MARGIN = 60;
-const DAYS = 16;
+/** Days of history to ask for: back to WoW Forever's launch (4 Nov 2026), plus one. */
+const daysSinceLaunch = () => Math.ceil(Date.now() / 86_400_000 - FOREVER_LAUNCH_DAY) + 1;
 
 /**
  * ahprice.com US markets → Goldline houses, matched on 18 Nov 2026 by comparing current prices of 50 busy items
@@ -51,14 +53,18 @@ export function dailyRows(points: { t: number; floor_copper: number; qty?: numbe
   return [...byDay.values()].sort((a, b) => a[0] - b[0]);
 }
 
-/** Watchlist items first (in list order), then the busiest items by total quantity listed across the mapped houses. */
-export function itemOrder(latest: Map<number, Record<string, number[]>>): number[] {
+/**
+ * Watchlist items first, then the busiest items by total quantity listed across the mapped houses, then every other
+ * item ahprice.com knows (`extra`, in the given order), so the backfill ends up covering all items.
+ */
+export function itemOrder(latest: Map<number, Record<string, number[]>>, extra: Iterable<number> = []): number[] {
   const order: number[] = [];
   const seen = new Set<number>();
   for (const list of BUILT_IN_WATCHLISTS) for (const id of list.items) if (!seen.has(id)) { seen.add(id); order.push(id); }
   const listed = new Map<number, number>();
   for (const items of latest.values()) for (const [id, row] of Object.entries(items)) listed.set(Number(id), (listed.get(Number(id)) ?? 0) + (row[2] ?? 0));
   for (const [id] of [...listed].sort((a, b) => b[1] - a[1])) if (!seen.has(id)) { seen.add(id); order.push(id); }
+  for (const id of extra) if (!seen.has(id)) { seen.add(id); order.push(id); }
   return order;
 }
 
@@ -70,17 +76,30 @@ async function fetchAll(cacheDir: string, dataDir: string): Promise<void> {
   const cache: Cache = existsSync(cacheFile) ? JSON.parse(readFileSync(cacheFile, "utf8")) : {};
   const latest = new Map<number, Record<string, number[]>>();
   for (const { house } of MARKETS) latest.set(house, (JSON.parse(readFileSync(join(dataDir, "latest", `${house}.json`), "utf8")) as { items: Record<string, number[]> }).items);
-  const order = itemOrder(latest);
+  // ahprice.com price exports (`export/<market>.csv`, one request per market) say which items each market has:
+  // items it does not list there are skipped without a request (and asked again if a newer export lists them).
+  const exported = new Map<string, Set<number>>();
+  const exportDir = join(cacheDir, "export");
+  for (const { market } of MARKETS) {
+    const file = join(exportDir, `${market}.csv`);
+    if (existsSync(file)) exported.set(market, new Set(parseAhpriceCsv(readFileSync(file, "utf8")).keys()));
+  }
+  const extra = new Map<number, number>();
+  for (const ids of exported.values()) for (const id of ids) extra.set(id, (extra.get(id) ?? 0) + 1);
+  const order = itemOrder(latest, [...extra].sort((a, b) => b[1] - a[1] || a[0] - b[0]).map(([id]) => id));
+  const wanted = (market: string, id: number) => !exported.has(market) || exported.get(market)!.has(id);
+  const todo = order.reduce((n, id) => n + MARKETS.filter(({ market }) => wanted(market, id) && !(`${market}:${id}` in cache)).length, 0);
+  console.log(`${new Date().toISOString().slice(0, 16)} start: ${todo} requests to go (${Object.keys(cache).length} done), about ${Math.ceil(todo / 1_900)} days at 1,900 a day`);
   let requests = 0;
   let failures = 0;
   for (const id of order) {
     for (const { market } of MARKETS) {
       const key = `${market}:${id}`;
-      if (key in cache) continue;
+      if (key in cache || !wanted(market, id)) continue;
       await new Promise((r) => setTimeout(r, GAP_MS));
       let res: Response;
       try {
-        res = await fetch(`${API}/items/${id}/history?realm=${market}&days=${DAYS}`, { headers: { "user-agent": UA, accept: "application/json" }, signal: AbortSignal.timeout(30_000) });
+        res = await fetch(`${API}/items/${id}/history?realm=${market}&days=${daysSinceLaunch()}`, { headers: { "user-agent": UA, accept: "application/json" }, signal: AbortSignal.timeout(30_000) });
       } catch (error) {
         // Network trouble (timeout, refused): wait 5 minutes, and stop after 5 in a row so the next run retries.
         failures++;

@@ -278,3 +278,7 @@ table.status { width: 100%; margin: 8px 0; }
 .vrow { position: absolute; left: 0; right: 0; height: 64px; box-sizing: border-box; }
 .vrow .row-main { height: 63px; padding-top: 0; padding-bottom: 0; }
 .browse-search input::-webkit-search-cancel-button { -webkit-appearance: none; appearance: none; }
+
+.history-since { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; }
+.history-since b { color: var(--text); font-weight: 600; }
+.text-btn { background: none; border: 0; padding: 2px 0; color: var(--accent); font: inherit; font-weight: 600; text-decoration: underline; text-underline-offset: 2px; }
