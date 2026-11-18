@@ -185,6 +185,16 @@ export interface SeedPoint {
   available: number | null;
 }
 
+/** Daily lowest buyout from ahprice.com's shared addon scans (used with permission), a separate series: [day, price, qty]. */
+export async function loadExt(house: number, itemId: number): Promise<SeedPoint[]> {
+  try {
+    const file = await getJson<{ items: Record<string, [number, number, number][]> }>(`ext/ahprice/${house}/${itemId % SHARDS_V2}.json`);
+    return (file.items[itemId] ?? []).map((r) => ({ time: r[0] * DAY, low: r[1], high: r[1], available: r[2] }));
+  } catch {
+    return [];
+  }
+}
+
 export async function loadSeed(house: number, itemId: number): Promise<SeedPoint[]> {
   try {
     const file = await getJson<{ items: Record<string, [number, number, number, number][]> }>(`seed/${house}/${itemId % SHARDS_V2}.json`);

@@ -218,5 +218,6 @@ table.status { width: 100%; margin: 8px 0; }
 .offline-bar { margin: 0; padding: 6px 16px; background: var(--surface-2); color: var(--muted); font-size: 12.5px; border-bottom: 1px solid var(--border); }
 
 .seed-tag { color: var(--muted); font-style: italic; }
+.ext-tag { color: var(--ind-2); }
 
 .chart-overlay.interactive { pointer-events: auto; background: color-mix(in srgb, var(--chart-bg) 80%, transparent); }

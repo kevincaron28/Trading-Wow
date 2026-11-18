@@ -1,5 +1,5 @@
 import { useEffect, useState } from "preact/hooks";
-import { loadCatalog, loadHistory, loadMeta, loadQuotes, loadSeed, type CatalogItem, type ItemHistory, type Meta, type SeedPoint } from "../data/live";
+import { loadCatalog, loadExt, loadHistory, loadMeta, loadQuotes, loadSeed, type CatalogItem, type ItemHistory, type Meta, type SeedPoint } from "../data/live";
 import type { Quote } from "../lib/quotes";
 
 export interface Async<T> {
@@ -64,6 +64,10 @@ export function useQuotes(house: number): Async<Map<number, Quote>> {
 export function useHistory(house: number, itemId: number | null): Async<ItemHistory> {
   const v = useRefreshVersion();
   return useAsync(() => (itemId == null ? Promise.resolve({ hourly: [], daily: [] }) : loadHistory(house, itemId)), `history:${house}:${itemId}:${v}`);
+}
+
+export function useExt(house: number, itemId: number): Async<SeedPoint[]> {
+  return useAsync(() => loadExt(house, itemId), `ext:${house}:${itemId}:0`);
 }
 
 export function useSeed(house: number, itemId: number): Async<SeedPoint[]> {
