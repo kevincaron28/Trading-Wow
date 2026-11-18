@@ -177,7 +177,7 @@ export function iconUrl(meta: Meta | null, icon: string): string {
   return `${base}${icon}.jpg`;
 }
 
-/** Genuine daily rows from before collection started (the owner's Auctionator scans; PvP Horde only). */
+/** Genuine daily rows from before collection started (Auctionator scans by the owner and a guildmate; PvP Horde only). */
 export interface SeedPoint {
   time: number;
   low: number;
