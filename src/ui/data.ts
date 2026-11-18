@@ -8,15 +8,20 @@ export interface Async<T> {
   loading: boolean;
 }
 
-/** Run an async loader when `key` changes; `version` forces a reload (pull to refresh, hourly refresh). */
+/**
+ * Run an async loader when `key` changes. Keys may end in ":<refresh version>"; a refresh of the same thing keeps
+ * showing the old data while it reloads, but switching to something else (another item or house) starts empty, so a
+ * failed load never shows the previous item's data.
+ */
 export function useAsync<T>(load: () => Promise<T>, key: string): Async<T> {
-  const [state, setState] = useState<Async<T>>({ data: null, error: null, loading: true });
+  const [state, setState] = useState<Async<T> & { id?: string }>({ data: null, error: null, loading: true });
+  const id = key.replace(/:\d+$/, "");
   useEffect(() => {
     let alive = true;
-    setState((s) => ({ data: s.data, error: null, loading: true }));
+    setState((s) => ({ data: s.id === id ? s.data : null, error: null, loading: true, id }));
     load().then(
-      (data) => alive && setState({ data, error: null, loading: false }),
-      (error: unknown) => alive && setState((s) => ({ data: s.data, error: error instanceof Error ? error.message : String(error), loading: false })),
+      (data) => alive && setState({ data, error: null, loading: false, id }),
+      (error: unknown) => alive && setState((s) => ({ data: s.data, error: error instanceof Error ? error.message : String(error), loading: false, id })),
     );
     return () => {
       alive = false;
@@ -62,5 +67,5 @@ export function useHistory(house: number, itemId: number | null): Async<ItemHist
 }
 
 export function useSeed(house: number, itemId: number): Async<SeedPoint[]> {
-  return useAsync(() => loadSeed(house, itemId), `seed:${house}:${itemId}`);
+  return useAsync(() => loadSeed(house, itemId), `seed:${house}:${itemId}:0`);
 }

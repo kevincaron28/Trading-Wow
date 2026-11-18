@@ -20,8 +20,8 @@ import {
   type Timeframe,
 } from "../app/store";
 import { ChartEngine } from "./chartEngine";
-import { useCatalog, useHistory, useSeed, useMeta, useQuotes } from "./data";
-import { ChangePill, Icon, ItemIcon, Loading, Money, Sheet, formatPct } from "./parts";
+import { useCatalog, useHistory, useSeed, useMeta, useQuotes , bumpRefresh } from "./data";
+import { ChangePill, Icon, ItemIcon, Loading, Money, Sheet, formatPct , ErrorMsg } from "./parts";
 import { SearchScreen } from "./SearchScreen";
 import { HouseBadge } from "./WatchlistScreen";
 import { shareChart } from "./share";
@@ -168,6 +168,9 @@ export function ChartScreen() {
         <div ref={holder} class={`chart ${placing ? "placing" : ""}`} role="img" aria-label={`${name}: ${candles.length} ${t(s.lang, "points")}`} />
         {history.loading && !history.data && <div class="chart-overlay"><Loading text={t(s.lang, "loading")} /></div>}
         {history.data && candles.length === 0 && <div class="chart-overlay"><p class="state-msg">{t(s.lang, "noHistory")}</p></div>}
+        {history.error && !history.data && !history.loading && (
+          <div class="chart-overlay interactive"><ErrorMsg text={t(s.lang, "loadError")} retry={bumpRefresh} retryLabel={t(s.lang, "retry")} /></div>
+        )}
       </div>
 
       <div class="chart-toolbar ranges-bar">
