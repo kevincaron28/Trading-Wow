@@ -36,11 +36,8 @@ jobs:
       - name: Progress (ahledger-state branch)
         id: state
         run: |
-          if git fetch -q origin ahledger-state 2>/dev/null; then
-            git worktree add -q state FETCH_HEAD
-          else
-            git worktree add -q --detach state && (cd state && git checkout -q --orphan ahledger-state && git rm -rq . && echo '# AHledger backfill cache' > README.md && git add README.md && git commit -qm "AHledger backfill state")
-          fi
+          git fetch -q origin ahledger-state
+          git worktree add -q state FETCH_HEAD
           if [ -f state/done.json ]; then echo "done=true" >> "$GITHUB_OUTPUT"; else echo "done=false" >> "$GITHUB_OUTPUT"; fi
       - name: Fetch (up to 50 minutes)
         if: steps.state.outputs.done == 'false'
