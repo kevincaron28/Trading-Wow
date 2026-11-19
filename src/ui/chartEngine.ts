@@ -37,6 +37,8 @@ export interface ChartInput {
   extLabel?: string;
   /** TradeSkillMaster daily market value (separate, credited series). */
   tsm?: { time: number; value: number }[];
+  /** AHledger daily prices (median or lowest buyout, matching the price field). */
+  ahl?: { time: number; value: number }[];
   /** Index points (base 100) instead of gold on the price axis. */
   points?: boolean;
 }
@@ -115,7 +117,8 @@ export class ChartEngine {
     const up = css("--up");
     const down = css("--down");
     const accent = css("--accent");
-    const fmt = input.points ? (p: number) => formatPoints(p, input.lang) : (p: number) => formatMoneyAxis(p, input.lang);
+    // Prices are never below zero: the margin under the lowest price shows no labels rather than "-10g".
+    const fmt = input.points ? (p: number) => formatPoints(p, input.lang) : (p: number) => (p < 0 ? "" : p === 0 ? "0" : formatMoneyAxis(p, input.lang));
     const comparing = input.compare !== null;
     this.chart.applyOptions({
       layout: {
@@ -125,7 +128,8 @@ export class ChartEngine {
         panes: { separatorColor: css("--border") },
       },
       grid: { vertLines: { color: css("--grid") }, horzLines: { color: css("--grid") } },
-      rightPriceScale: { borderVisible: false, mode: comparing ? PriceScaleMode.Percentage : input.logScale ? PriceScaleMode.Logarithmic : PriceScaleMode.Normal },
+      // Room at the top for the legend, and at the bottom for the volume bars so candles never sit on them.
+      rightPriceScale: { borderVisible: false, scaleMargins: { top: 0.14, bottom: input.indicators.includes("volume") && !input.points ? 0.22 : 0.06 }, mode: comparing ? PriceScaleMode.Percentage : input.logScale ? PriceScaleMode.Logarithmic : PriceScaleMode.Normal },
       timeScale: { borderVisible: false },
       localization: { locale: input.lang === "fr" ? "fr-CA" : "en-US", priceFormatter: comparing ? undefined : fmt },
     });
@@ -170,6 +174,11 @@ export class ChartEngine {
     if (input.tsm && input.tsm.length > 0 && !comparing) {
       const s = add(this.chart.addSeries(LineSeries, { color: css("--ind-3"), lineWidth: 2, lineStyle: 2, pointMarkersVisible: true, pointMarkersRadius: 3, priceLineVisible: false, lastValueVisible: false, priceFormat }));
       s.setData(input.tsm.map((p) => ({ time: ts(p.time), value: p.value })));
+    }
+
+    if (input.ahl && input.ahl.length > 0 && !comparing) {
+      const s = add(this.chart.addSeries(LineSeries, { color: css("--ind-4"), lineWidth: 2, lineStyle: 1, pointMarkersVisible: true, pointMarkersRadius: 3, priceLineVisible: false, lastValueVisible: false, priceFormat }));
+      s.setData(input.ahl.map((p) => ({ time: ts(p.time), value: p.value })));
     }
 
     // Comparison line (both on a percent scale from the first visible bar).

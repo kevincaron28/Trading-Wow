@@ -57,14 +57,15 @@ export function percentChange(from: number, to: number): number | null {
   return ((to - from) / from) * 100;
 }
 
-/** Price-axis label: two coin units at most ("1,234g", "12g 25s", "25s 77c", "77c"). */
+/** Price-axis label: two coin units at most ("1,234g", "12g 25s", "13g 06s", "25s 77c", "77c"). */
 export function formatMoneyAxis(amount: number, lang: Lang = "en"): string {
   const c = splitCopper(amount);
   const s = COIN_SUFFIX[lang];
   const sign = c.negative ? "-" : "";
   if (c.gold >= 100) return `${sign}${c.gold.toLocaleString(lang === "fr" ? "fr-CA" : "en-US").replace(/ | /g, " ")}${s.gold}`;
-  if (c.gold > 0) return c.silver ? `${sign}${c.gold}${s.gold} ${c.silver}${s.silver}` : `${sign}${c.gold}${s.gold}`;
-  if (c.silver > 0) return c.copper ? `${sign}${c.silver}${s.silver} ${c.copper}${s.copper}` : `${sign}${c.silver}${s.silver}`;
+  const two = (n: number) => String(n).padStart(2, "0");
+  if (c.gold > 0) return c.silver ? `${sign}${c.gold}${s.gold} ${two(c.silver)}${s.silver}` : `${sign}${c.gold}${s.gold}`;
+  if (c.silver > 0) return c.copper ? `${sign}${c.silver}${s.silver} ${two(c.copper)}${s.copper}` : `${sign}${c.silver}${s.silver}`;
   return `${sign}${c.copper}${s.copper}`;
 }
 

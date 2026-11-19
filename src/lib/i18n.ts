@@ -96,7 +96,7 @@ const en = {
   downloadingUpdate: "downloading",
   upToDate: "up to date",
   updateError: "could not check (offline?)",
-  nextUpdate: "next ≈",
+  nextUpdate: "next in ≈",
   checkingPrices: "checking for new prices…",
   wickNote: "Candles: body = market value (opens at the previous close); wicks = that period's real listing spread (lowest buyout up to the price of the cheapest 30%, kept within ½–1.5× the market value).",
   hourlySince: "hourly since",
@@ -175,11 +175,14 @@ const en = {
   itemsCount: "items",
   srcSeed: "Earlier scans",
   srcExt: "ahprice.com",
+  ahlNoteMedian: "Teal dots: AHledger's daily median price since launch, from its players' addon scans, read live and not stored by Goldline.",
+  ahlNoteMin: "Teal dots: AHledger's daily lowest buyout since launch, from its players' addon scans, read live and not stored by Goldline.",
   sourcesNote: "Dots are daily lowest buyouts from before 18 Nov: grey = Auctionator scans by the owner and a guildmate (PvP Horde), purple = ahprice.com shared addon scans (used with permission).",
   preparing: "Preparing image…",
   listedShort: "listed",
   auctionsShort: "auctions",
   chartsBy: "Charts drawn with TradingView Lightweight Charts™ (Apache 2.0).",
+  dataCredits: "Earlier price history:",
 } as const;
 
 export type MessageKey = keyof typeof en;
@@ -279,7 +282,7 @@ const fr: Record<MessageKey, string> = {
   downloadingUpdate: "téléchargement",
   upToDate: "à jour",
   updateError: "vérification impossible (hors ligne?)",
-  nextUpdate: "prochain ≈",
+  nextUpdate: "prochain dans ≈",
   checkingPrices: "recherche de nouveaux prix…",
   wickNote: "Chandelles : corps = valeur marchande (ouvre à la clôture précédente); mèches = l’écart réel des annonces de la période (du plus bas achat immédiat au prix des 30 % les moins chers, limité entre ½ et 1,5× la valeur marchande).",
   hourlySince: "horaire depuis le",
@@ -358,11 +361,14 @@ const fr: Record<MessageKey, string> = {
   itemsCount: "objets",
   srcSeed: "Relevés antérieurs",
   srcExt: "ahprice.com",
+  ahlNoteMedian: "Points turquoise : prix médian quotidien d’AHledger depuis le lancement, tiré des relevés de ses joueurs, lu en direct et non conservé par Goldline.",
+  ahlNoteMin: "Points turquoise : achat immédiat le plus bas du jour selon AHledger depuis le lancement, tiré des relevés de ses joueurs, lu en direct et non conservé par Goldline.",
   sourcesNote: "Les points sont les achats immédiats les plus bas du jour avant le 18 nov. : gris = relevés Auctionator du propriétaire et d’un membre de la guilde (JcJ Horde), violet = relevés partagés d’ahprice.com (avec permission).",
   preparing: "Préparation de l’image…",
   listedShort: "en vente",
   auctionsShort: "enchères",
   chartsBy: "Graphiques tracés avec TradingView Lightweight Charts™ (Apache 2.0).",
+  dataCredits: "Historique des prix antérieur :",
 };
 
 export const MESSAGES: Record<Lang, Record<MessageKey, string>> = { en, fr };

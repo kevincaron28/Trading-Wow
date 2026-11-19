@@ -28,6 +28,7 @@
   --ind-1: #6fb6ff;
   --ind-2: #c58cff;
   --ind-3: #8fa1b8;
+  --ind-4: #3fd1c0;
   --alliance: #4f8df2;
   --horde: #d9483b;
   --blackwater: #3fb8a4;
@@ -56,6 +57,7 @@
   --ind-1: #2c6fd6;
   --ind-2: #8c3fd6;
   --ind-3: #7d8a9c;
+  --ind-4: #0e8a7c;
   --q0: #8a8a8a; --q1: #1b1d22; --q2: #138a2d; --q3: #2c6fd6; --q4: #8c3fd6; --q5: #c86400;
   color-scheme: light;
 }
@@ -140,6 +142,7 @@ button { cursor: pointer; }
 .key.live { background: var(--accent); border-radius: 2px; }
 .key.seed { background: var(--muted); }
 .key.ext { background: var(--ind-2); }
+.key.ahl { background: var(--ind-4); }
 .icon-btn.busy { opacity: 0.55; animation: busy-pulse 0.9s ease-in-out infinite alternate; }
 @keyframes busy-pulse { from { opacity: 0.35; } to { opacity: 0.8; } }
 .state-msg.error { color: var(--text); }
@@ -298,6 +301,7 @@ body.fresh-data .row-price, body.fresh-data .symbol-price .money { animation: fr
 
 /* Indexes */
 .index-row { grid-template-columns: 1fr auto auto 84px; }
+.index-row .row-name .name { white-space: normal; overflow-wrap: anywhere; line-height: 1.2; }
 .spark { flex: none; }
 .method-note { margin: 10px 16px 16px; line-height: 1.45; }
 .index-head { display: flex; align-items: center; gap: 8px; padding: 4px 12px 8px 8px; }
@@ -307,5 +311,5 @@ body.fresh-data .row-price, body.fresh-data .symbol-price .money { animation: fr
 .index-chart { height: min(46vh, 420px); min-height: 260px; }
 .constituents-head { grid-template-columns: 1fr 70px 84px; }
 .constituent-row { grid-template-columns: 34px 1fr auto 84px; }
-.key.tsm { background: var(--ind-3); }
+.key.tsm { background: var(--ind-3); width: 14px; height: 3px; border-radius: 0; vertical-align: 3px; }
 .tsm-card { margin-top: 8px; }
