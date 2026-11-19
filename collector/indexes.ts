@@ -12,10 +12,13 @@
  *   provisional before). Rebalanced on the first weekly reset (Tuesday 15:00 UTC) of each month, chain-linked so the
  *   level does not jump; baskets once set are never changed afterwards.
  * - Base 100 = WoW Forever's launch: the first UTC day on or after 4 Nov 2026 where the merged early history
- *   (early/, collector/merge-history.ts) prices at least half of the basket weight. Daily values from there until our
- *   hourly data starts (18 Nov) use the same basket and weights; a constituent without a price on a day is left out
- *   and the others re-weighted, and one without a price on the base day uses its first later price as its base. The
- *   hourly series is chain-linked to the last early day, and everything is recomputed as the backfill fills in.
+ *   (early/, collector/merge-history.ts) prices at least 10 basket items (or the whole basket when smaller). Launch
+ *   week markets were thin (on 5 Nov only about a fifth of today's busiest items were listed), so the early days are
+ *   chain-linked: each day moves the level by the weighted price change of the basket items priced that day and on
+ *   an earlier day (at most 3 days before), re-weighted among them; one item's daily move counts as at most x2 or /2,
+ *   and a day with fewer than 5 linked items leaves the level unchanged. Items that start trading later join without
+ *   moving the level. The hourly series is chain-linked to the last early day; everything is recomputed as the
+ *   backfill fills in.
  */
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -151,8 +154,12 @@ export interface IndexFile {
 
 const DAY_H = 24;
 export const LAUNCH_DAY = Date.UTC(2026, 10, 4) / 86_400_000;
-const BASE_SHARE = 0.5;
-const DAY_SHARE = 0.25;
+const BASE_MIN_ITEMS = 10;
+const CARRY_DAYS = 3;
+/** A day moves the level only when this many items link to an earlier price (fewer: the level carries). */
+const MIN_LINKS = 5;
+/** Outlier treatment for thin launch-week markets: one item's daily move counts as at most x2 or /2. */
+const MAX_DAILY_RATIO = 2;
 
 /** Early daily market value per item: day index -> price (from early/{house}). */
 export type EarlySeries = Map<number, Map<number, number>>;
@@ -179,10 +186,11 @@ export function withEarly(file: IndexFile, early: EarlySeries): IndexFile {
   if (!firstHourly || !hourlyPeriod) return file;
   const dayH0 = Math.floor(firstHourly[0] / DAY_H);
   const basket = hourlyPeriod.basket.map(([id, w]) => [id, w] as const);
-  const total = basket.reduce((a, [, w]) => a + w, 0) || 1;
-  const priced = (d: number) => basket.filter(([id]) => early.get(id)?.has(d));
+  const pricedCount = (d: number) => basket.filter(([id]) => early.get(id)?.has(d)).length;
+  const need = Math.min(BASE_MIN_ITEMS, Math.ceil(basket.length / 2));
+  const minLinks = Math.min(MIN_LINKS, need);
   let base = -1;
-  for (let d = LAUNCH_DAY; d < dayH0; d++) if (priced(d).reduce((a, [, w]) => a + w, 0) / total >= BASE_SHARE) { base = d; break; }
+  for (let d = LAUNCH_DAY; d < dayH0; d++) if (pricedCount(d) >= need) { base = d; break; }
   if (base < 0) return file;
   const p0 = new Map<number, number>();
   for (const [id] of basket) {
@@ -190,22 +198,33 @@ export function withEarly(file: IndexFile, early: EarlySeries): IndexFile {
     if (!days) continue;
     for (let d = base; d < dayH0; d++) { const p = days.get(d); if (p != null && p > 0) { p0.set(id, p); break; } }
   }
-  const points: [number, number][] = [];
-  for (let d = base; d < dayH0; d++) {
+  // Chain-linked daily level: level(d) = level(prev) x weighted mean of p(d) / p(last seen, within CARRY_DAYS).
+  const last = new Map<number, [day: number, price: number]>();
+  for (const [id] of basket) { const p = early.get(id)?.get(base); if (p != null && p > 0) last.set(id, [base, p]); }
+  let level = 100;
+  const points: [number, number][] = [[base * DAY_H + DAY_H - 1, 100]];
+  for (let d = base + 1; d < dayH0; d++) {
     let num = 0;
     let wsum = 0;
+    let links = 0;
+    const seen: [number, number][] = [];
     for (const [id, w] of basket) {
       const p = early.get(id)?.get(d);
-      const b = p0.get(id);
-      if (p == null || b == null) continue;
-      num += w * (p / b);
-      wsum += w;
+      if (p == null || p <= 0) continue;
+      seen.push([id, p]);
+      const prev = last.get(id);
+      if (prev && d - prev[0] <= CARRY_DAYS) {
+        num += w * Math.min(MAX_DAILY_RATIO, Math.max(1 / MAX_DAILY_RATIO, p / prev[1]));
+        wsum += w;
+        links++;
+      }
     }
-    if (wsum / total < DAY_SHARE && d !== base) continue;
-    points.push([d * DAY_H + DAY_H - 1, Math.round(((100 * num) / wsum) * 100) / 100]);
+    for (const [id, p] of seen) last.set(id, [d, p]);
+    if (wsum === 0 || links < minLinks) continue;
+    level = (level * num) / wsum;
+    points.push([d * DAY_H + DAY_H - 1, Math.round(level * 100) / 100]);
   }
-  const last = points.at(-1)![1];
-  const k = last / firstHourly[1];
+  const k = points.at(-1)![1] / firstHourly[1];
   const earlyPeriod: Period & { early: true } = { start: base * 86_400, level: 100, early: true, basket: hourlyPeriod.basket.filter(([id]) => p0.has(id)).map(([id, w]) => [id, w, p0.get(id)!]) };
   return {
     id: file.id,

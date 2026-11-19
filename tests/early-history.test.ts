@@ -60,14 +60,14 @@ describe("indexes from launch", () => {
     [1, new Map([[LAUNCH_DAY + 1, 20], [LAUNCH_DAY + 2, 10]])],
     [2, new Map([[LAUNCH_DAY + 2, 40]])],
   ]);
-  it("starts at 100 on the first day with half the basket priced, re-weights missing items and chain-links the hourly part", () => {
+  it("starts at 100 on the first priced day and chain-links the days, so late joiners do not move the level", () => {
     const f = withEarly(hourly, early);
     expect(f.periods[0]).toMatchObject({ start: (LAUNCH_DAY + 1) * D, level: 100 });
-    // day 1: item 1 at its base (20) -> 100; day 2: item 1 at half (10/20), item 2 at its first price (40/40) -> 75.
-    expect(f.hourly.slice(0, 2)).toEqual([[(LAUNCH_DAY + 1) * 24 + 23, 100], [(LAUNCH_DAY + 2) * 24 + 23, 75]]);
-    expect(f.link).toBe(0.75);
-    expect(f.hourly.slice(2)).toEqual([[H0, 75], [H0 + 1, 82.5]]);
-    expect(f.periods[1]!.level).toBe(75);
+    // day 1: base 100; day 2: item 1 halves (20 -> 10); item 2 has its first price and joins without moving the level.
+    expect(f.hourly.slice(0, 2)).toEqual([[(LAUNCH_DAY + 1) * 24 + 23, 100], [(LAUNCH_DAY + 2) * 24 + 23, 50]]);
+    expect(f.link).toBe(0.5);
+    expect(f.hourly.slice(2)).toEqual([[H0, 50], [H0 + 1, 55]]);
+    expect(f.periods[1]!.level).toBe(50);
   });
   it("undoes the link exactly, so the next run can recompute it", () => {
     const f = withEarly(hourly, early);
