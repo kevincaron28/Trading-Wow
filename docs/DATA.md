@@ -253,3 +253,7 @@ The indexes are described in `docs/INDEXES.md`.
 from 03:52 to 10:22 UTC, and again after 10:22. Each collector run now collects four times, 15 minutes apart (about 50
 minutes), then starts the next run itself with `workflow_dispatch`, which a workflow's own token may do. The cron
 slots and the backfill workflow's stale-data check only restart the relay if it ever breaks.
+
+**Freshness note (19 Nov 2026).** raw.githubusercontent.com caches each file for up to 5 minutes and ignores the
+`?t=` query, so the app can see new prices up to 5 minutes after they are published. The live countdown in the app
+allows for that delay. Update manifests come from GitHub release downloads, which this cache does not affect.
