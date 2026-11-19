@@ -211,3 +211,40 @@ site's limit is 2,000), so roughly four weeks from 18 Nov, most-listed items fir
 ahprice.com backfill workflow's quick check job, which several triggers start, also starts a collector run when
 `meta.json` on the data branch is more than 75 minutes old and no collector run is queued or running. An extra
 collector run that finds an already stored snapshot skips it.
+
+## TradeSkillMaster data (separate series)
+
+The owner has permission to use TradeSkillMaster's online data for prices and markets (owner, 19 Nov 2026).
+`collector/tsm.ts` reads TSM's **public pricing files** (https://tradeskillmaster.com/public-data). They are free, need
+no API key and have no scraping. Their terms are followed:
+- credit "Pricing data from TradeSkillMaster" with a link, shown in the app wherever TSM numbers appear;
+- each file is downloaded at most once per update, so at most every 3 hours;
+- the series is never presented as Goldline's own.
+
+| File | Content | Updated |
+|---|---|---|
+| `forever/us/realm/<slug>/items.csv` | market value, min buyout, recent, historical (60-day) | every few hours |
+| `forever/us/region/items.csv` | market value, historical, average sale price, sale rate, sold per day | daily |
+
+The realm slugs map to our houses:
+
+| TSM realm | Alliance | Horde |
+|---|---|---|
+| pvp | 110 | 113 |
+| normal | 111 | 114 |
+| roleplay | 119 | 120 |
+| roleplay-pvp | 123 | 124 |
+
+TSM has no Blackwater (neutral) houses, and its files hold only current values (plus the 60-day "historical"
+average). So TSM cannot fill past gaps, and its daily history (`tsm/<house>/<shard>.json`) starts when Goldline began
+recording it (19 Nov 2026). Region data is in `tsm/region/`.
+
+The app shows a TradeSkillMaster card on each item page and TSM's daily market value as a dashed line on daily
+charts.
+
+Cross-check on 19 Nov (about 7,000 items per house): TSM's market value is about 10–14% higher than ours for the
+median item (ratio p10 0.66–0.77, p90 1.93–2.06), and about half of items are within -20% to +25%. This is expected,
+because TSM averages over 14 days of scans and a wider slice of listings, while ours is the current snapshot's robust
+low. The two are shown side by side, never blended.
+
+The indexes are described in `docs/INDEXES.md`.

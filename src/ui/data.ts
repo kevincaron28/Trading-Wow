@@ -1,5 +1,5 @@
 import { useEffect, useState } from "preact/hooks";
-import { loadCatalog, loadExt, loadHistory, loadMeta, loadQuotes, loadSeed, type CatalogItem, type ItemHistory, type Meta, type SeedPoint } from "../data/live";
+import { loadCatalog, loadExt, loadHistory, loadIndexes, loadIndexMeta, loadMeta, loadQuotes, loadSeed, loadTsm, loadTsmRegion, type IndexDefMeta, type IndexSeries, type TsmItem, type TsmRegion, type CatalogItem, type ItemHistory, type Meta, type SeedPoint } from "../data/live";
 import type { Quote } from "../lib/quotes";
 
 export interface Async<T> {
@@ -64,6 +64,21 @@ export function useQuotes(house: number): Async<Map<number, Quote>> {
 export function useHistory(house: number, itemId: number | null): Async<ItemHistory> {
   const v = useRefreshVersion();
   return useAsync(() => (itemId == null ? Promise.resolve({ hourly: [], daily: [] }) : loadHistory(house, itemId)), `history:${house}:${itemId}:${v}`);
+}
+
+export function useTsm(house: number, itemId: number): Async<TsmItem | null> {
+  const v = useRefreshVersion();
+  return useAsync(() => loadTsm(house, itemId), `tsm:${house}:${itemId}:${v}`);
+}
+export function useTsmRegion(itemId: number): Async<TsmRegion | null> {
+  return useAsync(() => loadTsmRegion(itemId), `tsmr:${itemId}:0`);
+}
+export function useIndexMeta(): Async<{ baseEnd: number; indexes: IndexDefMeta[] }> {
+  return useAsync(() => loadIndexMeta(), "indexmeta:0");
+}
+export function useIndexes(house: number): Async<Record<string, IndexSeries>> {
+  const v = useRefreshVersion();
+  return useAsync(() => loadIndexes(house), `indexes:${house}:${v}`);
 }
 
 export function useExt(house: number, itemId: number): Async<SeedPoint[]> {

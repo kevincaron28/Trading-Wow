@@ -35,6 +35,10 @@ export interface ChartInput {
   /** ahprice.com daily lowest buyout (shared addon scans), drawn as its own labelled points. */
   ext?: { time: number; low: number }[];
   extLabel?: string;
+  /** TradeSkillMaster daily market value (separate, credited series). */
+  tsm?: { time: number; value: number }[];
+  /** Index points (base 100) instead of gold on the price axis. */
+  points?: boolean;
 }
 
 const css = (name: string) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
@@ -111,7 +115,7 @@ export class ChartEngine {
     const up = css("--up");
     const down = css("--down");
     const accent = css("--accent");
-    const fmt = (p: number) => formatMoneyAxis(p, input.lang);
+    const fmt = input.points ? (p: number) => p.toFixed(2) : (p: number) => formatMoneyAxis(p, input.lang);
     const comparing = input.compare !== null;
     this.chart.applyOptions({
       layout: {
@@ -129,7 +133,7 @@ export class ChartEngine {
     const candles = this.shownCandles();
     const priceFormat = comparing
       ? { type: "percent" as const }
-      : { type: "custom" as const, minMove: 1, formatter: fmt };
+      : { type: "custom" as const, minMove: input.points ? 0.01 : 1, formatter: fmt };
     // A flat price would otherwise zoom into a few copper and repeat the same axis label: keep at least ±2% in view.
     const autoscaleInfoProvider = comparing ? undefined : padFlatRange;
     const add = <T extends SeriesType>(series: ISeriesApi<T>) => {
@@ -161,6 +165,11 @@ export class ChartEngine {
     if (input.ext && input.ext.length > 0 && !comparing) {
       const s = add(this.chart.addSeries(LineSeries, { color: css("--ind-2"), lineWidth: 2, lineVisible: false, pointMarkersVisible: true, pointMarkersRadius: 3, priceLineVisible: false, lastValueVisible: false, priceFormat }));
       s.setData(input.ext.map((p) => ({ time: ts(p.time), value: p.low })));
+    }
+
+    if (input.tsm && input.tsm.length > 0 && !comparing) {
+      const s = add(this.chart.addSeries(LineSeries, { color: css("--ind-3"), lineWidth: 2, lineStyle: 2, pointMarkersVisible: true, pointMarkersRadius: 3, priceLineVisible: false, lastValueVisible: false, priceFormat }));
+      s.setData(input.tsm.map((p) => ({ time: ts(p.time), value: p.value })));
     }
 
     // Comparison line (both on a percent scale from the first visible bar).

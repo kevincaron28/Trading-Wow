@@ -193,6 +193,41 @@ export interface SeedPoint {
   available: number | null;
 }
 
+export interface IndexDefMeta { id: string; name: { en: string; fr: string }; about: { en: string; fr: string }; size: number; cap: number }
+export interface IndexPeriod { start: number; level: number; provisional?: boolean; basket: [number, number, number][] }
+export interface IndexSeries { id: string; periods: IndexPeriod[]; hourly: [number, number][] }
+
+/** Goldline indexes: definitions (index/meta.json) and one house's series (index/<house>.json). */
+export function loadIndexMeta(): Promise<{ baseEnd: number; indexes: IndexDefMeta[] }> {
+  return getJson("index/meta.json");
+}
+export async function loadIndexes(house: number): Promise<Record<string, IndexSeries>> {
+  return (await getJson<{ indexes: Record<string, IndexSeries> }>(`index/${house}.json`)).indexes;
+}
+
+/** TradeSkillMaster public data (credited, separate): realm values and daily history, and region sale data. */
+export interface TsmItem { marketValue: number; minBuyout: number; recent: number; historical: number; daily: { time: number; value: number }[] }
+export interface TsmRegion { marketValue: number; historical: number; avgSalePrice: number; saleRate: number; soldPerDay: number }
+export async function loadTsm(house: number, itemId: number): Promise<TsmItem | null> {
+  try {
+    const file = await getJson<{ items: Record<string, { v: number[]; d: [number, number, number][] }> }>(`tsm/${house}/${itemId % SHARDS_V2}.json`);
+    const x = file.items[itemId];
+    if (!x) return null;
+    return { marketValue: x.v[0]!, minBuyout: x.v[1]!, recent: x.v[2]!, historical: x.v[3]!, daily: x.d.map((r) => ({ time: r[0] * DAY, value: r[1] })) };
+  } catch {
+    return null;
+  }
+}
+export async function loadTsmRegion(itemId: number): Promise<TsmRegion | null> {
+  try {
+    const file = await getJson<{ items: Record<string, number[]> }>(`tsm/region/${itemId % SHARDS_V2}.json`);
+    const r = file.items[itemId];
+    return r ? { marketValue: r[0]!, historical: r[1]!, avgSalePrice: r[2]!, saleRate: r[3]!, soldPerDay: r[4]! } : null;
+  } catch {
+    return null;
+  }
+}
+
 /** Daily lowest buyout from ahprice.com's shared addon scans (used with permission), a separate series: [day, price, qty]. */
 export async function loadExt(house: number, itemId: number): Promise<SeedPoint[]> {
   try {
