@@ -248,3 +248,8 @@ because TSM averages over 14 days of scans and a wider slice of listings, while 
 low. The two are shown side by side, never blended.
 
 The indexes are described in `docs/INDEXES.md`.
+
+**Collector relay (19 Nov 2026).** GitHub stopped firing this repository's scheduled runs for hours at a time: none
+from 03:52 to 10:22 UTC, and again after 10:22. Each collector run now collects four times, 15 minutes apart (about 50
+minutes), then starts the next run itself with `workflow_dispatch`, which a workflow's own token may do. The cron
+slots and the backfill workflow's stale-data check only restart the relay if it ever breaks.
