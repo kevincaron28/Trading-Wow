@@ -11,7 +11,7 @@
  * Output: ext/ahprice/{house}/{itemId % 256}.json = { items: { [itemId]: [[dayIndex, lowestBuyout, quantity]] } } and
  * ext/ahprice/meta.json (label, market map, coverage). Kept as its own series, never mixed with Goldline's own data.
  */
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { BUILT_IN_WATCHLISTS } from "../src/data/watchlists.ts";
 import { COLLECTION_START_DAY, FOREVER_LAUNCH_DAY } from "./import-auctionator.ts";
@@ -41,6 +41,25 @@ export const MARKETS: readonly { market: string; house: number }[] = [
 ];
 
 export type ExtRow = [number, number, number];
+
+/**
+ * Request plan: every (item, market) still wanted, in item order, essential ones first and deferred ones after.
+ */
+export function planKeys(
+  order: readonly number[],
+  markets: readonly { market: string; house: number }[],
+  wanted: (market: string, id: number) => boolean,
+  deferred: (market: string, house: number, id: number) => boolean,
+): { id: number; market: string; deferred: boolean }[] {
+  const first: { id: number; market: string; deferred: boolean }[] = [];
+  const later: { id: number; market: string; deferred: boolean }[] = [];
+  for (const id of order) for (const { market, house } of markets) {
+    if (!wanted(market, id)) continue;
+    if (deferred(market, house, id)) later.push({ id, market, deferred: true });
+    else first.push({ id, market, deferred: false });
+  }
+  return [...first, ...later];
+}
 
 /** API points → one row per day [unix day index, lowest buyout, quantity], the day's last point winning; launch..17 Nov only. */
 export function dailyRows(points: { t: number; floor_copper: number; qty?: number }[]): ExtRow[] {
@@ -101,14 +120,22 @@ async function fetchAll(cacheDir: string, dataDir: string, maxMinutes = Infinity
   for (const ids of exported.values()) for (const id of ids) extra.set(id, (extra.get(id) ?? 0) + 1);
   const order = itemOrder(latest, [...extra].sort((a, b) => b[1] - a[1] || a[0] - b[0]).map(([id]) => id));
   const wanted = (market: string, id: number) => !exported.has(market) || exported.get(market)!.has(id);
-  const todo = order.reduce((n, id) => n + MARKETS.filter(({ market }) => wanted(market, id) && !(`${market}:${id}` in cache)).length, 0);
+  // Fetch what adds the most first. Deferred to the end (still fetched, last): PvP Horde items the Auctionator scans
+  // already cover (seed/113), and items not listed on that market in Goldline's latest snapshot.
+  const seeded = new Set<number>();
+  const seedDir = join(dataDir, "seed", "113");
+  if (existsSync(seedDir)) for (const f of readdirSync(seedDir)) if (f.endsWith(".json")) for (const id of Object.keys((JSON.parse(readFileSync(join(seedDir, f), "utf8")) as { items: Record<string, unknown> }).items)) seeded.add(Number(id));
+  const keys = planKeys(order, MARKETS, (market, id) => wanted(market, id) && !(`${market}:${id}` in cache), (market, house, id) => (market === "us-pvp-horde" && seeded.has(id)) || !latest.get(house)?.[id]);
+  const todo = keys.length;
+  const core = keys.findIndex((k) => k.deferred);
+  console.log(`essential first: ${core < 0 ? todo : core} requests (about ${Math.ceil((core < 0 ? todo : core) / DAILY_BUDGET)} days), then ${core < 0 ? 0 : todo - core} deferred`);
   console.log(`${new Date().toISOString().slice(0, 16)} start: ${todo} requests to go (${Object.keys(cache).length} done), about ${Math.ceil(todo / 1_900)} days at 1,900 a day`);
   let requests = 0;
   let failures = 0;
-  for (const id of order) {
-    for (const { market } of MARKETS) {
+  for (const { id, market } of keys) {
+    {
       const key = `${market}:${id}`;
-      if (key in cache || !wanted(market, id)) continue;
+      if (key in cache) continue;
       budget = budgetFor(budget);
       if (budget.used >= DAILY_BUDGET) { console.log(`daily budget of ${DAILY_BUDGET} reached; stopping, resume tomorrow`); return save(); }
       if (Date.now() >= stopAt) { console.log(`time limit reached after ${requests} requests; stopping, the next run resumes`); return save(); }
