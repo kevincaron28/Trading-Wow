@@ -168,6 +168,7 @@ ahprices.com (would need their permission).
 | Blizzard Game Data API | API terms | — | Goldline's own hourly snapshots (since 18 Nov 2026) |
 | ahprice.com | Owner has the site's permission | 18 Nov 2026 | Daily lowest buyouts since launch (ext/ahprice) |
 | AHledger (ahledger.com) | Owner has AHledger's permission to use the information under the Goldline brand | 19 Nov 2026 | Daily median and lowest buyout since launch (ext/ahledger) |
+| AHledger API keys | AHledger allows the owner a second and third API key for the backfill | 19 Nov 2026 | `AHLEDGER_API_KEY`, `AHLEDGER_API_KEY_2`, `AHLEDGER_API_KEY_3` (GitHub secrets; never printed) |
 | wow.gg (Oves Group, LLC) | Owner has wow.gg's permission | 19 Nov 2026 | Not collected yet (see below) |
 | Booty Bay Broker (bootybaybroker.com) | Owner has Booty Bay Broker's permission | 19 Nov 2026 | Not collected yet (see below) |
 | TradeSkillMaster public files | Public data, credit required: "Pricing data from TradeSkillMaster" | — | Realm market values (tsm/), credited in the app |
@@ -189,7 +190,10 @@ permission rules refused those requests even with the owner's word. To add them,
 `collector/backfill-ahledger.ts` (GitHub Actions, `ahledger-backfill.yml`, twice an hour) asks
 `GET api.ahledger.com/v1/prices/{market}/{item}?range=90d` for every item in each market's price table (8 US faction
 markets, about 44,600 requests).
-- **Rate:** 150 requests a minute; AHledger allows 300. It honours 429/503 Retry-After.
+- **Rate:**
+  - Without a key: 150 requests a minute; AHledger allows 300 per address.
+  - With keys (the `AHLEDGER_API_KEY`, `_2` and `_3` secrets): one worker per key at 240 a minute, sharing the work round-robin. Each key stays under its own 300.
+  - It honours 429/503 Retry-After.
 - **State:** the cache lives on the `ahledger-state` branch, and nothing is asked twice.
 - **Output:** `ext/ahledger/{house}/{item % 256}.json` = `{ items: { id: [[day, median, min, quantity]] } }`.
 - **Coverage:** daily points start on 5 Nov 2026, and Blackwater has no AHledger market.
