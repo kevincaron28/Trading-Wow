@@ -17,6 +17,10 @@ else
   node "$ROOT/collector/collect.ts" "$DATA_DIR"
 fi
 
+# Market indexes and TradeSkillMaster series: extras that must never stop the price collection.
+node "$ROOT/collector/indexes.ts" "$DATA_DIR" || echo "indexes failed (prices still published)"
+node "$ROOT/collector/tsm.ts" "$DATA_DIR" || echo "tsm failed (prices still published)"
+
 cd "$DATA_DIR"
 cat > README.md <<'EOF'
 # Goldline price data

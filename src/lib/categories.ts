@@ -1,7 +1,7 @@
 import type { CatalogItem } from "../data/live";
 import type { Lang } from "./i18n";
 import type { Quote } from "./quotes";
-import { normalize } from "./text";
+import { normalize } from "./text.ts";
 
 /**
  * Auction house categories, built from Blizzard's item class and subclass (Classic numbering, as WoW Forever uses).

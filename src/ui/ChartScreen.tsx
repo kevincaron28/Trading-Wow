@@ -20,7 +20,7 @@ import {
   type Timeframe,
 } from "../app/store";
 import { ChartEngine } from "./chartEngine";
-import { useCatalog, useExt, useHistory, useSeed, useMeta, useQuotes, bumpRefresh } from "./data";
+import { useCatalog, useExt, useHistory, useSeed, useMeta, useQuotes, useTsm, useTsmRegion, bumpRefresh } from "./data";
 import { ChangePill, Icon, ItemIcon, Loading, Money, Sheet, formatPct , ErrorMsg } from "./parts";
 import { SearchScreen } from "./SearchScreen";
 import { HouseBadge } from "./WatchlistScreen";
@@ -49,6 +49,8 @@ export function ChartScreen() {
   const history = useHistory(house, s.chartItem);
   const seed = useSeed(house, s.chartItem);
   const ext = useExt(house, s.chartItem);
+  const tsm = useTsm(house, s.chartItem);
+  const tsmRegion = useTsmRegion(s.chartItem);
   const daily = s.timeframe === "1d" || s.timeframe === "1w";
   const compareHistory = useHistory(house, s.compareItem);
   const item = catalog.data?.get(s.chartItem);
@@ -91,8 +93,9 @@ export function ChartScreen() {
       seedLabel: t(s.lang, "seedLabel"),
       ext: daily ? (ext.data ?? []) : [],
       extLabel: "ahprice.com",
+      tsm: daily && s.priceField === "market" ? (tsm.data?.daily ?? []) : [],
     });
-  }, [candles, compareCandles, s.chartType, s.indicators, s.lang, s.theme, lines.join(","), s.range, s.logScale, seed.data, ext.data, daily]);
+  }, [candles, compareCandles, s.chartType, s.indicators, s.lang, s.theme, lines.join(","), s.range, s.logScale, seed.data, ext.data, tsm.data, daily]);
   useEffect(() => { engine.current?.setPlacing(placing); }, [placing]);
   useEffect(() => { setPlacing(false); setLineMsg(""); }, [s.chartItem]);
 
@@ -197,12 +200,13 @@ export function ChartScreen() {
       </div>
 
       {(s.chartType === "candles" || s.chartType === "bars") && !s.compareItem && <p class="muted small wick-note">{t(s.lang, "wickNote")}</p>}
-      {daily && ((seed.data?.length ?? 0) > 0 || (ext.data?.length ?? 0) > 0) && !s.compareItem && (
+      {daily && ((seed.data?.length ?? 0) > 0 || (ext.data?.length ?? 0) > 0 || (tsm.data?.daily.length ?? 0) > 0) && !s.compareItem && (
         <div class="sources">
           <div class="sources-keys">
             <span><i class="key live" />{t(s.lang, "srcLive")}</span>
             {(seed.data?.length ?? 0) > 0 && <span><i class="key seed" />{t(s.lang, "srcSeed")}</span>}
             {(ext.data?.length ?? 0) > 0 && <span><i class="key ext" />{t(s.lang, "srcExt")}</span>}
+            {(tsm.data?.daily.length ?? 0) > 0 && <span><i class="key tsm" />TSM</span>}
           </div>
           <p>{t(s.lang, "sourcesNote")}</p>
         </div>
@@ -230,6 +234,19 @@ export function ChartScreen() {
           <div><dt>{t(s.lang, "auctions")}</dt><dd>{quote?.auctions ?? "–"}</dd></div>
           <div title={t(s.lang, "soldDayHint")}><dt>{t(s.lang, "soldDay")}</dt><dd>{quote?.soldPerDay != null ? quote.soldPerDay.toLocaleString(s.lang === "fr" ? "fr-CA" : "en-US") : "–"}</dd></div>
         </dl>
+        {(tsm.data || tsmRegion.data) && (
+          <div class="tsm-card">
+            <p class="sheet-label">TradeSkillMaster</p>
+            <dl class="stats">
+              {tsm.data && <div><dt>{t(s.lang, "tsmMarket")}</dt><dd><Money copper={tsm.data.marketValue} lang={s.lang} /></dd></div>}
+              {tsm.data && <div><dt>{t(s.lang, "tsmHistorical")}</dt><dd><Money copper={tsm.data.historical} lang={s.lang} /></dd></div>}
+              {tsmRegion.data && <div><dt>{t(s.lang, "tsmSoldDay")}</dt><dd>{tsmRegion.data.soldPerDay.toLocaleString(s.lang === "fr" ? "fr-CA" : "en-US", { maximumFractionDigits: 1 })}</dd></div>}
+              {tsmRegion.data && <div><dt>{t(s.lang, "tsmSaleRate")}</dt><dd>{Math.round(tsmRegion.data.saleRate * 100)}%</dd></div>}
+              {tsmRegion.data && <div><dt>{t(s.lang, "tsmAvgSale")}</dt><dd><Money copper={tsmRegion.data.avgSalePrice} lang={s.lang} /></dd></div>}
+            </dl>
+            <p class="muted small">{t(s.lang, "tsmNote")} <a href="https://www.tradeskillmaster.com/" target="_blank" rel="noopener">{t(s.lang, "tsmCredit")}</a></p>
+          </div>
+        )}
         <AcrossHouses itemId={s.chartItem} />
         <p class="muted small">{t(s.lang, "listedNote")}</p>
       </div>

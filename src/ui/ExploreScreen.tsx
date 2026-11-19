@@ -9,17 +9,18 @@ import { bumpRefresh, useCatalog, useMeta, useQuotes } from "./data";
 import { ChangePill, ErrorMsg, ItemIcon, Loading, Money, formatPct } from "./parts";
 import { HouseBadge } from "./WatchlistScreen";
 import { BrowseView } from "./BrowseView";
+import { IndexesView } from "./IndexesView";
 
 type View = "gainers" | "losers" | "topSellers" | "mostListed" | "deals" | "flips";
 const VIEWS: View[] = ["gainers", "losers", "topSellers", "mostListed", "deals", "flips"];
 /** Browse (every item by category) or Markets (movers, deals, flips); kept while the app runs. */
-let rememberedMode: "browse" | "markets" = "browse";
+let rememberedMode: "browse" | "markets" | "indexes" = "browse";
 
 export function ExploreScreen() {
   const s = useStore();
   const [view, setView] = useState<View>("gainers");
   const [mode, setModeState] = useState(rememberedMode);
-  const setMode = (m: "browse" | "markets") => { rememberedMode = m; setModeState(m); };
+  const setMode = (m: "browse" | "markets" | "indexes") => { rememberedMode = m; setModeState(m); };
   const house = houseId(s);
   const quotes = useQuotes(house);
   const catalog = useCatalog();
@@ -91,12 +92,12 @@ export function ExploreScreen() {
       <div class="subbar"><HouseBadge /></div>
       <div class="mode-switch">
         <div class="seg" role="tablist">
-          {(["browse", "markets"] as const).map((m) => (
+          {(["browse", "markets", "indexes"] as const).map((m) => (
             <button type="button" role="tab" aria-selected={mode === m} class={mode === m ? "on" : ""} onClick={() => setMode(m)}>{t(s.lang, m)}</button>
           ))}
         </div>
       </div>
-      {mode === "browse" ? <BrowseView /> : (<>
+      {mode === "browse" ? <BrowseView /> : mode === "indexes" ? <IndexesView /> : (<>
       <div class="chips" role="tablist">
         {VIEWS.map((v) => (
           <button type="button" role="tab" aria-selected={v === view} class={v === view ? "chip on" : "chip"} onClick={() => setView(v)}>{t(s.lang, v as MessageKey)}</button>
