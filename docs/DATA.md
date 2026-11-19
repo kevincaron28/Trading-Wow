@@ -78,7 +78,7 @@ resumable backfill through its public API only (`/api/v1/items/{id}/history`, ne
 Order: every built-in watchlist item in every market first, then the most-listed items, then every other item ahprice.com
 lists in that market.
 
-Since 18 Nov 2026 it runs on GitHub Actions (`.github/workflows/ahprice-backfill.yml`, every 3 hours, no secrets),
+Since 18 Nov 2026 it runs on GitHub Actions (`.github/workflows/ahprice-backfill.yml`, no secrets),
 not on the owner's PC. Each run:
 - resumes from the `backfill-state` branch: `cache.json`, plus `budget.json` with the requests per UTC day, so all
   runs share one allowance of at most 1,900 a day;
@@ -86,6 +86,14 @@ not on the owner's PC. Each run:
 - saves its progress;
 - publishes `ext/ahprice` and `audit/coverage.json` with `collector/publish-ext.sh` (lease and retry, safe next to the
   hourly collector).
+
+It starts from two hourly cron slots (:17 and :47) and after every finished collector run, because GitHub sometimes
+skips scheduled runs. A quick `check` job starts the real job only when:
+- the backfill is not done,
+- today's budget is not used up,
+- no progress was saved in the last 45 minutes (a manual dispatch always runs).
+
+Only one fetch job runs at a time.
 
 When every item is fetched it writes `done.json` and later runs do nothing.
 
