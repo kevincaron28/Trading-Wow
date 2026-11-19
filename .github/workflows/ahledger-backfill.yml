@@ -43,8 +43,6 @@ jobs:
         if: steps.state.outputs.done == 'false'
         env:
           AHLEDGER_API_KEY: ${{ secrets.AHLEDGER_API_KEY }}
-          AHLEDGER_API_KEY_2: ${{ secrets.AHLEDGER_API_KEY_2 }}
-          AHLEDGER_API_KEY_3: ${{ secrets.AHLEDGER_API_KEY_3 }}
         run: node collector/backfill-ahledger.ts fetch state --minutes 50
       - name: Save progress
         if: always() && steps.state.outputs.done == 'false'
