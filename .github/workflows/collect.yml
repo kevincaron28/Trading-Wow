@@ -6,7 +6,11 @@ name: Collect prices
 
 on:
   schedule:
-    # Two slots: GitHub sometimes skips a scheduled run; the second one fills the gap (an already stored snapshot is skipped).
+    # Four slots: GitHub often skips or delays scheduled runs on this repo; extra slots fill the gaps (an already stored
+    # snapshot is skipped, so an extra run costs a few seconds). The backfill workflow's check job also dispatches this
+    # workflow when the published data is more than 75 minutes old.
+    - cron: "5 * * * *"
+    - cron: "20 * * * *"
     - cron: "35 * * * *"
     - cron: "50 * * * *"
   workflow_dispatch:
