@@ -6,9 +6,10 @@ name: Collect prices
 
 on:
   schedule:
-    # Four slots: GitHub often skips or delays scheduled runs on this repo; extra slots fill the gaps (an already stored
-    # snapshot is skipped, so an extra run costs a few seconds). The backfill workflow's check job also dispatches this
-    # workflow when the published data is more than 75 minutes old.
+    # GitHub stopped firing scheduled runs on this repo for hours at a time (19 Nov), so each run now collects four
+    # times, 15 minutes apart, and then starts the next run itself (relay, below). These slots only restart the relay if
+    # it ever breaks; the backfill workflow's check job also starts a run when the data is more than 75 minutes old.
+    # An already stored snapshot is skipped, so an extra collection costs a few seconds.
     - cron: "5 * * * *"
     - cron: "20 * * * *"
     - cron: "35 * * * *"
@@ -17,6 +18,7 @@ on:
 
 permissions:
   contents: write
+  actions: write
 
 concurrency:
   group: collect-prices
@@ -25,7 +27,7 @@ concurrency:
 jobs:
   collect:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 75
     env:
       BNET_CLIENT_ID: ${{ secrets.BNET_CLIENT_ID }}
       BNET_CLIENT_SECRET: ${{ secrets.BNET_CLIENT_SECRET }}
@@ -64,4 +66,15 @@ jobs:
         run: |
           git -C data-branch config user.name "goldline-collector"
           git -C data-branch config user.email "goldline-collector@users.noreply.github.com"
-          bash collector/publish.sh data-branch
+          # Four collections 15 minutes apart (about 50 minutes); a failed one does not stop the next.
+          for i in 1 2 3 4; do
+            bash collector/publish.sh data-branch || echo "::warning::collection $i failed"
+            if [ "$i" -lt 4 ]; then sleep 900; fi
+          done
+      - name: Relay (start the next run)
+        if: always() && steps.check.outputs.ok == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          queued=$(gh run list -R "$GITHUB_REPOSITORY" -w collect.yml --status queued --json databaseId -q length || echo 0)
+          if [ "$queued" = "0" ]; then gh workflow run collect.yml -R "$GITHUB_REPOSITORY" --ref main && echo "next run started"; else echo "a run is already queued"; fi
