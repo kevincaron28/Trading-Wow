@@ -20,7 +20,7 @@ import {
   type Timeframe,
 } from "../app/store";
 import { ChartEngine } from "./chartEngine";
-import { useAhledger, useCatalog, useExt, useHistory, useSeed, useMeta, useQuotes, useTsm, useTsmRegion, bumpRefresh } from "./data";
+import { useCatalog, useHistory, useMeta, useQuotes, useTsm, useTsmRegion, bumpRefresh } from "./data";
 import { ChangePill, Icon, ItemIcon, Loading, Money, Sheet, formatPct , ErrorMsg } from "./parts";
 import { SearchScreen } from "./SearchScreen";
 import { HouseBadge } from "./WatchlistScreen";
@@ -47,13 +47,8 @@ export function ChartScreen() {
   const meta = useMeta();
   const quotes = useQuotes(house);
   const history = useHistory(house, s.chartItem);
-  const seed = useSeed(house, s.chartItem);
-  const ext = useExt(house, s.chartItem);
   const tsm = useTsm(house, s.chartItem);
   const tsmRegion = useTsmRegion(s.chartItem);
-  const ahl = useAhledger(house, s.chartItem);
-  const ahlPoints = useMemo(() => (ahl.data?.points ?? []).map((p) => ({ time: p.time, value: s.priceField === "market" ? p.median : p.min })), [ahl.data, s.priceField]);
-  const hasAhl = ahlPoints.length > 0;
   const daily = s.timeframe === "1d" || s.timeframe === "1w";
   const compareHistory = useHistory(house, s.compareItem);
   const item = catalog.data?.get(s.chartItem);
@@ -92,14 +87,8 @@ export function ChartScreen() {
       lines,
       range: s.range,
       logScale: s.logScale,
-      seed: daily ? (seed.data ?? []) : [],
-      seedLabel: t(s.lang, "seedLabel"),
-      ext: daily ? (ext.data ?? []) : [],
-      extLabel: "ahprice.com",
-      tsm: daily && s.priceField === "market" ? (tsm.data?.daily ?? []) : [],
-      ahl: daily ? ahlPoints : [],
     });
-  }, [candles, compareCandles, s.chartType, s.indicators, s.lang, s.theme, lines.join(","), s.range, s.logScale, seed.data, ext.data, tsm.data, ahlPoints, daily]);
+  }, [candles, compareCandles, s.chartType, s.indicators, s.lang, s.theme, lines.join(","), s.range, s.logScale]);
   useEffect(() => { engine.current?.setPlacing(placing); }, [placing]);
   useEffect(() => { setPlacing(false); setLineMsg(""); }, [s.chartItem]);
 
@@ -108,16 +97,10 @@ export function ChartScreen() {
   const inList = list.items.includes(s.chartItem);
   const name = item?.name[s.lang] ?? `#${s.chartItem}`;
   const firstPoint = history.data?.hourly[0]?.time;
-  // Earliest real price from any source, for "History since <date>" (unix seconds).
-  const earliest = earliestPoint([history.data?.daily[0]?.time, firstPoint, seed.data?.[0]?.time, ext.data?.[0]?.time, ahlPoints[0]?.time]);
+  // Earliest price in the item's history, for "History since <date>" (unix seconds).
+  const earliest = earliestPoint([history.data?.early?.[0]?.time, history.data?.daily[0]?.time, firstPoint]);
   const earlierThanLive = earliest != null && firstPoint != null && earliest < firstPoint - 86_400;
   const dateFmt = (t: number) => new Date(t * 1000).toLocaleDateString(s.lang === "fr" ? "fr-CA" : "en-US", { dateStyle: "medium", timeZone: "UTC" });
-  const sourceNames = [
-    firstPoint ? `Goldline (${t(s.lang, "hourlySince")} ${dateFmt(firstPoint)})` : null,
-    (seed.data?.length ?? 0) > 0 ? t(s.lang, "srcSeed") : null,
-    (ext.data?.length ?? 0) > 0 ? "ahprice.com" : null,
-    hasAhl ? "AHledger" : null,
-  ].filter(Boolean).join(" · ");
   const [sharing, setSharing] = useState(false);
   const onShare = () => {
     if (sharing) return;
@@ -186,7 +169,7 @@ export function ChartScreen() {
             </>
           ) : null}
           {s.compareItem && <span class="compare-tag">vs {catalog.data?.get(s.compareItem)?.name[s.lang]}</span>}
-          {!daily && ((seed.data?.length ?? 0) > 0 || (ext.data?.length ?? 0) > 0 || hasAhl) && <span class="seed-tag">{t(s.lang, "seedHint")}</span>}
+          {!daily && earlierThanLive && <span class="seed-tag">{t(s.lang, "seedHint")}</span>}
         </div>
         <div ref={holder} class={`chart ${placing ? "placing" : ""}`} role="img" aria-label={`${name}: ${candles.length} ${t(s.lang, "points")}`} />
         {history.loading && !history.data && <div class="chart-overlay"><Loading text={t(s.lang, "loading")} /></div>}
@@ -205,32 +188,13 @@ export function ChartScreen() {
       </div>
 
       {(s.chartType === "candles" || s.chartType === "bars") && !s.compareItem && <p class="muted small wick-note">{t(s.lang, "wickNote")}</p>}
-      {daily && ((seed.data?.length ?? 0) > 0 || (ext.data?.length ?? 0) > 0 || (tsm.data?.daily.length ?? 0) > 0 || hasAhl) && !s.compareItem && (
-        <div class="sources">
-          <div class="sources-keys">
-            <span><i class="key live" />{t(s.lang, "srcLive")}</span>
-            {(seed.data?.length ?? 0) > 0 && <span><i class="key seed" />{t(s.lang, "srcSeed")}</span>}
-            {(ext.data?.length ?? 0) > 0 && <span><i class="key ext" />{t(s.lang, "srcExt")}</span>}
-            {(tsm.data?.daily.length ?? 0) > 0 && <span><i class="key tsm" />TSM</span>}
-            {hasAhl && <span><i class="key ahl" />AHledger</span>}
-          </div>
-          <p>{t(s.lang, "sourcesNote")}</p>
-          {hasAhl && (
-            <p>
-              {t(s.lang, s.priceField === "market" ? "ahlNoteMedian" : "ahlNoteMin")}{" "}
-              <a href={ahl.data!.url} target="_blank" rel="noopener">Prices from AHledger</a>
-            </p>
-          )}
-        </div>
-      )}
-
       <div class="details">
         <div class="subbar">
           <HouseBadge />
           {earliest != null ? (
             <span class="history-since small">
               <b>{t(s.lang, "historySince")} {dateFmt(earliest)}</b>
-              <span class="muted">{sourceNames}</span>
+              {firstPoint ? <span class="muted">{t(s.lang, "hourlySince")} {dateFmt(firstPoint)}</span> : null}
               {earlierThanLive && !(daily && s.range === "all") && (
                 <button type="button" class="text-btn" onClick={() => setState({ timeframe: "1d", range: "all" })}>{t(s.lang, "showAllHistory")}</button>
               )}

@@ -1,7 +1,6 @@
 import { useEffect, useState } from "preact/hooks";
 import { loadCatalog, loadExt, loadHistory, loadIndexes, loadIndexMeta, loadMeta, loadQuotes, loadSeed, loadTsm, loadTsmRegion, type IndexDefMeta, type IndexSeries, type TsmItem, type TsmRegion, type CatalogItem, type ItemHistory, type Meta, type SeedPoint } from "../data/live";
 import type { Quote } from "../lib/quotes";
-import { loadAhledger, type AhledgerSeries } from "../lib/ahledger";
 
 export interface Async<T> {
   data: T | null;
@@ -84,12 +83,6 @@ export function useIndexes(house: number): Async<Record<string, IndexSeries>> {
 
 export function useExt(house: number, itemId: number): Async<SeedPoint[]> {
   return useAsync(() => loadExt(house, itemId), `ext:${house}:${itemId}:0`);
-}
-
-/** AHledger daily history, fetched live (never stored; see src/lib/ahledger.ts). */
-export function useAhledger(house: number, itemId: number): Async<AhledgerSeries | null> {
-  const v = useRefreshVersion();
-  return useAsync(() => loadAhledger(house, itemId), `ahl:${house}:${itemId}:${v}`);
 }
 
 export function useSeed(house: number, itemId: number): Async<SeedPoint[]> {

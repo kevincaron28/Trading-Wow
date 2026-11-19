@@ -11,6 +11,16 @@ import { useCatalog, useIndexes, useIndexMeta, useMeta, useQuotes } from "./data
 import { EmptyState, ErrorMsg, Icon, ItemIcon, Loading, formatPct } from "./parts";
 
 const HOUR = 3_600;
+/** The first UTC day of prices (5 Nov 00:00 UTC) is WoW Forever's launch evening (4 Nov, 15:00 PST). */
+const LAUNCH_BUCKET_END = Date.UTC(2026, 10, 5) / 1000;
+
+/** "Base 100 = ..." date: launch when the series starts there, else its base day (the close of 19 Nov without early prices). */
+export function baseLabel(series: IndexSeries | undefined, baseEnd: number, lang: "en" | "fr"): string {
+  const fmt = (sec: number) => new Date(sec * 1000).toLocaleDateString(lang === "fr" ? "fr-CA" : "en-US", { dateStyle: "medium", timeZone: "UTC" });
+  const start = series?.link ? series.periods[0]?.start : undefined;
+  if (start == null) return fmt(baseEnd - 1);
+  return start <= LAUNCH_BUCKET_END ? t(lang, "launchLabel") : fmt(start);
+}
 
 /** Index points with two decimals in the reader's language (100.00 / 100,00). */
 export const pts = formatPoints;
@@ -52,10 +62,10 @@ export function IndexesView() {
   if (def) return <IndexDetail def={def} series={data.data[def.id]} baseEnd={meta.data.baseEnd} onClose={() => setOpen(null)} />;
 
   const rows = meta.data.indexes.map((d) => ({ d, sum: summarize(data.data![d.id]) })).filter((r) => r.sum);
-  const provisional = Object.values(data.data).some((x) => x.periods[0]?.provisional);
+  const fromLaunch = Object.values(data.data).some((x) => x.link);
   return (
     <div class="indexes">
-      {provisional && <p class="hint">{t(s.lang, "indexProvisional")}</p>}
+      <p class="hint">{fromLaunch ? `${t(s.lang, "indexBase")} ${baseLabel(data.data.gl100, meta.data.baseEnd, s.lang)}` : t(s.lang, "indexProvisional")}</p>
       {rows.length === 0 ? (
         <EmptyState art="list" text={t(s.lang, "indexesUnavailable")} />
       ) : (
@@ -85,7 +95,7 @@ function IndexDetail({ def, series, baseEnd, onClose }: { def: IndexDefMeta; ser
   const catalog = useCatalog();
   const meta = useMeta();
   const quotes = useQuotes(houseId(s));
-  const [tf, setTf] = useState<Timeframe>("1h");
+  const [tf, setTf] = useState<Timeframe>("1d");
   const holder = useRef<HTMLDivElement>(null);
   const engine = useRef<ChartEngine | null>(null);
   const candles = useMemo(
@@ -144,7 +154,7 @@ function IndexDetail({ def, series, baseEnd, onClose }: { def: IndexDefMeta; ser
       <div class="details">
         <p class="small">{def.about[s.lang]}</p>
         <p class="muted small">
-          {period?.provisional ? t(s.lang, "indexProvisional") : `${t(s.lang, "indexBase")} ${fmtDate(baseEnd - 1)}`}
+          {`${t(s.lang, "indexBase")} ${baseLabel(series, baseEnd, s.lang)}`}
           {series && series.periods.length > 1 ? ` · ${t(s.lang, "indexRebalanced")} ${fmtDate(period!.start)}` : ""}
           {lastHour ? ` · ${t(s.lang, "updated")} ${new Date(lastHour * HOUR * 1000).toLocaleString(s.lang === "fr" ? "fr-CA" : "en-US", { dateStyle: "short", timeStyle: "short" })}` : ""}
         </p>
