@@ -5,6 +5,8 @@ import { bumpRefresh, useMeta } from "./data";
 import { HouseBadge } from "./WatchlistScreen";
 import { relativeTime } from "./parts";
 
+import { UpdateSection } from "./UpdateBanner";
+
 export function MenuScreen() {
   const s = useStore();
   const meta = useMeta();
@@ -59,6 +61,8 @@ export function MenuScreen() {
         )}
         <button type="button" class="btn" onClick={() => { clearCache(); bumpRefresh(); }}>{t(s.lang, "refresh")}</button>
       </div>
+
+      <UpdateSection />
 
       <div class="menu-section">
         <p class="sheet-label">{t(s.lang, "about")}</p>

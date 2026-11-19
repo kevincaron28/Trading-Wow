@@ -4,6 +4,8 @@
  */
 
 /** One auction (or commodity price level) from a snapshot. Prices in copper per unit. */
+import { quantile, robust } from "./market";
+
 export interface Listing {
   unitPrice: number;
   quantity: number;
@@ -23,6 +25,8 @@ export interface PricePoint {
   auctions: number;
   /** Estimated quantity sold since the previous snapshot, when known. */
   sold?: number;
+  /** Top of the realistic price range: the price at which 30% of the listed quantity is reached (since 0.8). */
+  high?: number;
 }
 
 export interface Candle {
@@ -35,30 +39,38 @@ export interface Candle {
   volume: number;
 }
 
-/** Share of the cheapest listed quantity that sets the market price (ignores overpriced junk listings). */
-export const MARKET_SHARE = 0.15;
+/** Share of the listed quantity whose price is the top of an hour's candle wick. */
+export const HIGH_SHARE = 0.3;
 
+/**
+ * One snapshot's summary. Market value: the robust formula (src/lib/market.ts), used since 19 Nov 2026 (0.8): cheapest
+ * 30% of units, outliers beyond 0.5-1.5x their median dropped, cheaper half averaged by quantity. Before that it was
+ * the average of the cheapest 15% of units; on live snapshots both give the same value for the typical item.
+ */
 export function summarizeSnapshot(time: number, listings: readonly Listing[]): PricePoint | null {
   const valid = listings.filter((l) => l.unitPrice > 0 && l.quantity > 0);
   if (valid.length === 0) return null;
   const sorted = [...valid].sort((a, b) => a.unitPrice - b.unitPrice);
   const listed = sorted.reduce((sum, l) => sum + l.quantity, 0);
-  const target = Math.max(1, Math.ceil(listed * MARKET_SHARE));
-  let taken = 0;
-  let cost = 0;
-  for (const l of sorted) {
-    const take = Math.min(l.quantity, target - taken);
-    cost += take * l.unitPrice;
-    taken += take;
-    if (taken >= target) break;
-  }
   return {
     time,
     minBuyout: sorted[0]!.unitPrice,
-    market: Math.round(cost / taken),
+    market: robust(sorted),
     listed,
     auctions: sorted.length,
+    high: quantile(sorted, HIGH_SHARE),
   };
+}
+
+/**
+ * The real price range of one snapshot for the candle wicks, clipped to half and one and a half times the market value
+ * so a lone undercut or an overpriced listing cannot draw a giant wick. Without a stored high (data before 0.8) the
+ * top is the market value itself; the bottom is the lowest buyout, which every snapshot has.
+ */
+export function pointRange(p: Pick<PricePoint, "market" | "minBuyout" | "high">): { low: number; high: number } {
+  const low = Math.min(p.market, Math.max(p.minBuyout, Math.round(p.market * 0.5)));
+  const high = p.high == null ? p.market : Math.max(p.market, Math.min(p.high, Math.round(p.market * 1.5)));
+  return { low, high };
 }
 
 export type Timeframe = "1h" | "4h" | "1d" | "1w";
@@ -83,7 +95,8 @@ export function bucketStart(time: number, timeframe: Timeframe): number {
 
 /**
  * Turn hourly price points into candles of the market price. Candles are continuous: each one opens
- * at the previous close, so a single snapshot per hour still draws a real body.
+ * at the previous close, so a single snapshot per hour still draws a real body. Wicks come from each snapshot's own
+ * listing spread (pointRange): real prices only, nothing invented between snapshots.
  */
 export function toCandles(points: readonly PricePoint[], timeframe: Timeframe): Candle[] {
   const sorted = [...points].sort((a, b) => a.time - b.time);
@@ -99,19 +112,21 @@ export function toCandles(points: readonly PricePoint[], timeframe: Timeframe): 
         previousClose = current.close;
       }
       const open: number = previousClose ?? point.market;
+      const range = pointRange(point);
       current = {
         time: start,
         open,
-        high: Math.max(open, point.market),
-        low: Math.min(open, point.market),
+        high: Math.max(open, point.market, range.high),
+        low: Math.min(open, point.market, range.low),
         close: point.market,
         volume: 0,
         samples: 1,
         listedSum: point.listed,
       };
     } else {
-      current.high = Math.max(current.high, point.market);
-      current.low = Math.min(current.low, point.market);
+      const range = pointRange(point);
+      current.high = Math.max(current.high, point.market, range.high);
+      current.low = Math.min(current.low, point.market, range.low);
       current.close = point.market;
       current.samples += 1;
       current.listedSum += point.listed;

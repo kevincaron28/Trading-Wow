@@ -18,7 +18,7 @@ Build the bundle again on this PC (JDK and SDK from `D:\GuildedAndroidLab`):
 npm run build && npx cap sync android
 cd android && JAVA_HOME="D:/GuildedAndroidLab/jdk/jdk-21.0.13+9" ANDROID_HOME="D:/GuildedAndroidLab/sdk" \
   GOLDLINE_KEYSTORE="C:/Users/Kev/Desktop/wow-trading-signing/goldline-release.p12" GOLDLINE_KEYSTORE_PASSWORD=... \
-  GOLDLINE_VERSION_CODE=<higher than the last upload> ./gradlew bundleRelease
+  GOLDLINE_VERSION_CODE=<major*10000+minor*100+patch> ./gradlew bundlePlayRelease   # app/build/outputs/bundle/playRelease/app-play-release.aab
 ```
 
 ## Store listing
@@ -91,3 +91,21 @@ Goldline est un projet de fan indépendant, sans affiliation avec Blizzard Enter
 - **Closed testing (Alpha):** list "Goldline closed testers", countries: all; same bundle. Add the tester community's emails (12+), then start the test. Personal accounts need 12+ testers opted in for 14 continuous days before applying for production.
 
 The Play-installed app is signed by Google (Play App Signing), so the GitHub APK (debug-signed) must be uninstalled once before installing from Play.
+
+## Two builds and updates (0.8)
+
+`android/app/build.gradle` has two flavors:
+- **play:** the Google Play bundle (`bundlePlayRelease`). It never installs APKs; native updates come from Play's
+  in-app update prompt (`@capawesome/capacitor-app-update`).
+- **sideload:** the GitHub / kcaron.top APK (`assembleSideloadRelease`, built by the tag workflow). Only this build
+  declares REQUEST_INSTALL_PACKAGES (`src/sideload/AndroidManifest.xml`). It downloads a newer APK from the release
+  and opens Android's installer; Android asks once to allow installs from Goldline.
+
+Both get JS/CSS updates over the air, which Play allows for WebView code:
+- each tag release publishes `web-bundle.zip` and `update.json` (version, version code, minNativeBuild, SHA-256);
+- the app checks on launch and every 6 hours, downloads with Capgo's open-source updater (self-hosted, no Capgo cloud
+  or statistics), applies it at the next start or right away with "Update now", and rolls back if the bundle does not
+  start.
+
+Raise `goldline.minNativeBuild` in package.json to the new version code whenever a release changes native code
+(plugins, Android files). Older apps are then sent the APK or Play update instead of the bundle.

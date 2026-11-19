@@ -22,8 +22,41 @@ Blizzard refreshes the snapshots hourly, around :25.
 ## Pipeline
 
 `collector/collect.ts` (Node 24, no dependencies) fetches the 12 live houses, summarizes each item
-(`summarizeSnapshot`: lowest buyout, market price = average of the cheapest 15% listed, quantity listed,
-auctions) and updates the files below. `collector/publish.sh` runs it and force-pushes the result as a single
+(`summarizeSnapshot`: lowest buyout, market value, quantity listed, auctions, and the price at which 30% of the
+quantity is reached) and updates the files below.
+
+**Market value (since 0.8, 19 Nov 2026)** is the robust formula in `src/lib/market.ts`. It works by quantity, not by
+number of auctions:
+- take the cheapest 30% of the listed units (at least 3);
+- find their quantity-weighted median m, and drop units below 0.5 m or above 1.5 m;
+- average the cheaper half of what remains.
+
+Until 0.7 it was the average of the cheapest 15% of units. `collector/backtest-formulas.ts` compared four formulas on
+live snapshots of houses 113, 110, 120 and 116 (20,798 items):
+
+| Formula | Fooled by one cheap unit | Fooled by one overpriced unit | Resample variation (median / p90) |
+|---|---|---|---|
+| Cheapest 15% (until 0.7) | 65.1% | 0.1% | 0.01% / 4.9% |
+| TSM-style (15–30%, 1.5σ) | 48.5% | 0.2% | 0.09% / 6.1% |
+| Median of cheapest 30% | 34.6% | 0.3% | 0.00% / 7.8% |
+| **Robust (0.8)** | **11.8%** | 0.5% | 0.04% / 5.8% |
+
+"Fooled" means one extra listing moved the value by more than 25% (cheap) or 33% (overpriced). Resample variation is
+the spread when 20% of auctions are randomly removed. On mid-depth markets (6–99 units) the robust formula is fooled
+0.7% of the time, against 58.4% before. On deep markets (100+ units) every formula held. A thin market (5 units or fewer)
+can still be moved: 33.7% instead of 100%.
+
+On today's snapshot of house 113 the robust value equals the old one for the median item at every depth: the ratio is
+1.000, with a p90 of 1.015 on thin markets. So the history stays comparable; the switch date is 19 Nov 2026.
+
+**Candle wicks.** Each hourly snapshot is one candle:
+- the body runs from the previous close to this snapshot's market value;
+- the wicks are the snapshot's own listing spread, from the lowest buyout up to the 30%-quantity price, kept within
+  0.5–1.5× the market value.
+
+Daily and 4-hour candles take their open, high, low and close from these hourly candles; the stored daily rows do the
+same. Before 0.8 only the lowest buyout was stored, so older candles have lower wicks only. Points from ahprice.com and
+the Auctionator scans are drawn as dots of the one price they have. `collector/publish.sh` runs it and force-pushes the result as a single
 commit to the `data` branch. The app reads the files from
 `https://raw.githubusercontent.com/kevincaron28/Trading-Wow/data/` (public, `Access-Control-Allow-Origin: *`,
 5-minute cache). **The Battle.net secret never leaves the collector**: the app and the APK contain none.

@@ -49,16 +49,38 @@ jobs:
         run: |
           echo "${{ secrets.GOLDLINE_KEYSTORE_BASE64 }}" | base64 -d > "$RUNNER_TEMP/goldline.p12"
           export GOLDLINE_KEYSTORE="$RUNNER_TEMP/goldline.p12"
-          cd android && ./gradlew --no-daemon assembleRelease
-          cp app/build/outputs/apk/release/app-release.apk "$GITHUB_WORKSPACE/goldline.apk"
+          cd android && ./gradlew --no-daemon assembleSideloadRelease
+          cp app/build/outputs/apk/sideload/release/app-sideload-release.apk "$GITHUB_WORKSPACE/goldline.apk"
 
       - name: Build debug-signed APK (no release key configured)
         if: env.HAS_KEY != 'true'
         run: |
-          cd android && ./gradlew --no-daemon assembleDebug
-          cp app/build/outputs/apk/debug/app-debug.apk "$GITHUB_WORKSPACE/goldline.apk"
+          cd android && ./gradlew --no-daemon assembleSideloadDebug
+          cp app/build/outputs/apk/sideload/debug/app-sideload-debug.apk "$GITHUB_WORKSPACE/goldline.apk"
 
       - run: cp goldline.apk "goldline-${GOLDLINE_VERSION_NAME}.apk"
+
+      # Over-the-air update files (src/app/updates.ts): the web bundle and update.json, which says which bundle and APK
+      # are current. minNativeBuild (package.json "goldline") is the version code of the last release with native changes.
+      - name: Web bundle and update.json
+        run: |
+          (cd dist && zip -qr "$GITHUB_WORKSPACE/web-bundle.zip" .)
+          BASE="https://github.com/${GITHUB_REPOSITORY}/releases/download/${GITHUB_REF_NAME}"
+          node -e '
+            const fs = require("fs"), crypto = require("crypto");
+            const pkg = require("./package.json");
+            const sha = (f) => crypto.createHash("sha256").update(fs.readFileSync(f)).digest("hex");
+            fs.writeFileSync("update.json", JSON.stringify({
+              version: pkg.version,
+              versionCode: Number(process.env.GOLDLINE_VERSION_CODE),
+              minNativeBuild: pkg.goldline.minNativeBuild,
+              bundleUrl: process.argv[1] + "/web-bundle.zip",
+              bundleSha256: sha("web-bundle.zip"),
+              apkUrl: process.argv[1] + "/goldline.apk",
+              apkSha256: sha("goldline.apk"),
+            }, null, 2));
+          ' "$BASE"
+          cat update.json
 
       - uses: actions/upload-artifact@v4
         with:
@@ -71,6 +93,6 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "$GITHUB_REF_NAME" goldline.apk "goldline-${GOLDLINE_VERSION_NAME}.apk" \
+          gh release create "$GITHUB_REF_NAME" goldline.apk "goldline-${GOLDLINE_VERSION_NAME}.apk" web-bundle.zip update.json \
             --title "Goldline ${GOLDLINE_VERSION_NAME} for Android" \
             --notes "Goldline for Android: live WoW Forever auction house prices, refreshed about every hour. On your phone, open the download link, allow installs from your browser when asked, then open goldline.apk."

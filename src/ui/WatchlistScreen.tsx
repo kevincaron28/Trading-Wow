@@ -3,6 +3,7 @@ import type { ComponentChildren } from "preact";
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import type { Lang } from "../lib/i18n";
 import { clearCache, houseUpdated } from "../data/live";
+import { NextUpdate } from "./NextUpdate";
 import { PullToRefresh } from "./PullToRefresh";
 import { BUILT_IN_WATCHLISTS } from "../data/watchlists";
 import { t } from "../lib/i18n";
@@ -109,7 +110,7 @@ export function WatchlistScreen({ onSearch }: { onSearch: () => void }) {
       </header>
       <div class="subbar">
         <HouseBadge />
-        {snapshot ? <span class="muted small">{t(s.lang, "updated")} {relativeTime(snapshot, s.lang)}</span> : null}
+        {snapshot ? <span class="muted small live-status">{t(s.lang, "updated")} {relativeTime(snapshot, s.lang)} · <NextUpdate snapshot={snapshot} published={meta.data?.updated ?? null} /></span> : null}
       </div>
       <div class="table-head">
         <button type="button" onClick={() => setSort(sort === "name" ? "list" : "name")} class={sort === "name" ? "on" : ""}>{t(s.lang, "sortName")}</button>

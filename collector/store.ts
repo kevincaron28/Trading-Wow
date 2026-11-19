@@ -2,7 +2,7 @@
  * Pure helpers for the price history files the collector publishes (no network, no file system),
  * so they can be unit-tested. File formats are documented in docs/DATA.md.
  */
-import { summarizeSnapshot, type Listing, type PricePoint } from "../src/lib/candles.ts";
+import { pointRange, summarizeSnapshot, type Listing, type PricePoint } from "../src/lib/candles.ts";
 
 export const HOUR = 3_600;
 export const DAY = 86_400;
@@ -15,8 +15,11 @@ export const SHARDS = 32;
 /** Version-2 layout (`h2/`): itemId % 256, so one chart downloads about 1/256 of a house. */
 export const SHARDS_V2 = 256;
 
-/** Hourly row: [hour index, min buyout, market, listed qty, auctions, estimated sold qty?]. Hour index = unix seconds / 3600. */
-export type HourRow = [number, number, number, number, number, number?];
+/**
+ * Hourly row: [hour index, min buyout, market, listed qty, auctions, estimated sold qty | null, high?]. Hour index =
+ * unix seconds / 3600. `high` (since 0.8) is the price at which 30% of the listed quantity is reached.
+ */
+export type HourRow = [number, number, number, number, number, (number | null)?, number?];
 /** Daily row: [day index, open, high, low, close, avg listed qty, lowest min buyout]. Day index = unix seconds / 86400. */
 export type DayRow = [number, number, number, number, number, number, number];
 
@@ -74,7 +77,9 @@ export function summarizeHouse(time: number, auctions: readonly RawAuction[]): M
 /** Add one snapshot point to an item's history: replaces the same hour, prunes old hours, refreshes that day's candle. */
 export function addPoint(history: ItemHistory, point: PricePoint, now: number = point.time, sold?: number): ItemHistory {
   const hourIndex = Math.floor(point.time / HOUR);
-  const row: HourRow = sold == null ? [hourIndex, point.minBuyout, point.market, point.listed, point.auctions] : [hourIndex, point.minBuyout, point.market, point.listed, point.auctions, sold];
+  const row: HourRow = point.high != null
+    ? [hourIndex, point.minBuyout, point.market, point.listed, point.auctions, sold ?? null, point.high]
+    : sold == null ? [hourIndex, point.minBuyout, point.market, point.listed, point.auctions] : [hourIndex, point.minBuyout, point.market, point.listed, point.auctions, sold];
   const minHour = Math.floor((now - HOURLY_KEEP_SECONDS) / HOUR);
   const h = history.h.filter((r) => r[0] !== hourIndex && r[0] > minHour);
   h.push(row);
@@ -84,11 +89,12 @@ export function addPoint(history: ItemHistory, point: PricePoint, now: number = 
   // Hourly rows are kept for 14 days, so the whole day is always present: rebuild its candle from them.
   const dayRows = h.filter((r) => Math.floor((r[0] * HOUR) / DAY) === dayIndex);
   const markets = dayRows.map((r) => r[2]);
+  const ranges = dayRows.map((r) => pointRange({ market: r[2], minBuyout: r[1], high: r[6] ?? undefined }));
   const candle: DayRow = [
     dayIndex,
     dayRows[0]![2],
-    Math.max(...markets),
-    Math.min(...markets),
+    Math.max(...markets, ...ranges.map((x) => x.high)),
+    Math.min(...markets, ...ranges.map((x) => x.low)),
     dayRows.at(-1)![2],
     Math.round(dayRows.reduce((s, r) => s + r[3], 0) / dayRows.length),
     Math.min(...dayRows.map((r) => r[1])),
@@ -111,7 +117,7 @@ export function latestRow(history: ItemHistory): LatestRow | null {
   const week = history.h.filter((r) => r[0] > last[0] - 24 * 7);
   const avg = Math.round(week.reduce((s, r) => s + r[2], 0) / week.length);
   const day = history.h.filter((r) => r[0] > last[0] - 24);
-  const known = day.filter((r) => r[5] != null);
+  const known = day.filter((r) => r[5] != null && r[5] >= 0);
   const sold = known.length === 0 ? -1 : known.reduce((s, r) => s + (r[5] ?? 0), 0);
   return [last[1], last[2], last[3], last[4], dayAgo ? dayAgo[2] : 0, avg, sold];
 }
@@ -154,4 +160,18 @@ export function estimateSold(previous: AuctionState | null, previousTime: number
     if (gone > 0) sold.set(item, (sold.get(item) ?? 0) + gone);
   }
   return sold;
+}
+
+/** Listings per item from raw auctions (bid-only auctions ignored); shared by the collector and the formula backtest. */
+export function summarizeHouseListings(auctions: readonly RawAuction[]): Map<number, Listing[]> {
+  const byItem = new Map<number, Listing[]>();
+  for (const a of auctions) {
+    const quantity = a.quantity ?? 1;
+    const unitPrice = a.unit_price ?? (a.buyout ? Math.floor(a.buyout / Math.max(1, quantity)) : 0);
+    if (!a.item?.id || unitPrice <= 0 || quantity <= 0) continue;
+    let list = byItem.get(a.item.id);
+    if (!list) byItem.set(a.item.id, (list = []));
+    list.push({ unitPrice, quantity });
+  }
+  return byItem;
 }

@@ -97,7 +97,7 @@ function readOffline(path: string): string | null {
 async function getJson<T>(path: string, fresh = false): Promise<T> {
   const age = Date.now() - (fetchedAt.get(path) ?? 0);
   if (!fresh && cache.has(path) && age < MAX_AGE_MS) return cache.get(path) as Promise<T>;
-  const promise = fetch(`${DATA_BASE}${path}?t=${Math.floor(Date.now() / MAX_AGE_MS)}`)
+  const promise = fetch(`${DATA_BASE}${path}?t=${fresh ? Date.now() : Math.floor(Date.now() / MAX_AGE_MS)}`)
     .then(async (res) => {
       if (!res.ok) throw new Error(`${path}: HTTP ${res.status}`);
       const text = await res.text();
@@ -153,7 +153,7 @@ export function parseLatest(items: Record<string, LatestRow>): Map<number, Quote
   return map;
 }
 
-type HourRow = [number, number, number, number, number, number?];
+type HourRow = [number, number, number, number, number, (number | null)?, number?];
 type DayRow = [number, number, number, number, number, number, number];
 
 export async function loadHistory(house: number, itemId: number): Promise<ItemHistory> {
@@ -166,7 +166,15 @@ export async function loadHistory(house: number, itemId: number): Promise<ItemHi
 export function parseHistory(raw: { h: HourRow[]; d: DayRow[] } | undefined): ItemHistory {
   if (!raw) return { hourly: [], daily: [] };
   return {
-    hourly: raw.h.map((r) => (r[5] == null ? { time: r[0] * HOUR, minBuyout: r[1], market: r[2], listed: r[3], auctions: r[4] } : { time: r[0] * HOUR, minBuyout: r[1], market: r[2], listed: r[3], auctions: r[4], sold: r[5] })),
+    hourly: raw.h.map((r) => ({
+      time: r[0] * HOUR,
+      minBuyout: r[1],
+      market: r[2],
+      listed: r[3],
+      auctions: r[4],
+      ...(r[5] != null ? { sold: r[5] } : {}),
+      ...(r[6] != null ? { high: r[6] } : {}),
+    })),
     daily: raw.d.map((r) => ({ time: r[0] * DAY, open: r[1], high: r[2], low: r[3], close: r[4], volume: r[5] })),
   };
 }
