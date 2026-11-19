@@ -35,7 +35,7 @@ const TIMEFRAMES: Timeframe[] = ["1h", "4h", "1d", "1w"];
 const CHART_TYPES: ChartType[] = ["candles", "bars", "line", "area", "heikin"];
 const INDICATOR_KEYS: IndicatorKey[] = ["volume", "sma20", "ema50", "bb", "rsi", "macd"];
 
-function tfLabel(tf: Timeframe, lang: Lang): string {
+export function tfLabel(tf: Timeframe, lang: Lang): string {
   if (lang === "fr") return { "1h": "1H", "4h": "4H", "1d": "1J", "1w": "1S" }[tf];
   return tf.toUpperCase();
 }

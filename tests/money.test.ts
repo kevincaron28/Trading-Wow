@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatMoney, formatMoneyShort, percentChange, splitCopper } from "../src/lib/money";
+import { formatMoney, formatMoneyShort, percentChange, splitCopper, formatPoints } from "../src/lib/money";
 
 describe("money", () => {
   it("splits copper into coins", () => {
@@ -41,5 +41,13 @@ describe("axis labels", () => {
     expect(formatMoneyAxis(77)).toBe("77c");
     expect(formatMoneyAxis(800_000)).toBe("80g");
     expect(formatMoneyAxis(2_500)).toBe("25s");
+  });
+});
+
+describe("formatPoints", () => {
+  it("writes index points in the reader's language", () => {
+    expect(formatPoints(130, "en")).toBe("130.00");
+    expect(formatPoints(130, "fr")).toBe("130,00");
+    expect(formatPoints(99.456, "fr")).toBe("99,46");
   });
 });

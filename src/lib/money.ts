@@ -67,3 +67,8 @@ export function formatMoneyAxis(amount: number, lang: Lang = "en"): string {
   if (c.silver > 0) return c.copper ? `${sign}${c.silver}${s.silver} ${c.copper}${s.copper}` : `${sign}${c.silver}${s.silver}`;
   return `${sign}${c.copper}${s.copper}`;
 }
+
+/** Index points with two decimals in the reader's language (100.00 / 100,00). */
+export function formatPoints(value: number, lang: Lang = "en"): string {
+  return value.toLocaleString(lang === "fr" ? "fr-CA" : "en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}

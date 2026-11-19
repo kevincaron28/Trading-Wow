@@ -5,13 +5,15 @@ import type { IndexDefMeta, IndexPeriod, IndexSeries } from "../data/live";
 import { toCandles, type Timeframe } from "../lib/candles";
 import { t } from "../lib/i18n";
 import { ChartEngine } from "./chartEngine";
+import { tfLabel } from "./ChartScreen";
+import { formatPoints } from "../lib/money";
 import { useCatalog, useIndexes, useIndexMeta, useMeta, useQuotes } from "./data";
 import { EmptyState, ErrorMsg, Icon, ItemIcon, Loading, formatPct } from "./parts";
 
 const HOUR = 3_600;
 
 /** Index points with two decimals in the reader's language (100.00 / 100,00). */
-export const pts = (v: number, lang: "en" | "fr") => v.toLocaleString(lang === "fr" ? "fr-CA" : "en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+export const pts = formatPoints;
 
 /** Value now, 24 hours earlier, and the last 7 days for the sparkline. */
 export function summarize(s: IndexSeries | undefined): { value: number; change: number | null; spark: number[] } | null {
@@ -134,7 +136,7 @@ function IndexDetail({ def, series, baseEnd, onClose }: { def: IndexDefMeta; ser
       <div class="chart-toolbar">
         <div class="seg compact" role="radiogroup">
           {(["1h", "4h", "1d"] as Timeframe[]).map((x) => (
-            <button type="button" role="radio" aria-checked={tf === x} class={tf === x ? "on" : ""} onClick={() => setTf(x)}>{x.toUpperCase()}</button>
+            <button type="button" role="radio" aria-checked={tf === x} class={tf === x ? "on" : ""} onClick={() => setTf(x)}>{tfLabel(x, s.lang)}</button>
           ))}
         </div>
       </div>
