@@ -34,12 +34,13 @@ describe("AHledger", () => {
   });
 
   it("asks for 90 days, falls back on a refused range, and keeps the answer only in memory", async () => {
-    const fetchImpl = vi.fn(async (url: string) => (url.includes("90d") ? new Response("{}", { status: 403 }) : answer()));
+    const fetchImpl = vi.fn(async (url: string, _init?: RequestInit) => (url.includes("90d") ? new Response("{}", { status: 403 }) : answer()));
     const s = await loadAhledger(113, 2589, fetchImpl as unknown as typeof fetch);
     expect(fetchImpl.mock.calls.map((c) => c[0])).toEqual([
       "https://api.ahledger.com/v1/prices/forever.pvp.horde.us/2589?range=90d",
       "https://api.ahledger.com/v1/prices/forever.pvp.horde.us/2589?range=30d",
     ]);
+    expect(fetchImpl.mock.calls[0]![1]).toEqual({ cache: "no-store" });
     expect(s?.points).toHaveLength(2);
     await loadAhledger(113, 2589, fetchImpl as unknown as typeof fetch);
     expect(fetchImpl).toHaveBeenCalledTimes(2);
