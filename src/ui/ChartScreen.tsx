@@ -86,6 +86,9 @@ export function ChartScreen() {
       lang: s.lang,
       lines,
       range: s.range,
+      // The visible window is set again only when one of these changes, so a data refresh or a new line keeps the
+      // user's zoom and pan.
+      rangeKey: `${s.chartItem}|${s.compareItem ?? ""}|${s.timeframe}|${s.priceField}|${s.range}`,
       logScale: s.logScale,
     });
   }, [candles, compareCandles, s.chartType, s.indicators, s.lang, s.theme, lines.join(","), s.range, s.logScale]);
@@ -195,9 +198,6 @@ export function ChartScreen() {
             <span class="history-since small">
               <b>{t(s.lang, "historySince")} {dateFmt(earliest)}</b>
               {firstPoint ? <span class="muted">{t(s.lang, "hourlySince")} {dateFmt(firstPoint)}</span> : null}
-              {earlierThanLive && !(daily && s.range === "all") && (
-                <button type="button" class="text-btn" onClick={() => setState({ timeframe: "1d", range: "all" })}>{t(s.lang, "showAllHistory")}</button>
-              )}
             </span>
           ) : null}
         </div>

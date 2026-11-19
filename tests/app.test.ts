@@ -55,6 +55,14 @@ describe("chart series", () => {
     expect(candlesFor(history, "1d", "market").map((c) => c.close)).toEqual([123, 129]);
     expect(candlesFor(history, "1w", "market")).toHaveLength(1);
   });
+  it("shows the whole history at 1H and 4H: one candle a day before the hourly prices", () => {
+    const early = [{ time: T0 - 3 * 86_400, market: 80, min: 70, quantity: 4 }, { time: T0 - 2 * 86_400, market: 90, min: 85, quantity: 5 }];
+    const h = candlesFor({ ...history, early }, "1h", "market");
+    expect(h.slice(0, 2).map((c) => [c.time, c.close])).toEqual([[T0 - 3 * 86_400, 80], [T0 - 2 * 86_400, 90]]);
+    expect(h).toHaveLength(32);
+    expect(candlesFor({ ...history, early }, "4h", "min")[0]!.close).toBe(70);
+    for (let i = 1; i < h.length; i++) expect(h[i]!.time).toBeGreaterThan(h[i - 1]!.time);
+  });
   it("charts the lowest buyout from hourly points", () => {
     expect(candlesFor(history, "1h", "min").at(-1)!.close).toBe(109);
     expect(candlesFor(history, "1d", "min").map((c) => c.close)).toEqual([103, 109]);

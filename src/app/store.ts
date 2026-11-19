@@ -38,7 +38,7 @@ export interface State {
   recent: number[];
   /** Horizontal price lines drawn on charts, per item ID (copper). */
   drawings: Record<string, number[]>;
-  /** Chart range: how much history is shown ("all" = everything loaded). */
+  /** Chart range: how much history is shown ("all" = everything loaded). Not saved: every start shows the full history. */
   range: "1d" | "1w" | "1m" | "3m" | "1y" | "all";
   logScale: boolean;
   /** First-run setup finished. */
@@ -47,7 +47,7 @@ export interface State {
 
 const KEY = "goldline:v2";
 const PERSISTED: (keyof State)[] = [
-  "lang", "realm", "faction", "theme", "chartItem", "timeframe", "chartType", "indicators", "priceField", "changeMode", "watchlists", "activeList", "alerts", "recent", "drawings", "range", "logScale", "onboarded",
+  "lang", "realm", "faction", "theme", "chartItem", "timeframe", "chartType", "indicators", "priceField", "changeMode", "watchlists", "activeList", "alerts", "recent", "drawings", "logScale", "onboarded",
 ];
 
 function initial(): State {

@@ -1,6 +1,6 @@
 {
   "name": "goldline",
-  "version": "0.11.2",
+  "version": "0.11.3",
   "private": true,
   "description": "Goldline: auction house price charts for World of Warcraft Forever.",
   "type": "module",
