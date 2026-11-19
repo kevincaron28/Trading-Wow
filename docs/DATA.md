@@ -140,8 +140,7 @@ endpoint's separate allowance. Instead, the most useful requests go first:
 - last, PvP Horde items the Auctionator scans already cover, and items not listed on our auction houses.
 
 That puts the essential part at about 21 days from 19 Nov (40,264 requests), with about 9,300 deferred requests after
-it. A polite request for a one-time export or a temporarily higher limit is drafted in `docs/AHPRICE_REQUEST.md`, for
-the owner to send.
+it. The owner decided not to ask ahprice.com for an export or a higher limit (19 Nov 2026).
 
 ahprice groups realms into markets (US and AU together). They were matched to Goldline's houses on 18 Nov 2026 by
 comparing current prices of 50 busy items (median gap 3–14%, RP Horde 29% but still the clear best):
