@@ -4,7 +4,7 @@
  */
 
 /** One auction (or commodity price level) from a snapshot. Prices in copper per unit. */
-import { quantile, robust } from "./market";
+import { quantile, robust } from "./market.ts";
 
 export interface Listing {
   unitPrice: number;
