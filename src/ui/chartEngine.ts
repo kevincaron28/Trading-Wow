@@ -28,6 +28,8 @@ export interface ChartInput {
   lang: Lang;
   lines: number[];
   range: ChartRange;
+  /** When given, the visible window is applied only when this key changes (otherwise the user's zoom is kept). */
+  rangeKey?: string;
   logScale: boolean;
   /** Genuine daily points from before collection started (lowest buyout per scanned day); drawn as separate points (no line between days). */
   seed?: { time: number; low: number }[];
@@ -62,6 +64,8 @@ export class ChartEngine {
   private chart: IChartApi;
   private series: ISeriesApi<SeriesType>[] = [];
   private input: ChartInput | null = null;
+  private rangeKey: string | undefined;
+  private ranged = false;
   private onHover: (c: Candle | null) => void;
 
   private placing = false;
@@ -242,8 +246,12 @@ export class ChartEngine {
       if (r) this.chart.timeScale().setVisibleRange({ from: ts(r.from), to: ts(r.to) });
       else this.chart.timeScale().fitContent();
     };
-    applyRange();
-    requestAnimationFrame(applyRange);
+    if (input.rangeKey === undefined || input.rangeKey !== this.rangeKey || !this.ranged) {
+      this.rangeKey = input.rangeKey;
+      this.ranged = input.candles.length > 0;
+      applyRange();
+      requestAnimationFrame(applyRange);
+    }
     this.onHover(null);
   }
 }

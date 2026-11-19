@@ -6,7 +6,13 @@ import type { PriceField, Timeframe } from "../app/store";
 export function candlesFor(history: ItemHistory, timeframe: Timeframe, field: PriceField): Candle[] {
   // Lowest-buyout charts have no spread of their own: the body is the lowest buyout and there are no wicks.
   const points = field === "min" ? history.hourly.map((p) => ({ ...p, market: p.minBuyout, high: undefined })) : history.hourly;
-  if (timeframe === "1h" || timeframe === "4h") return toCandles(points, timeframe);
+  if (timeframe === "1h" || timeframe === "4h") {
+    // The whole history at every timeframe: before our hourly prices start (they cover the last 14 days), the
+    // chart shows one candle per day, from the same daily history as the 1D chart. Nothing is spread into hours.
+    const hours = toCandles(points, timeframe);
+    const firstDay = hours.length ? Math.floor(hours[0]!.time / 86_400) * 86_400 : Infinity;
+    return [...candlesFor(history, "1d", field).filter((c) => c.time < firstDay), ...hours];
+  }
   // Daily and weekly: days covered by hourly points (the last 14 days) are rebuilt from them, with real wicks;
   // older days come from the stored daily candles (market price), kept two years.
   const fromHours = toCandles(points, "1d");
