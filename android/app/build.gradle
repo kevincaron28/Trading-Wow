@@ -30,6 +30,14 @@ android {
             }
         }
     }
+    // Two builds: "play" for Google Play (updates through Play's in-app update prompt, never installs APKs) and
+    // "sideload" for the GitHub / kcaron.top APK (can download and install its own new APK; only this build asks for
+    // REQUEST_INSTALL_PACKAGES, see src/sideload/AndroidManifest.xml).
+    flavorDimensions = ["channel"]
+    productFlavors {
+        play { dimension "channel" }
+        sideload { dimension "channel" }
+    }
     buildTypes {
         release {
             if (keystorePath) signingConfig signingConfigs.release

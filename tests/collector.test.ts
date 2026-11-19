@@ -27,7 +27,8 @@ describe("addPoint", () => {
     h = addPoint(h, point(T0 + 2 * HOUR, 80, 70));
     h = addPoint(h, point(T0 + 2 * HOUR, 120, 110)); // same hour again: replaced
     expect(h.h.map((r) => r[2])).toEqual([100, 140, 120]);
-    expect(h.d).toEqual([[Math.floor(T0 / DAY), 100, 140, 100, 120, 10, 90]]);
+    // The low wick comes from the lowest buyout (90, within half the market value); no stored high, so the top is the market.
+    expect(h.d).toEqual([[Math.floor(T0 / DAY), 100, 140, 90, 120, 10, 90]]);
   });
 
   it("drops hours older than the hourly window but keeps daily candles", () => {

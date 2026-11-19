@@ -5,7 +5,7 @@ const H = 3_600;
 const point = (time: number, market: number, listed = 10): PricePoint => ({ time, market, minBuyout: market, listed, auctions: 1 });
 
 describe("summarizeSnapshot", () => {
-  it("prices the cheapest 15% of listed quantity and ignores bad rows", () => {
+  it("prices with the robust formula, records the 30% price for wicks and ignores bad rows", () => {
     const p = summarizeSnapshot(0, [
       { unitPrice: 100, quantity: 10 },
       { unitPrice: 200, quantity: 10 },
@@ -13,8 +13,9 @@ describe("summarizeSnapshot", () => {
       { unitPrice: 0, quantity: 5 },
       { unitPrice: 50, quantity: 0 },
     ]);
-    // 100 listed -> cheapest 15 units: 10 at 100 + 5 at 200.
-    expect(p).toEqual({ time: 0, minBuyout: 100, market: 133, listed: 100, auctions: 3 });
+    // 100 listed -> cheapest 30 units: 10 at 100, 10 at 200, 10 at 9,999; median 200 keeps 100-300, so 20 units remain;
+    // their cheaper half (10 at 100) gives 100. The 30th unit costs 9,999 (the raw high; the chart clips it to 1.5x).
+    expect(p).toEqual({ time: 0, minBuyout: 100, market: 100, listed: 100, auctions: 3, high: 9_999 });
   });
 
   it("returns null for an empty snapshot", () => {
@@ -55,5 +56,20 @@ describe("toCandles", () => {
 
   it("handles no data", () => {
     expect(toCandles([], "1d")).toEqual([]);
+  });
+});
+
+describe("candle wicks", () => {
+  it("draws wicks from each snapshot's real spread, clipped to 0.5-1.5x the market value", async () => {
+    const { pointRange, toCandles } = await import("../src/lib/candles");
+    expect(pointRange({ market: 100, minBuyout: 80, high: 130 })).toEqual({ low: 80, high: 130 });
+    expect(pointRange({ market: 100, minBuyout: 5, high: 900 })).toEqual({ low: 50, high: 150 });
+    expect(pointRange({ market: 100, minBuyout: 95 })).toEqual({ low: 95, high: 100 });
+    const [first, second] = toCandles([
+      { time: 0, minBuyout: 90, market: 100, listed: 5, auctions: 2, high: 120 },
+      { time: 3600, minBuyout: 105, market: 110, listed: 5, auctions: 2, high: 125 },
+    ], "1h");
+    expect(first).toMatchObject({ open: 100, close: 100, low: 90, high: 120 });
+    expect(second).toMatchObject({ open: 100, close: 110, low: 100, high: 125 });
   });
 });

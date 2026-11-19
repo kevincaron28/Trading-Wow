@@ -196,6 +196,7 @@ export function ChartScreen() {
         </div>
       </div>
 
+      {(s.chartType === "candles" || s.chartType === "bars") && !s.compareItem && <p class="muted small wick-note">{t(s.lang, "wickNote")}</p>}
       {daily && ((seed.data?.length ?? 0) > 0 || (ext.data?.length ?? 0) > 0) && !s.compareItem && (
         <div class="sources">
           <div class="sources-keys">

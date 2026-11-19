@@ -1,11 +1,14 @@
 import { useEffect, useState } from "preact/hooks";
 import { Capacitor, SystemBars, SystemBarsStyle } from "@capacitor/core";
-import { isOffline, loadCatalog, loadQuotes, onOfflineChange } from "../data/live";
+import { houseUpdated, isOffline, loadCatalog, loadMeta, loadQuotes, onOfflineChange } from "../data/live";
+import { nextUpdate } from "../lib/live";
+import { checkForUpdates, markAppReady } from "../app/updates";
+import { UpdateBanner } from "./UpdateBanner";
 import { evaluateAlerts, type PriceAlert } from "../lib/alerts";
 import { t, type MessageKey } from "../lib/i18n";
 import { formatMoney } from "../lib/money";
 import type { Quote } from "../lib/quotes";
-import { getState, setState, useStore, type Tab } from "../app/store";
+import { getState, houseId, setState, useStore, type Tab } from "../app/store";
 import { ensureNotificationPermission, popBackgroundFired, syncBackgroundAlerts } from "../app/background";
 import { handleBack } from "../app/back";
 import { bumpRefresh } from "./data";
@@ -133,12 +136,57 @@ export function App() {
     };
   }, []);
 
+  // Updates: confirm this bundle started (else the updater rolls back), then check on launch and every 6 hours.
+  useEffect(() => {
+    void markAppReady();
+    void checkForUpdates();
+    const id = setInterval(() => void checkForUpdates(), 6 * 3_600_000);
+    return () => clearInterval(id);
+  }, []);
+
+  // Live prices: once the expected update time has passed, check meta.json every minute while the app is visible.
+  // When newer prices are published, reload the screens and pulse the prices for a moment.
+  useEffect(() => {
+    let lastSeen: number | null = null;
+    let stopped = false;
+    const check = async () => {
+      if (stopped || document.visibilityState !== "visible") return;
+      try {
+        const meta = await loadMeta(true);
+        if (lastSeen != null && meta.updated > lastSeen) {
+          bumpRefresh();
+          document.body.classList.remove("fresh-data");
+          void document.body.offsetWidth;
+          document.body.classList.add("fresh-data");
+          setTimeout(() => document.body.classList.remove("fresh-data"), 2_600);
+        }
+        lastSeen = meta.updated;
+      } catch {
+        // Offline or the data host is slow: try again next minute.
+      }
+    };
+    void check();
+    const id = setInterval(() => {
+      const house = getState();
+      void loadMeta().then((meta) => {
+        const h = meta.houses.find((x) => x.id === houseId(house));
+        const next = nextUpdate(houseUpdated(h), meta.updated, Date.now() / 1000);
+        if (!next || next.due) void check();
+      }).catch(() => void check());
+    }, 60_000);
+    return () => {
+      stopped = true;
+      clearInterval(id);
+    };
+  }, []);
+
   // A new tab or a newly opened chart starts at the top (the scroll position of the previous screen does not carry over).
   useEffect(() => { document.querySelector(".content")?.scrollTo({ top: 0 }); }, [s.tab, s.chartItem]);
 
   return (
     <div class="app">
       {offline && <p class="offline-bar" role="status">{t(s.lang, "offline")}</p>}
+      <UpdateBanner />
       <main class="content">
         {s.tab === "watchlist" && <WatchlistScreen onSearch={() => setSearching(true)} />}
         {s.tab === "chart" && <ChartScreen />}
