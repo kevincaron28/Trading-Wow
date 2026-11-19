@@ -32,12 +32,15 @@ category in WoW Forever).
   Nothing is interpolated.
 - **Base.** 100 = WoW Forever's launch (4 Nov 2026; the first UTC day of prices is 5 Nov, the launch evening in
   America). Precisely, the base is the first day on or after 4 Nov where the merged early history (`early/`, docs/DATA.md)
-  prices at least half of the basket weight. The basket is chosen from the first full day of our own hourly data
+  prices at least 10 basket items, or half the basket when it is smaller. The basket is chosen from the first full day of our own hourly data
   (19 Nov), the same basket and weights are used back to launch, and the history is computed backwards from there.
 - **Early days.** Daily values from launch until our hourly data starts (18 Nov 02:00 UTC).
-  - An item without a price that day is left out and the others re-weighted.
-  - An item without a launch-day price uses its first later price as its base.
-  - A day pricing under a quarter of the weight is skipped.
+  - Launch-week markets were thin: on 5 Nov only about a fifth of the busiest items were listed. So the early days
+    are chain-linked: each day moves the level by the weighted mean price change of the basket items priced that
+    day and on an earlier day (at most 3 days before).
+  - Items that start trading later join without moving the level.
+  - Outlier treatment: one item's daily move counts as at most ×2 or ÷2, and a day with fewer than 5 linked items
+    leaves the level unchanged.
   - The hourly series is chain-linked to the last early day, so the level does not jump.
   - Everything is recomputed on each backfill publish (`link` and `earlyUntil` in index/<house>.json).
 - **Blackwater:** no early prices exist, so the base stays at the close of 19 Nov.
