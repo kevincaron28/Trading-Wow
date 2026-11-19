@@ -44,3 +44,21 @@ describe("ahprice daily budget", () => {
     expect(DAILY_BUDGET).toBeLessThan(2000);
   });
 });
+
+describe("ahprice request plan", () => {
+  it("puts essential requests first and deferred ones (seed-covered, not listed) last, skipping unwanted", async () => {
+    const { planKeys } = await import("../collector/backfill-ahprice");
+    const markets = [{ market: "us-pvp-horde", house: 113 }, { market: "us-pvp-alliance", house: 110 }];
+    const plan = planKeys(
+      [1, 2],
+      markets,
+      (m, id) => !(m === "us-pvp-alliance" && id === 2),
+      (m, _h, id) => m === "us-pvp-horde" && id === 1,
+    );
+    expect(plan).toEqual([
+      { id: 1, market: "us-pvp-alliance", deferred: false },
+      { id: 2, market: "us-pvp-horde", deferred: false },
+      { id: 1, market: "us-pvp-horde", deferred: true },
+    ]);
+  });
+});

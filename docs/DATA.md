@@ -97,6 +97,19 @@ Only one fetch job runs at a time.
 
 When every item is fetched it writes `done.json` and later runs do nothing.
 
+**Pace (19 Nov 2026).** ahprice.com has no batch or multi-market history call: every call covers one item, one realm
+and one faction. The cap is 2,000 calls a day per IP whatever the `days` window, so a shorter window saves nothing.
+History over 30 days only lowers the per-minute limit to 10, and the 7-second pacing stays under that.
+
+Requests never come from extra machines or IPs to get past the per-IP limit, and the backfill does not use the MCP
+endpoint's separate allowance. Instead, the most useful requests go first:
+- items listed on that market in Goldline's latest snapshot, most traded first;
+- last, PvP Horde items the Auctionator scans already cover, and items not listed on our auction houses.
+
+That puts the essential part at about 21 days from 19 Nov (40,264 requests), with about 9,300 deferred requests after
+it. A polite request for a one-time export or a temporarily higher limit is drafted in `docs/AHPRICE_REQUEST.md`, for
+the owner to send.
+
 ahprice groups realms into markets (US and AU together). They were matched to Goldline's houses on 18 Nov 2026 by
 comparing current prices of 50 busy items (median gap 3–14%, RP Horde 29% but still the clear best):
 
