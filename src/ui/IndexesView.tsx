@@ -10,6 +10,9 @@ import { EmptyState, ErrorMsg, Icon, ItemIcon, Loading, formatPct } from "./part
 
 const HOUR = 3_600;
 
+/** Index points with two decimals in the reader's language (100.00 / 100,00). */
+export const pts = (v: number, lang: "en" | "fr") => v.toLocaleString(lang === "fr" ? "fr-CA" : "en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
 /** Value now, 24 hours earlier, and the last 7 days for the sparkline. */
 export function summarize(s: IndexSeries | undefined): { value: number; change: number | null; spark: number[] } | null {
   const h = s?.hourly ?? [];
@@ -63,7 +66,7 @@ export function IndexesView() {
                   <span class="sub">{data.data![d.id]!.periods.at(-1)!.basket.length} {t(s.lang, "itemsCount")}</span>
                 </span>
                 <Sparkline values={sum!.spark} up={(sum!.change ?? 0) >= 0} />
-                <span class="row-price">{sum!.value.toFixed(2)}</span>
+                <span class="row-price">{pts(sum!.value, s.lang)}</span>
                 <span class={`pill ${sum!.change == null ? "" : sum!.change >= 0 ? "up" : "down"}`}>{formatPct(sum!.change, s.lang)}</span>
               </button>
             </li>
@@ -122,7 +125,7 @@ function IndexDetail({ def, series, baseEnd, onClose }: { def: IndexDefMeta; ser
           <h2>{def.name[s.lang]}</h2>
           {sum && (
             <p class="index-value">
-              <b>{sum.value.toFixed(2)}</b>{" "}
+              <b>{pts(sum.value, s.lang)}</b>{" "}
               <span class={sum.change == null ? "muted" : sum.change >= 0 ? "up" : "down"}>{formatPct(sum.change, s.lang)}</span>
             </p>
           )}
@@ -161,7 +164,7 @@ function IndexDetail({ def, series, baseEnd, onClose }: { def: IndexDefMeta; ser
                     <span class="sub">{r.sinceStart != null ? `${formatPct(r.sinceStart, s.lang)} ${t(s.lang, "sincePeriodStart")}` : t(s.lang, "notListed")}</span>
                   </span>
                   <span class="row-price">{(r.w * 100).toFixed(1)}%</span>
-                  <span class={`pill ${r.dayPoints == null ? "" : r.dayPoints >= 0 ? "up" : "down"}`}>{r.dayPoints == null ? "–" : `${r.dayPoints >= 0 ? "+" : ""}${r.dayPoints.toFixed(2)}`}</span>
+                  <span class={`pill ${r.dayPoints == null ? "" : r.dayPoints >= 0 ? "up" : "down"}`}>{r.dayPoints == null ? "–" : `${r.dayPoints >= 0 ? "+" : ""}${pts(r.dayPoints, s.lang)}`}</span>
                 </button>
               </li>
             );
