@@ -41,6 +41,8 @@ describe("axis labels", () => {
     expect(formatMoneyAxis(77)).toBe("77c");
     expect(formatMoneyAxis(800_000)).toBe("80g");
     expect(formatMoneyAxis(2_500)).toBe("25s");
+    expect(formatMoneyAxis(130_600)).toBe("13g 06s");
+    expect(formatMoneyAxis(2_505)).toBe("25s 05c");
   });
 });
 

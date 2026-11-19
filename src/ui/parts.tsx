@@ -56,8 +56,10 @@ export function Money({ copper, lang, short = false }: { copper: number | null |
   const s = COIN_SUFFIX[lang];
   const parts: ComponentChildren[] = [];
   if (c.gold > 0) parts.push(<span class="g" key="g">{c.gold.toLocaleString(lang === "fr" ? "fr-CA" : "en-US")}{s.gold}</span>);
-  if (c.silver > 0 && !(short && c.gold >= 100)) parts.push(<span class="s" key="s">{c.silver}{s.silver}</span>);
-  if ((c.copper > 0 && !(short && c.gold >= 10)) || parts.length === 0) parts.push(<span class="c" key="c">{c.copper}{s.copper}</span>);
+  // Silver and copper take two digits after a larger coin (13g 06s), so prices line up in a column.
+  const pad = (n: number, after: boolean) => (after ? String(n).padStart(2, "0") : String(n));
+  if (c.silver > 0 && !(short && c.gold >= 100)) parts.push(<span class="s" key="s">{pad(c.silver, c.gold > 0)}{s.silver}</span>);
+  if ((c.copper > 0 && !(short && c.gold >= 10)) || parts.length === 0) parts.push(<span class="c" key="c">{pad(c.copper, parts.length > 0)}{s.copper}</span>);
   return <span class="money">{c.negative ? "-" : ""}{parts}</span>;
 }
 

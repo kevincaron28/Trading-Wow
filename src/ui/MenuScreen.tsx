@@ -68,7 +68,12 @@ export function MenuScreen() {
         <p class="sheet-label">{t(s.lang, "about")}</p>
         <p class="small">{t(s.lang, "aboutText")}</p>
         <p class="small muted">{t(s.lang, "chartsBy")} <a href="https://www.tradingview.com/" target="_blank" rel="noopener">tradingview.com</a></p>
-        <p class="small muted">Goldline {__APP_VERSION__}</p>
+        <p class="small muted">
+          {t(s.lang, "dataCredits")}{" "}
+          <a href="https://ahledger.com" target="_blank" rel="noopener">Prices from AHledger</a> ·{" "}
+          <a href="https://ahprice.com" target="_blank" rel="noopener">ahprice.com</a> ·{" "}
+          <a href="https://www.tradeskillmaster.com/" target="_blank" rel="noopener">Pricing data from TradeSkillMaster</a>
+        </p>
       </div>
     </section>
   );

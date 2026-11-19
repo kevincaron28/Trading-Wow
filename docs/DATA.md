@@ -161,6 +161,28 @@ Auctionator seed.
 Not used: TSM's AppHelper data (TSM's own data, not ours to republish) and third-party sites such as timesaver.gg or
 ahprices.com (would need their permission).
 
+## AHledger history (live in the app, never stored)
+
+[AHledger](https://ahledger.com) records Forever auction prices from its players' addon scans and offers a public
+API (`api.ahledger.com`, CORS open). Its terms (read 19 Nov 2026):
+- Free for community tools given to players without charge, with the credit "Prices from AHledger" linked to the
+  item's page.
+- No archive or dataset built from the answers, and from 10 Dec 2026 nothing kept past the `Cache-Control` time.
+- A product that makes money from the data (ads, subscriptions) needs a commercial licence from 10 Dec 2026.
+
+So Goldline doesn't backfill it into the data branch. The chart asks `GET /v1/prices/{market}/{item}?range=90d` when
+an item is opened in 1D or 1W (falling back to 30d and then 7d if a range is refused), keeps the answer in memory for
+its max-age only, and draws it as teal dots with the credit link (`src/lib/ahledger.ts`). The houses map to the US
+markets `forever.{pvp|normal|rp|rppvp}.{alliance|horde}.us`. Blackwater has no AHledger market. Daily points start on
+5 Nov 2026 on all eight faction markets, where someone scanned the item.
+
+From 10 Dec, a caller without a key gets 7 days of history; 90 days needs a licence. Before Goldline shows ads or sells
+Pro, take a licence or set `AHLEDGER_ON = false` (docs/MONETIZATION_PLAN.md).
+
+Not used: **Booty Bay Broker** (bootybaybroker.com). Every page sits behind a Cloudflare bot check, its robots.txt
+disallows `/api/`, and no public API is documented. **wow.gg**: its terms forbid bots and scrapers. Both would need the
+operator's written permission.
+
 ## Estimated sales
 
 The collector keeps the previous snapshot's auction IDs in `state/` next to the data (gitignored, cached between GitHub
