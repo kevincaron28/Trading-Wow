@@ -8,7 +8,7 @@
  * Politeness: a generic user agent with no personal data, honours 429/503 Retry-After, never asks again for an
  * (item, market) it already has, and skips items AHledger has no price for on that market. One shared pacer for the
  * whole run: at most one request every 215 ms (about 280 a minute, under AHledger's 300 a minute per address, with
- * or without a key; several keys on one account share that limit), two requests in flight so slow answers do not
+ * or without a key; several keys on one account share that limit), up to six requests in flight so slow answers do not
  * lower the rate. One runner at a time (workflow concurrency group). An optional key (AHLEDGER_API_KEY) is sent
  * as a bearer token and never printed.
  * Item list per market: AHledger's own price table (/v1/pricetable, one request per market, ETag cached).
@@ -17,13 +17,18 @@
  */
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { BUILT_IN_WATCHLISTS } from "../src/data/watchlists.ts";
 
 export const LABEL = "AHledger (players' addon scans), used with permission (owner, 19 Nov 2026)";
 const API = "https://api.ahledger.com/v1";
 const UA = "Mozilla/5.0 (compatible; price-history-backfill/1.0)";
 const GAP_MS = 400;
 const PACE_MS = 215;
-const IN_FLIGHT = 2;
+/** Requests in flight: AHledger answers in about a second, so a few overlap; the pacer still caps the rate. */
+const IN_FLIGHT = 6;
+const DATA = "https://raw.githubusercontent.com/kevincaron28/Trading-Wow/data";
+/** Shared back-off: after a 429/503, no request starts until this time (every in-flight worker waits). */
+let pausedUntil = 0;
 
 /** One pacer shared by every request of a run: request starts are at least `gap` ms apart. */
 export function pacer(gap: number, now: () => number = Date.now): () => Promise<void> {
@@ -78,8 +83,10 @@ export function pricetableIds(text: string): number[] {
     .split("\n")
     .slice(1)
     .map((l) => l.split(":"))
-    // id:median:min:quantity:median7d:median30d:low30d:high30d:sold. Items with no price at all are skipped.
+    // id:median:min:quantity:median7d:median30d:low30d:high30d:sold. Items with no price at all are skipped; the
+    // busiest (most listed) come first.
     .filter((f) => [f[1], f[2], f[4], f[5], f[6], f[7]].some((x) => x != null && x !== "" && Number(x) > 0))
+    .sort((a, b) => (Number(b[3]) || 0) - (Number(a[3]) || 0))
     .map((f) => Number(f[0]))
     .filter((n) => Number.isInteger(n) && n > 0);
 }
@@ -90,6 +97,7 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 async function get(url: string, key?: string): Promise<Response | null> {
   for (let attempt = 1; attempt <= 5; attempt++) {
+    while (Date.now() < pausedUntil) await sleep(pausedUntil - Date.now());
     let res: Response;
     try {
       const headers: Record<string, string> = { "user-agent": UA, accept: "application/json, text/plain" };
@@ -102,8 +110,8 @@ async function get(url: string, key?: string): Promise<Response | null> {
     }
     if (res.status === 429 || res.status === 503) {
       const wait = Math.min(600, Math.max(5, Number(res.headers.get("retry-after") ?? "60"))) * 1000;
-      console.log(`${res.status}: waiting ${wait / 1000} s as asked`);
-      await sleep(wait);
+      console.log(`${res.status}: every request waits ${wait / 1000} s as asked`);
+      pausedUntil = Math.max(pausedUntil, Date.now() + wait);
       continue;
     }
     return res;
@@ -125,6 +133,16 @@ async function fetchAll(stateDir: string, maxMinutes = Infinity): Promise<void> 
     ids.set(market, existsSync(file) ? (JSON.parse(readFileSync(file, "utf8")) as number[]) : []);
     await sleep(GAP_MS);
   }
+  // What the app shows first goes first: built-in watchlist items and every index basket, then the busiest items.
+  const first = new Set<number>();
+  for (const list of BUILT_IN_WATCHLISTS) for (const id of list.items) first.add(id);
+  for (const { house } of MARKETS) {
+    try {
+      const res = await fetch(`${DATA}/index/${house}.json`, { signal: AbortSignal.timeout(30_000) });
+      if (res.ok) for (const f of Object.values(((await res.json()) as { indexes: Record<string, { periods: { basket: number[][] }[] }> }).indexes)) for (const p of f.periods) for (const [id] of p.basket) first.add(id!);
+    } catch { /* order only */ }
+  }
+  for (const [market, list] of ids) ids.set(market, [...list.filter((id) => first.has(id)), ...list.filter((id) => !first.has(id))]);
   // Interleave markets so every house fills at the same pace.
   const keys: string[] = [];
   const longest = Math.max(...[...ids.values()].map((a) => a.length));
