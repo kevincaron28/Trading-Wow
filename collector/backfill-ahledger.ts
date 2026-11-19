@@ -6,10 +6,11 @@
  *   node collector/backfill-ahledger.ts write <stateDir> <dataDir>       writes ext/ahledger/ into the data checkout
  *
  * Politeness: a generic user agent with no personal data, honours 429/503 Retry-After, never asks again for an
- * (item, market) it already has. Without a key: one request every 400 ms (150 a minute; AHledger allows 300 a minute
- * per address). With keys (AHLEDGER_API_KEY, AHLEDGER_API_KEY_2, AHLEDGER_API_KEY_3; extra keys allowed by AHledger,
- * owner, 19 Nov 2026): one worker per key, each at one request every 250 ms (240 a minute, under the key's 300), the
- * work shared round-robin. Keys are sent as a bearer token and never printed.
+ * (item, market) it already has, and skips items AHledger has no price for on that market. One shared pacer for the
+ * whole run: at most one request every 215 ms (about 280 a minute, under AHledger's 300 a minute per address, with
+ * or without a key; several keys on one account share that limit), two requests in flight so slow answers do not
+ * lower the rate. One runner at a time (workflow concurrency group). An optional key (AHLEDGER_API_KEY) is sent
+ * as a bearer token and never printed.
  * Item list per market: AHledger's own price table (/v1/pricetable, one request per market, ETag cached).
  * Output (internal series, never shown with a label in the app): ext/ahledger/{house}/{itemId % 256}.json =
  * { items: { [itemId]: [[dayIndex, median, minBuyout, quantity]] } } plus ext/ahledger/meta.json.
@@ -21,7 +22,19 @@ export const LABEL = "AHledger (players' addon scans), used with permission (own
 const API = "https://api.ahledger.com/v1";
 const UA = "Mozilla/5.0 (compatible; price-history-backfill/1.0)";
 const GAP_MS = 400;
-const KEY_GAP_MS = 250;
+const PACE_MS = 215;
+const IN_FLIGHT = 2;
+
+/** One pacer shared by every request of a run: request starts are at least `gap` ms apart. */
+export function pacer(gap: number, now: () => number = Date.now): () => Promise<void> {
+  let next = 0;
+  return async () => {
+    const t = now();
+    const slot = Math.max(t, next);
+    next = slot + gap;
+    if (slot > t) await sleep(slot - t);
+  };
+}
 
 /** API keys from the environment, in order; empty or missing ones are skipped. */
 export function apiKeys(env: Record<string, string | undefined> = process.env): string[] {
@@ -64,7 +77,10 @@ export function pricetableIds(text: string): number[] {
   return text
     .split("\n")
     .slice(1)
-    .map((l) => Number(l.split(":")[0]))
+    .map((l) => l.split(":"))
+    // id:median:min:quantity:median7d:median30d:low30d:high30d:sold. Items with no price at all are skipped.
+    .filter((f) => [f[1], f[2], f[4], f[5], f[6], f[7]].some((x) => x != null && x !== "" && Number(x) > 0))
+    .map((f) => Number(f[0]))
     .filter((n) => Number.isInteger(n) && n > 0);
 }
 
@@ -113,19 +129,19 @@ async function fetchAll(stateDir: string, maxMinutes = Infinity): Promise<void> 
   const keys: string[] = [];
   const longest = Math.max(...[...ids.values()].map((a) => a.length));
   for (let i = 0; i < longest; i++) for (const { market } of MARKETS) { const id = ids.get(market)![i]; if (id != null && !(`${market}:${id}` in cache)) keys.push(`${market}:${id}`); }
-  const auth = apiKeys();
-  const workers = auth.length ? auth.map((k) => ({ key: k as string | undefined, gap: KEY_GAP_MS })) : [{ key: undefined as string | undefined, gap: GAP_MS }];
-  const perMinute = workers.reduce((a, w) => a + 60_000 / w.gap, 0);
-  console.log(`${new Date().toISOString().slice(0, 16)} ${keys.length} requests to go (${Object.keys(cache).length} done), ${workers.length} worker(s) ${auth.length ? "with API keys" : "without a key"}, about ${Math.ceil(keys.length / perMinute)} minutes`);
+  const key = apiKeys()[0];
+  const pace = pacer(PACE_MS);
+  const workers = Array.from({ length: IN_FLIGHT }, () => ({ key }));
+  console.log(`${new Date().toISOString().slice(0, 16)} ${keys.length} requests to go (${Object.keys(cache).length} done), ${key ? "with an API key" : "without a key"}, about ${Math.ceil((keys.length * PACE_MS) / 60_000)} minutes at ${Math.floor(60_000 / PACE_MS)} a minute`);
   let n = 0;
   let stop = false;
   const run = async (w: number) => {
-    const { key, gap } = workers[w]!;
+    const { key } = workers[w]!;
     for (const k of share(keys, w, workers.length)) {
       if (stop) return;
       if (Date.now() >= stopAt) { stop = true; console.log(`time limit after ${n} requests; the next run resumes`); return; }
       const [market, id] = k.split(":");
-      await sleep(gap);
+      await pace();
       const res = await get(`${API}/prices/${market}/${id}?range=90d`, key);
       if (!res) { stop = true; console.log(`worker ${w + 1}: API unreachable; stopping, resume later`); return; }
       n++;

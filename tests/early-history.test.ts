@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { median, mergeDay, SRC } from "../collector/merge-history";
 import { dailyRows, pricetableIds } from "../collector/backfill-ahledger";
 import { earlyCandles } from "../src/data/series";
@@ -84,5 +84,23 @@ describe("AHledger keys", () => {
     expect(apiKeys({ AHLEDGER_API_KEY: "a", AHLEDGER_API_KEY_2: " ", AHLEDGER_API_KEY_3: "c" })).toEqual(["a", "c"]);
     expect(apiKeys({})).toEqual([]);
     expect(share([1, 2, 3, 4, 5], 1, 2)).toEqual([2, 4]);
+  });
+});
+
+describe("AHledger pacing", () => {
+  it("spaces request starts by the gap even with two in flight", async () => {
+    const { pacer } = await import("../collector/backfill-ahledger");
+    vi.useFakeTimers();
+    const pace = pacer(215);
+    const t0 = Date.now();
+    const done: number[] = [];
+    for (let i = 0; i < 3; i++) void pace().then(() => done.push(Date.now() - t0));
+    await vi.advanceTimersByTimeAsync(1000);
+    vi.useRealTimers();
+    expect(done).toEqual([0, 215, 430]);
+  });
+  it("skips price-table rows without any price", async () => {
+    const { pricetableIds } = await import("../collector/backfill-ahledger");
+    expect(pricetableIds("AHL1|m|1|3\n2589:20:18:3420:22:21:18:25:3600\n999::::::::\n12:0:0:0:0:0:0:0:0\n")).toEqual([2589]);
   });
 });
