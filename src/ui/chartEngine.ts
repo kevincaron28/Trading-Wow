@@ -16,7 +16,7 @@ import {
 import type { Candle } from "../lib/candles";
 import type { Lang } from "../lib/i18n";
 import { bollinger, ema, heikinAshi, macd, rsi, sma } from "../lib/indicators";
-import { formatMoneyAxis } from "../lib/money";
+import { formatMoneyAxis, formatPoints } from "../lib/money";
 import { visibleRange, type ChartRange } from "../lib/ranges";
 import type { ChartType, IndicatorKey } from "../app/store";
 
@@ -115,7 +115,7 @@ export class ChartEngine {
     const up = css("--up");
     const down = css("--down");
     const accent = css("--accent");
-    const fmt = input.points ? (p: number) => p.toFixed(2) : (p: number) => formatMoneyAxis(p, input.lang);
+    const fmt = input.points ? (p: number) => formatPoints(p, input.lang) : (p: number) => formatMoneyAxis(p, input.lang);
     const comparing = input.compare !== null;
     this.chart.applyOptions({
       layout: {
