@@ -21,6 +21,7 @@ on:
 
 permissions:
   contents: write
+  actions: write
 
 jobs:
   check:
@@ -29,6 +30,23 @@ jobs:
     outputs:
       run: ${{ steps.decide.outputs.run }}
     steps:
+      # Watchdog for the hourly collector: GitHub sometimes skips its schedule for hours. These triggers fire more often,
+      # so when the published prices are more than 75 minutes old, start a collector run (it skips stored snapshots).
+      - name: Kick the collector if prices are stale
+        env:
+          REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          updated=$(curl -fsS "https://raw.githubusercontent.com/$REPO/data/meta.json" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>console.log(JSON.parse(s).updated||0))' || echo 0)
+          age=$(( $(date -u +%s) - updated ))
+          echo "prices published ${age}s ago"
+          if [ "$age" -gt 4500 ]; then
+            running=$(gh run list -R "$REPO" -w collect.yml --status in_progress --json databaseId -q 'length' || echo 0)
+            queued=$(gh run list -R "$REPO" -w collect.yml --status queued --json databaseId -q 'length' || echo 0)
+            if [ "$running" = "0" ] && [ "$queued" = "0" ]; then
+              gh workflow run collect.yml -R "$REPO" --ref main && echo "::notice::Prices were ${age}s old; started a collector run."
+            fi
+          fi
       - name: Is the backfill behind?
         id: decide
         env:

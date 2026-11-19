@@ -173,3 +173,9 @@ Not obtainable:
 
 The ahprice.com backfill covers every item it lists. That is about 50,000 item-market requests at 1,900 a day (the
 site's limit is 2,000), so roughly four weeks from 18 Nov, most-listed items first.
+
+**Collector watchdog (19 Nov 2026).** GitHub sometimes skips the collector's schedule for hours on this repository
+(none ran from 03:52 to 10:22 UTC on 19 Nov). So the collector now has four hourly slots (:05, :20, :35, :50). The
+ahprice.com backfill workflow's quick check job, which several triggers start, also starts a collector run when
+`meta.json` on the data branch is more than 75 minutes old and no collector run is queued or running. An extra
+collector run that finds an already stored snapshot skips it.
