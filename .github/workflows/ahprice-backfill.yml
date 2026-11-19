@@ -1,28 +1,61 @@
 name: ahprice.com backfill
 
 # Daily price history since WoW Forever's launch from ahprice.com's public API (used with the site's permission,
-# owner, 18 Nov 2026; docs/DATA.md). Every 3 hours: resume from the progress kept on the `backfill-state` branch,
-# fetch for up to 50 minutes (one request every 7 s, at most 1,900 a UTC day across all runs, backing off on errors),
-# save the progress, then publish ext/ahprice and audit/coverage.json to the `data` branch with a lease (safe next to
-# the hourly collector). Once every item is fetched (`done.json` on the state branch) the runs do nothing.
-# No secrets: the API is public.
+# owner, 18 Nov 2026; docs/DATA.md). Each run resumes from the progress kept on the `backfill-state` branch, fetches
+# for up to 50 minutes (one request every 7 s, at most 1,900 a UTC day across all runs, backing off on errors), saves
+# the progress, then publishes ext/ahprice and audit/coverage.json to the `data` branch with a lease (safe next to the
+# hourly collector). Once every item is fetched (`done.json` on the state branch) nothing runs. No secrets: public API.
+#
+# GitHub sometimes skips scheduled runs, so several triggers start it: two hourly slots, and every finished collector
+# run (that workflow fires reliably). A quick `check` job decides whether the backfill is behind; only then does the
+# `backfill` job start (one at a time), so extra triggers cost a few seconds and never queue duplicate work.
 
 on:
   schedule:
-    - cron: "10 */3 * * *"
+    - cron: "17 * * * *"
+    - cron: "47 * * * *"
+  workflow_run:
+    workflows: ["Collect prices"]
+    types: [completed]
   workflow_dispatch:
 
 permissions:
   contents: write
 
-concurrency:
-  group: ahprice-backfill
-  cancel-in-progress: false
-
 jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      run: ${{ steps.decide.outputs.run }}
+    steps:
+      - name: Is the backfill behind?
+        id: decide
+        env:
+          REPO: ${{ github.repository }}
+          EVENT: ${{ github.event_name }}
+        run: |
+          git init -q s && cd s
+          git fetch -q --depth 1 "https://github.com/$REPO.git" backfill-state
+          if git cat-file -e FETCH_HEAD:done.json 2>/dev/null; then
+            echo "::notice::Backfill finished; nothing to do."; echo "run=false" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          today=$(date -u +%F)
+          budget=$(git show FETCH_HEAD:budget.json 2>/dev/null || echo '{}')
+          used=$(node -e 'const b=JSON.parse(process.argv[1]);console.log(b.day===process.argv[2]?b.used:0)' "$budget" "$today")
+          age=$(( $(date -u +%s) - $(git log -1 --format=%ct FETCH_HEAD) ))
+          echo "used today: $used / 1900; last progress saved ${age}s ago; event: $EVENT"
+          if [ "$used" -ge 1900 ]; then echo "run=false" >> "$GITHUB_OUTPUT"; exit 0; fi
+          if [ "$EVENT" = "workflow_dispatch" ] || [ "$age" -ge 2700 ]; then echo "run=true" >> "$GITHUB_OUTPUT"; else echo "run=false" >> "$GITHUB_OUTPUT"; fi
+
   backfill:
+    needs: check
+    if: needs.check.outputs.run == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 80
+    concurrency:
+      group: ahprice-backfill
+      cancel-in-progress: false
     steps:
       - uses: actions/checkout@v4
         with:
