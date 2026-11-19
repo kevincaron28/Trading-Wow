@@ -30,8 +30,17 @@ category in WoW Forever).
   the robust market value (docs/DATA.md).
 - **Missing prices.** A price older than 72 hours is left out for that hour, and the other weights are renormalised.
   Nothing is interpolated.
-- **Base.** 100 at the close of the first full day of data, 19 November 2026 (20 Nov 00:00 UTC). The first basket is
-  chosen from that day. Until then the basket is provisional and follows the latest day.
+- **Base.** 100 = WoW Forever's launch (4 Nov 2026; the first UTC day of prices is 5 Nov, the launch evening in
+  America). Precisely, the base is the first day on or after 4 Nov where the merged early history (`early/`, docs/DATA.md)
+  prices at least half of the basket weight. The basket is chosen from the first full day of our own hourly data
+  (19 Nov), the same basket and weights are used back to launch, and the history is computed backwards from there.
+- **Early days.** Daily values from launch until our hourly data starts (18 Nov 02:00 UTC).
+  - An item without a price that day is left out and the others re-weighted.
+  - An item without a launch-day price uses its first later price as its base.
+  - A day pricing under a quarter of the weight is skipped.
+  - The hourly series is chain-linked to the last early day, so the level does not jump.
+  - Everything is recomputed on each backfill publish (`link` and `earlyUntil` in index/<house>.json).
+- **Blackwater:** no early prices exist, so the base stays at the close of 19 Nov.
 - **Rebalancing.** On the first weekly reset (Tuesday 15:00 UTC) of each month, the new basket is chosen from the
   previous 7 days. It is chain-linked, so the level does not jump. A basket, once set, is never changed.
 - **Candles.** Hourly values build 1H, 4H and daily candles. Each item's contribution to the last 24 hours is
@@ -48,8 +57,8 @@ category in WoW Forever).
 | Consumables | 100–122.2 | 0.8% | 3.8% |
 | Raid prep | 100–119.6 | 0.8% | 4.4% |
 
-Our hourly history starts on 18 Nov, so that is as far back as the indexes go. The ahprice.com and Auctionator points
-are daily lowest buyouts of some items only, not comparable market values, so they are not used for indexes.
+Early values use the merged daily market value. It is AHledger's median where AHledger has the item, otherwise the
+lowest buyout, so they are a slightly rougher measure than the hourly robust market value used from 18 Nov.
 
 ## Français
 
@@ -65,6 +74,8 @@ branche de données.
   des heures.
 - **Valeur.** Niveau au début de la période × Σ poids × prix actuel ÷ prix au début. Les prix de plus de 72 h sont
   exclus et rien n'est interpolé.
-- **Base.** 100 à la clôture du 19 novembre 2026. Le panier est provisoire jusque-là.
+- **Base.** 100 = lancement de WoW Forever (4 nov. 2026) : valeurs quotidiennes depuis le lancement, puis horaires,
+  avec chaînage. Un objet sans prix un jour donné est exclu et les autres sont repondérés; un objet sans prix au
+  lancement part de son premier prix. Bourbe-Noire n'a pas de prix antérieurs : sa base reste le 19 nov.
 - **Rééquilibrage.** À la première réinitialisation hebdomadaire de chaque mois (mardi 15 h UTC), avec chaînage :
   le niveau ne saute pas, et un panier fixé ne change plus.

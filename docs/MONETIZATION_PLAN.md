@@ -104,7 +104,8 @@ EU purposes.
 | Source | Free app today | Once there are ads or Pro |
 |---|---|---|
 | Blizzard Game Data API | Allowed (API terms) | Allowed: Blizzard's API terms allow apps with ads, but don't charge for access to Blizzard data itself, and keep the attribution. Pro must sell Goldline's features, not "the prices". |
-| AHledger (live history on the chart) | Free as a community tool, credited | **Needs a commercial licence** (from 10 Dec 2026): "Site" tier, US$29 a month, for ads; "Product", US$99 a month, for a paid tier. Credited partners get 50% off. Otherwise turn it off (`AHLEDGER_ON` in `src/lib/ahledger.ts`). Ask through ahledger.com's contact form. |
+| AHledger (early history, merged) | Owner has AHledger's permission (19 Nov 2026) | Confirm in writing that the permission covers a monetized app; their public terms otherwise ask for a commercial licence from 10 Dec 2026 |
+| wow.gg, Booty Bay Broker | Owner has permission (19 Nov 2026), not collected yet | Same written confirmation |
 | ahprice.com | Used with permission (owner, 18 Nov) | Ask ahprice again whether the permission covers a monetized app |
 | TradeSkillMaster public files | Credited | Check TSM's terms for commercial use before the first ad build; drop the series if they say no |
 | Auctionator seed (owner and guildmate scans) | Own data | Fine |

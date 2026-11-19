@@ -68,9 +68,10 @@ const en = {
   historySince: "History since",
   indexes: "Indexes",
   indexesUnavailable: "Indexes are not available yet for this house.",
-  indexProvisional: "Provisional: the base (100) is set when 19 Nov closes (20 Nov 00:00 UTC); until then the basket follows the latest day.",
-  indexMethod: "How indexes work: fixed baskets weighted by daily gold volume (estimated sold per day × market value), capped per item; value = level at the period start × Σ weight × price now ÷ price at the start. Base 100 at the close of 19 Nov 2026; rebalanced on the first weekly reset of each month and chain-linked. Prices older than 72 h are left out. From Goldline's own hourly data.",
-  indexBase: "Base 100 at the close of",
+  indexProvisional: "Base 100 at the close of 19 Nov 2026 for this house: no earlier prices to start at launch.",
+  indexMethod: "How indexes work: fixed baskets weighted by daily gold volume (estimated sold per day × market value), capped per item; value = level at the period start × Σ weight × price now ÷ price at the start. Base 100 = WoW Forever's launch (4 Nov 2026): daily values from launch, then hourly, chain-linked. The basket is chosen from the first full day (19 Nov); on a day an item has no price it is left out and the others re-weighted, and an item without a launch-day price starts from its first price. Rebalanced on the first weekly reset of each month. Prices older than 72 h are left out.",
+  indexBase: "Base 100 =",
+  launchLabel: "launch, 4 Nov 2026",
   indexRebalanced: "basket since",
   constituents: "Constituents",
   weight: "Weight",
@@ -99,7 +100,7 @@ const en = {
   nextUpdate: "next in ≈",
   checkingPrices: "checking for new prices…",
   wickNote: "Candles: body = market value (opens at the previous close); wicks = that period's real listing spread (lowest buyout up to the price of the cheapest 30%, kept within ½–1.5× the market value).",
-  hourlySince: "hourly since",
+  hourlySince: "Hourly prices since",
   showAllHistory: "Show all",
   points: "points",
   setAlert: "Set alert",
@@ -182,7 +183,6 @@ const en = {
   listedShort: "listed",
   auctionsShort: "auctions",
   chartsBy: "Charts drawn with TradingView Lightweight Charts™ (Apache 2.0).",
-  dataCredits: "Earlier price history:",
 } as const;
 
 export type MessageKey = keyof typeof en;
@@ -254,9 +254,10 @@ const fr: Record<MessageKey, string> = {
   historySince: "Historique depuis le",
   indexes: "Indices",
   indexesUnavailable: "Les indices ne sont pas encore disponibles pour cet hôtel des ventes.",
-  indexProvisional: "Provisoire : la base (100) sera fixée à la clôture du 19 nov. (20 nov. 0 h UTC); d’ici là, le panier suit la dernière journée.",
-  indexMethod: "Fonctionnement des indices : paniers fixes pondérés par le volume quotidien en or (ventes estimées par jour × valeur marchande), plafonnés par objet; valeur = niveau au début de la période × Σ poids × prix actuel ÷ prix au début. Base 100 à la clôture du 19 nov. 2026; rééquilibrés à la première réinitialisation hebdomadaire de chaque mois, avec chaînage. Les prix de plus de 72 h sont exclus. Calculés avec les données horaires de Goldline.",
-  indexBase: "Base 100 à la clôture du",
+  indexProvisional: "Base 100 à la clôture du 19 nov. 2026 pour cet hôtel : aucun prix antérieur pour partir du lancement.",
+  indexMethod: "Fonctionnement des indices : paniers fixes pondérés par le volume quotidien en or (ventes estimées par jour × valeur marchande), plafonnés par objet; valeur = niveau au début de la période × Σ poids × prix actuel ÷ prix au début. Base 100 = lancement de WoW Forever (4 nov. 2026) : valeurs quotidiennes depuis le lancement, puis horaires, avec chaînage. Le panier est choisi sur la première journée complète (19 nov.); un jour où un objet n’a pas de prix, il est exclu et les autres sont repondérés, et un objet sans prix au lancement part de son premier prix. Rééquilibrés à la première réinitialisation hebdomadaire de chaque mois. Les prix de plus de 72 h sont exclus.",
+  indexBase: "Base 100 =",
+  launchLabel: "lancement, 4 nov. 2026",
   indexRebalanced: "panier depuis le",
   constituents: "Composantes",
   weight: "Poids",
@@ -285,7 +286,7 @@ const fr: Record<MessageKey, string> = {
   nextUpdate: "prochain dans ≈",
   checkingPrices: "recherche de nouveaux prix…",
   wickNote: "Chandelles : corps = valeur marchande (ouvre à la clôture précédente); mèches = l’écart réel des annonces de la période (du plus bas achat immédiat au prix des 30 % les moins chers, limité entre ½ et 1,5× la valeur marchande).",
-  hourlySince: "horaire depuis le",
+  hourlySince: "Prix horaires depuis le",
   showAllHistory: "Tout afficher",
   points: "points",
   setAlert: "Créer une alerte",
@@ -368,7 +369,6 @@ const fr: Record<MessageKey, string> = {
   listedShort: "en vente",
   auctionsShort: "enchères",
   chartsBy: "Graphiques tracés avec TradingView Lightweight Charts™ (Apache 2.0).",
-  dataCredits: "Historique des prix antérieur :",
 };
 
 export const MESSAGES: Record<Lang, Record<MessageKey, string>> = { en, fr };

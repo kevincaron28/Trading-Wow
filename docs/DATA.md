@@ -161,27 +161,57 @@ Auctionator seed.
 Not used: TSM's AppHelper data (TSM's own data, not ours to republish) and third-party sites such as timesaver.gg or
 ahprices.com (would need their permission).
 
-## AHledger history (live in the app, never stored)
+## Permissions on record
 
-[AHledger](https://ahledger.com) records Forever auction prices from its players' addon scans and offers a public
-API (`api.ahledger.com`, CORS open). Its terms (read 19 Nov 2026):
-- Free for community tools given to players without charge, with the credit "Prices from AHledger" linked to the
-  item's page.
-- No archive or dataset built from the answers, and from 10 Dec 2026 nothing kept past the `Cache-Control` time.
-- A product that makes money from the data (ads, subscriptions) needs a commercial licence from 10 Dec 2026.
+| Source | Permission | Date | Used for |
+|---|---|---|---|
+| Blizzard Game Data API | API terms | — | Goldline's own hourly snapshots (since 18 Nov 2026) |
+| ahprice.com | Owner has the site's permission | 18 Nov 2026 | Daily lowest buyouts since launch (ext/ahprice) |
+| AHledger (ahledger.com) | Owner has AHledger's permission to use the information under the Goldline brand | 19 Nov 2026 | Daily median and lowest buyout since launch (ext/ahledger) |
+| wow.gg (Oves Group, LLC) | Owner has wow.gg's permission | 19 Nov 2026 | Not collected yet (see below) |
+| Booty Bay Broker (bootybaybroker.com) | Owner has Booty Bay Broker's permission | 19 Nov 2026 | Not collected yet (see below) |
+| TradeSkillMaster public files | Public data, credit required: "Pricing data from TradeSkillMaster" | — | Realm market values (tsm/), credited in the app |
+| Auctionator scans (owner and a guildmate) | Their own scans | 18 Nov 2026 | PvP Horde, 5–17 Nov (seed/) |
 
-So Goldline doesn't backfill it into the data branch. The chart asks `GET /v1/prices/{market}/{item}?range=90d` when
-an item is opened in 1D or 1W (falling back to 30d and then 7d if a range is refused), keeps the answer in memory for
-its max-age only, and draws it as teal dots with the credit link (`src/lib/ahledger.ts`). The houses map to the US
-markets `forever.{pvp|normal|rp|rppvp}.{alliance|horde}.us`. Blackwater has no AHledger market. Daily points start on
-5 Nov 2026 on all eight faction markets, where someone scanned the item.
+**Owner decision (19 Nov 2026):** everything is shown under the Goldline brand as one price history, with no
+per-source labels in the app or the store listing. The sources stay recorded here, and in the internal `sources` bit
+mask of every merged row, so a permission change can be honoured: drop the source's folder, re-run
+`merge-history.ts` and `indexes.ts`. TSM keeps its credit line, which its terms require.
 
-From 10 Dec, a caller without a key gets 7 days of history; 90 days needs a licence. Before Goldline shows ads or sells
-Pro, take a licence or set `AHLEDGER_ON = false` (docs/MONETIZATION_PLAN.md).
+**wow.gg and Booty Bay Broker are not collected yet.** Both serve their price history only from `/api/` paths that
+their robots.txt disallows, and Booty Bay Broker also sits behind a Cloudflare bot check on some pages. The agent's
+permission rules refused those requests even with the owner's word. To add them, either:
+- the operators provide an export or an API key, which is best (Booty Bay Broker has the only Blackwater history); or
+- the owner allows those hosts for the agent explicitly.
 
-Not used: **Booty Bay Broker** (bootybaybroker.com). Every page sits behind a Cloudflare bot check, its robots.txt
-disallows `/api/`, and no public API is documented. **wow.gg**: its terms forbid bots and scrapers. Both would need the
-operator's written permission.
+## AHledger history (ext/ahledger)
+
+`collector/backfill-ahledger.ts` (GitHub Actions, `ahledger-backfill.yml`, twice an hour) asks
+`GET api.ahledger.com/v1/prices/{market}/{item}?range=90d` for every item in each market's price table (8 US faction
+markets, about 44,600 requests).
+- **Rate:** 150 requests a minute; AHledger allows 300. It honours 429/503 Retry-After.
+- **State:** the cache lives on the `ahledger-state` branch, and nothing is asked twice.
+- **Output:** `ext/ahledger/{house}/{item % 256}.json` = `{ items: { id: [[day, median, min, quantity]] } }`.
+- **Coverage:** daily points start on 5 Nov 2026, and Blackwater has no AHledger market.
+- **Deadline:** from 10 Dec 2026 the 90-day range needs AHledger's commercial licence, so the backfill must finish before then. It takes about 5 hours.
+
+## Merged early history (early/)
+
+`collector/merge-history.ts` writes one row per item, house and UTC day for the days before Goldline's own
+collection covered the item: `early/{house}/{item % 256}.json` = `{ items: { id: [[day, market, min, quantity,
+sources]] } }`.
+- **Own data wins:** days the collector covers are left out.
+- **Merging:** otherwise the value is the median of the sources that saw the item that day.
+  - market: AHledger's median and TSM's market value, or the lowest buyouts when no source has a market value.
+  - min: AHledger, ahprice.com, Auctionator and TSM lowest buyouts.
+- **No gap filling:** nothing is interpolated.
+- **Sources mask:** `sources` = 1 AHledger, 2 ahprice.com, 4 Auctionator scans, 8 TSM. Internal only.
+- **When it runs:** after every backfill publish (AHledger and ahprice), with the indexes recomputed right after.
+
+In the app, `loadHistory` reads `early/` with `h2/`, and `earlyCandles` turns the rows into daily candles:
+- the body runs from the previous day's value to this day's;
+- the low wick is the day's real lowest buyout;
+- there is no invented high.
 
 ## Estimated sales
 
