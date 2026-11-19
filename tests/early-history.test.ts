@@ -77,3 +77,12 @@ describe("indexes from launch", () => {
     expect(withEarly(hourly, new Map())).toBe(hourly);
   });
 });
+
+describe("AHledger keys", () => {
+  it("reads up to three keys in order and skips empty ones", async () => {
+    const { apiKeys, share } = await import("../collector/backfill-ahledger");
+    expect(apiKeys({ AHLEDGER_API_KEY: "a", AHLEDGER_API_KEY_2: " ", AHLEDGER_API_KEY_3: "c" })).toEqual(["a", "c"]);
+    expect(apiKeys({})).toEqual([]);
+    expect(share([1, 2, 3, 4, 5], 1, 2)).toEqual([2, 4]);
+  });
+});

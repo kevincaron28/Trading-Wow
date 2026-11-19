@@ -5,8 +5,11 @@
  *   node collector/backfill-ahledger.ts fetch <stateDir> [--minutes N]   resumable
  *   node collector/backfill-ahledger.ts write <stateDir> <dataDir>       writes ext/ahledger/ into the data checkout
  *
- * Politeness: one request every 400 ms (150 a minute; AHledger allows 300 a minute per client), a generic user agent
- * with no personal data, honours 429/503 Retry-After, never asks again for an (item, market) it already has.
+ * Politeness: a generic user agent with no personal data, honours 429/503 Retry-After, never asks again for an
+ * (item, market) it already has. Without a key: one request every 400 ms (150 a minute; AHledger allows 300 a minute
+ * per address). With keys (AHLEDGER_API_KEY, AHLEDGER_API_KEY_2, AHLEDGER_API_KEY_3; extra keys allowed by AHledger,
+ * owner, 19 Nov 2026): one worker per key, each at one request every 250 ms (240 a minute, under the key's 300), the
+ * work shared round-robin. Keys are sent as a bearer token and never printed.
  * Item list per market: AHledger's own price table (/v1/pricetable, one request per market, ETag cached).
  * Output (internal series, never shown with a label in the app): ext/ahledger/{house}/{itemId % 256}.json =
  * { items: { [itemId]: [[dayIndex, median, minBuyout, quantity]] } } plus ext/ahledger/meta.json.
@@ -18,6 +21,17 @@ export const LABEL = "AHledger (players' addon scans), used with permission (own
 const API = "https://api.ahledger.com/v1";
 const UA = "Mozilla/5.0 (compatible; price-history-backfill/1.0)";
 const GAP_MS = 400;
+const KEY_GAP_MS = 250;
+
+/** API keys from the environment, in order; empty or missing ones are skipped. */
+export function apiKeys(env: Record<string, string | undefined> = process.env): string[] {
+  return ["AHLEDGER_API_KEY", "AHLEDGER_API_KEY_2", "AHLEDGER_API_KEY_3"].map((k) => env[k]?.trim() ?? "").filter((k) => k.length > 0);
+}
+
+/** Round-robin share of the work: worker w of n takes items w, w+n, w+2n... */
+export function share<T>(items: readonly T[], w: number, n: number): T[] {
+  return items.filter((_, i) => i % n === w);
+}
 const LAUNCH_DAY = Date.UTC(2026, 10, 4) / 86_400_000;
 
 /** Goldline house → AHledger market (US). Blackwater (neutral) has no AHledger market. */
@@ -58,13 +72,15 @@ type Cache = Record<string, AhlRow[] | null>; // "market:item" → rows (null = 
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-async function get(url: string): Promise<Response | null> {
+async function get(url: string, key?: string): Promise<Response | null> {
   for (let attempt = 1; attempt <= 5; attempt++) {
     let res: Response;
     try {
-      res = await fetch(url, { headers: { "user-agent": UA, accept: "application/json, text/plain" }, signal: AbortSignal.timeout(30_000) });
+      const headers: Record<string, string> = { "user-agent": UA, accept: "application/json, text/plain" };
+      if (key) headers.authorization = `Bearer ${key}`;
+      res = await fetch(url, { headers, signal: AbortSignal.timeout(30_000) });
     } catch (error) {
-      console.log(`${url}: ${error instanceof Error ? error.message : String(error)}; waiting 60 s`);
+      console.log(`${url.replace(API, "")}: ${error instanceof Error ? error.message : String(error)}; waiting 60 s`);
       await sleep(60_000);
       continue;
     }
@@ -97,25 +113,36 @@ async function fetchAll(stateDir: string, maxMinutes = Infinity): Promise<void> 
   const keys: string[] = [];
   const longest = Math.max(...[...ids.values()].map((a) => a.length));
   for (let i = 0; i < longest; i++) for (const { market } of MARKETS) { const id = ids.get(market)![i]; if (id != null && !(`${market}:${id}` in cache)) keys.push(`${market}:${id}`); }
-  console.log(`${new Date().toISOString().slice(0, 16)} ${keys.length} requests to go (${Object.keys(cache).length} done), about ${Math.ceil((keys.length * GAP_MS) / 60_000)} minutes`);
+  const auth = apiKeys();
+  const workers = auth.length ? auth.map((k) => ({ key: k as string | undefined, gap: KEY_GAP_MS })) : [{ key: undefined as string | undefined, gap: GAP_MS }];
+  const perMinute = workers.reduce((a, w) => a + 60_000 / w.gap, 0);
+  console.log(`${new Date().toISOString().slice(0, 16)} ${keys.length} requests to go (${Object.keys(cache).length} done), ${workers.length} worker(s) ${auth.length ? "with API keys" : "without a key"}, about ${Math.ceil(keys.length / perMinute)} minutes`);
   let n = 0;
-  for (const key of keys) {
-    if (Date.now() >= stopAt) { console.log(`time limit after ${n} requests; the next run resumes`); break; }
-    const [market, id] = key.split(":");
-    await sleep(GAP_MS);
-    const res = await get(`${API}/prices/${market}/${id}?range=90d`);
-    if (!res) { console.log("API unreachable; stopping, resume later"); break; }
-    n++;
-    if (res.status === 404) cache[key] = null;
-    else if (res.ok) {
-      const body = (await res.json()) as { series?: { t: string; min: number | null; median: number | null; quantity?: number | null }[] };
-      const rows = dailyRows(body.series ?? []);
-      cache[key] = rows.length ? rows : null;
-    } else if (res.status === 403) {
-      console.log("403: the 90-day range is refused now (AHledger access change); stopping"); break;
-    } else console.log(`${key}: HTTP ${res.status} (retry next run)`);
-    if (n % 500 === 0) { writeFileSync(cacheFile, JSON.stringify(cache)); console.log(`${new Date().toISOString().slice(11, 16)} ${n} requests, ${Object.keys(cache).length} cached`); }
-  }
+  let stop = false;
+  const run = async (w: number) => {
+    const { key, gap } = workers[w]!;
+    for (const k of share(keys, w, workers.length)) {
+      if (stop) return;
+      if (Date.now() >= stopAt) { stop = true; console.log(`time limit after ${n} requests; the next run resumes`); return; }
+      const [market, id] = k.split(":");
+      await sleep(gap);
+      const res = await get(`${API}/prices/${market}/${id}?range=90d`, key);
+      if (!res) { stop = true; console.log(`worker ${w + 1}: API unreachable; stopping, resume later`); return; }
+      n++;
+      if (res.status === 404) cache[k] = null;
+      else if (res.ok) {
+        const body = (await res.json()) as { series?: { t: string; min: number | null; median: number | null; quantity?: number | null }[] };
+        const rows = dailyRows(body.series ?? []);
+        cache[k] = rows.length ? rows : null;
+      } else if (res.status === 403) {
+        stop = true; console.log(`worker ${w + 1}: 403, the 90-day range is refused now (AHledger access change); stopping`); return;
+      } else if (res.status === 401) {
+        console.log(`worker ${w + 1}: 401, its API key was refused; this worker stops`); return;
+      } else console.log(`${k}: HTTP ${res.status} (retry next run)`);
+      if (n % 500 === 0) { writeFileSync(cacheFile, JSON.stringify(cache)); console.log(`${new Date().toISOString().slice(11, 16)} ${n} requests, ${Object.keys(cache).length} cached`); }
+    }
+  };
+  await Promise.all(workers.map((_, w) => run(w)));
   writeFileSync(cacheFile, JSON.stringify(cache));
   const left = keys.filter((k) => !(k in cache)).length;
   if (left === 0) writeFileSync(join(stateDir, "done.json"), JSON.stringify({ done: new Date().toISOString(), entries: Object.keys(cache).length }));
