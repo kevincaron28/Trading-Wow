@@ -62,7 +62,8 @@ export async function loadAhledger(house: number, itemId: number, fetchImpl: typ
   for (const range of ["90d", "30d", "7d"]) {
     let res: Response;
     try {
-      res = await fetchImpl(`${API}/prices/${market}/${itemId}?range=${range}`);
+      // no-store: the WebView's disk cache must not keep the answer either; our memory copy honours max-age.
+      res = await fetchImpl(`${API}/prices/${market}/${itemId}?range=${range}`, { cache: "no-store" });
     } catch {
       return null;
     }
