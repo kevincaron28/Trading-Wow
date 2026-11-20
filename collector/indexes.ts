@@ -32,11 +32,14 @@ const STALE_HOURS = 72;
  * SMOOTH_HOURS hours, gear without a catalog class is left out, and an index needs MIN_BASKET items. A stored file from
  * another version is rebuilt from the price history instead of being continued.
  */
-export const METHOD = 2;
+export const METHOD = 3;
 /** Each item's price at an hour is the median of its prices over this many hours (one-listing spikes do not move it). */
 export const SMOOTH_HOURS = 7;
 /** Fewer liquid items than this: the index is not published for that house ("not enough trading"). */
 export const MIN_BASKET = 5;
+/** One item's price relative counts as at most x3 or /3 of its base: a lone overpriced listing that lasts longer than the
+ * 7-hour median (one apple at 40g for 8 hours drew Blackwater Consumables to 871) cannot run away with an index. */
+export const MAX_ITEM_RATIO = 3;
 export const MIN_SOLD = 5;
 
 export interface IndexDef {
@@ -162,7 +165,7 @@ export function valueAt(period: Period, items: Map<number, Series>, h: number): 
   for (const [id, w, p0] of period.basket) {
     const p = smoothPriceAt(items.get(id), h);
     if (p == null || p0 <= 0) continue;
-    num += w * (p / p0);
+    num += w * Math.min(MAX_ITEM_RATIO, Math.max(1 / MAX_ITEM_RATIO, p / p0));
     wsum += w;
   }
   return wsum > 0 ? (period.level * num) / wsum : null;

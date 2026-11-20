@@ -76,6 +76,11 @@ describe("index maths", () => {
     expect(fixed.hourly.find(([hh]) => hh === baseHour - 1)![1]).toBe(100);
     expect(fixed.hourly.find(([hh]) => hh === baseHour + 7)![1]).toBe(90);
   });
+  it("counts one item's move as at most x3 or /3", () => {
+    const items = new Map([[1, series([[10, 1000]])], [2, series([[10, 100]])]]);
+    const period = { start: 0, level: 100, basket: [[1, 0.5, 100], [2, 0.5, 100]] as [number, number, number][] };
+    expect(valueAt(period, items, 10)).toBeCloseTo(100 * (0.5 * 3 + 0.5 * 1));
+  });
   it("leaves gear without a catalog class out of Goldline 100", () => {
     const gl = INDEXES.find((d) => d.id === "gl100")!;
     expect(gl.select({ itemClass: -1, subclass: 0 })).toBe(false);
