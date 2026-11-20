@@ -58,7 +58,7 @@ const cat = (c: string, ...subs: string[]) => (item: { itemClass: number; subcla
 };
 
 export const INDEXES: readonly IndexDef[] = [
-  { id: "gl100", name: { en: "Goldline 100", fr: "Goldline 100" }, about: { en: "The 100 most traded items by daily gold volume. Weapons and armour are left out (random suffixes share one item ID), and so are recipes (rare one-off purchases whose estimated sales are too noisy).", fr: "Les 100 objets les plus échangés selon le volume quotidien en or. Armes et armures exclues (les suffixes aléatoires partagent un même identifiant), ainsi que les recettes (achats ponctuels dont les ventes estimées sont trop incertaines)." }, size: 100, cap: 0.1, select: (i) => i.itemClass >= 0 && !["weapon", "armor", "recipe"].includes(categoryOf(i)[0]) },
+  { id: "gl100", name: { en: "Ledger 100", fr: "Ledger 100" }, about: { en: "The 100 most traded items by daily gold volume. Weapons and armour are left out (random suffixes share one item ID), and so are recipes (rare one-off purchases whose estimated sales are too noisy).", fr: "Les 100 objets les plus échangés selon le volume quotidien en or. Armes et armures exclues (les suffixes aléatoires partagent un même identifiant), ainsi que les recettes (achats ponctuels dont les ventes estimées sont trop incertaines)." }, size: 100, cap: 0.1, select: (i) => i.itemClass >= 0 && !["weapon", "armor", "recipe"].includes(categoryOf(i)[0]) },
   { id: "herbs", name: { en: "Herbs", fr: "Herbes" }, about: { en: "Up to 30 herbs.", fr: "Jusqu’à 30 herbes." }, size: 30, cap: 0.25, select: cat("trade", "herb") },
   { id: "ores", name: { en: "Ores & Bars", fr: "Minerais et lingots" }, about: { en: "Up to 30 ores, bars and stones.", fr: "Jusqu’à 30 minerais, lingots et pierres." }, size: 30, cap: 0.25, select: cat("trade", "metal") },
   { id: "cloth", name: { en: "Cloth", fr: "Tissu" }, about: { en: "Up to 30 cloth items.", fr: "Jusqu’à 30 tissus." }, size: 30, cap: 0.25, select: cat("trade", "cloth") },
@@ -364,7 +364,7 @@ function main(): void {
     }
     writeFileSync(file, JSON.stringify({ house, updated: now, indexes }));
     const g = indexes.gl100;
-    console.log(`index ${house}: ${Object.keys(indexes).length} indexes; Goldline 100 ${g ? `${g.periods.at(-1)!.basket.length} items, ${g.hourly.length} hours, last ${g.hourly.at(-1)?.[1]}${g.link ? ` (from ${new Date(g.periods[0]!.start * 1000).toISOString().slice(0, 10)})` : " (no early history yet)"}` : "n/a"}`);
+    console.log(`index ${house}: ${Object.keys(indexes).length} indexes; Ledger 100 ${g ? `${g.periods.at(-1)!.basket.length} items, ${g.hourly.length} hours, last ${g.hourly.at(-1)?.[1]}${g.link ? ` (from ${new Date(g.periods[0]!.start * 1000).toISOString().slice(0, 10)})` : " (no early history yet)"}` : "n/a"}`);
   }
   writeFileSync(join(dataDir, "index", "meta.json"), JSON.stringify({
     baseEnd: BASE_END,

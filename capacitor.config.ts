@@ -3,7 +3,7 @@ import type { CapacitorConfig } from "@capacitor/cli";
 
 const config: CapacitorConfig = {
   appId: "top.kcaron.goldline",
-  appName: "Goldline",
+  appName: "Goblin Ledger",
   webDir: "dist",
   android: {
     backgroundColor: "#11141b",

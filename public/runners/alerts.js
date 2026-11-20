@@ -1,5 +1,5 @@
 /*
- * Goldline background runner (Capacitor Background Runner): checks price alerts while the app is closed.
+ * Goblin Ledger background runner (Capacitor Background Runner): checks price alerts while the app is closed.
  * Android runs "checkAlerts" about every 30 minutes (the OS decides the exact time). Plain JS, no imports:
  * only fetch, CapacitorKV and CapacitorNotifications exist here. The app sends its alerts with "syncAlerts"
  * and collects the ones that fired with "popFired". Reads only public price files; sends nothing anywhere.
@@ -81,7 +81,7 @@ addEventListener("checkAlerts", async function (resolve, reject) {
       var verb = lang === "fr" ? (a.op === "above" ? "dépasse" : "descend sous") : a.op === "above" ? "rose above" : "fell below";
       notes.push({
         id: (now % 1000000) + notes.length,
-        title: lang === "fr" ? "Alerte de prix Goldline" : "Goldline price alert",
+        title: lang === "fr" ? "Alerte de prix Goblin Ledger" : "Goblin Ledger price alert",
         body: name + " " + verb + " " + money(a.price, lang) + " (" + money(value, lang) + ")",
         autoCancel: true,
       });

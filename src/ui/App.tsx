@@ -108,7 +108,7 @@ export function App() {
     document.documentElement.lang = s.lang;
     const dark = s.theme === "dark" || (s.theme === "system" && matchMedia("(prefers-color-scheme: dark)").matches);
     document.documentElement.dataset.theme = dark ? "dark" : "light";
-    // The window behind the status and navigation bars is always Goldline's dark background: keep their icons light.
+    // The window behind the status and navigation bars is always Goblin Ledger's dark background: keep their icons light.
     if (Capacitor.isNativePlatform()) void SystemBars.setStyle({ style: SystemBarsStyle.Dark }).catch(() => {});
   }, [s.lang, s.theme]);
 
@@ -194,7 +194,7 @@ export function App() {
         {s.tab === "alerts" && <AlertsScreen />}
         {s.tab === "menu" && <MenuScreen />}
       </main>
-      <nav class="tabbar" aria-label="Goldline">
+      <nav class="tabbar" aria-label="Goblin Ledger">
         {TABS.map((tab) => (
           <button type="button" class={tab.id === s.tab ? "on" : ""} aria-current={tab.id === s.tab ? "page" : undefined} onClick={() => setState({ tab: tab.id })}>
             <Icon name={tab.icon} />
