@@ -104,3 +104,17 @@ describe("AHledger pacing", () => {
     expect(pricetableIds("AHL1|m|1|3\n2589:20:18:3420:22:21:18:25:3600\n999::::::::\n12:0:0:0:0:0:0:0:0\n")).toEqual([2589]);
   });
 });
+
+describe("AHledger hourly pass", () => {
+  it("keeps one row per hour before our own collection, skipping hours without a price", async () => {
+    const { hourlyRows, OWN_FIRST_HOUR } = await import("../collector/backfill-ahledger");
+    const iso = (h: number) => new Date(h * 3_600_000).toISOString();
+    const rows = hourlyRows([
+      { t: iso(OWN_FIRST_HOUR - 3), min: 90, median: 100, quantity: 5 },
+      { t: iso(OWN_FIRST_HOUR - 2), min: null, median: null, quantity: 0 },
+      { t: iso(OWN_FIRST_HOUR - 1), min: 95.4, median: 104.6, quantity: 7 },
+      { t: iso(OWN_FIRST_HOUR), min: 99, median: 110, quantity: 8 },
+    ]);
+    expect(rows).toEqual([[OWN_FIRST_HOUR - 3, 100, 90, 5], [OWN_FIRST_HOUR - 1, 105, 95, 7]]);
+  });
+});

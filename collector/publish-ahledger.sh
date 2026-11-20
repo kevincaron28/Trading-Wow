@@ -16,7 +16,7 @@ for attempt in 1 2 3 4 5; do
   node "$ROOT/collector/merge-history.ts" .
   node "$ROOT/collector/indexes.ts" . || echo "indexes failed (history still published)"
   node "$ROOT/collector/coverage.ts" . > /dev/null || true
-  git add -A ext early index audit
+  git add -A ext early early-h index audit
   if git diff --cached --quiet; then echo "nothing new to publish"; exit 0; fi
   git commit -q --amend -m "$(git log -1 --format=%s | sed 's/ + .*//') + early history"
   if git push -q --force-with-lease=data:"$base" origin HEAD:data; then

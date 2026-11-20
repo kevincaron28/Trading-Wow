@@ -14,6 +14,12 @@
  * Item list per market: AHledger's own price table (/v1/pricetable, one request per market, ETag cached).
  * Output (internal series, never shown with a label in the app): ext/ahledger/{house}/{itemId % 256}.json =
  * { items: { [itemId]: [[dayIndex, median, minBuyout, quantity]] } } plus ext/ahledger/meta.json.
+ *
+ * Hourly pass (20 Nov 2026): AHledger's range=7d answers one point per hour with scans (range=24h gives each scan,
+ * 30d/90d one a day; no other range exists). So the hours before Goldline's own collection (18 Nov 02:00 UTC) can be
+ * had only while they are inside the last 7 days: from 13 Nov 02:00 UTC, and one hour fewer every hour. The hourly
+ * pass runs first (it cannot wait), for items with a daily price on or after 13 Nov (or not yet asked), busiest first.
+ * Output: early-h/{house}/{itemId % 256}.json = { items: { [itemId]: [[hourIndex, median, minBuyout, quantity]] } }.
  */
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -92,6 +98,24 @@ export function pricetableIds(text: string): number[] {
 }
 
 type Cache = Record<string, AhlRow[] | null>; // "market:item" → rows (null = asked, no data)
+export type HourRow = [hour: number, median: number, min: number, quantity: number];
+type HourCache = Record<string, HourRow[] | null>;
+
+/** Goldline's own hourly collection starts here (hour index): hourly rows from other sources stop before it. */
+export const OWN_FIRST_HOUR = Date.UTC(2026, 10, 18, 2) / 3_600_000;
+/** First UTC day the 7-day range can still reach (13 Nov 2026 is the oldest when this pass started). */
+const HOURLY_FROM_DAY = Date.UTC(2026, 10, 13) / 86_400_000;
+
+/** /v1/prices?range=7d series → one row per UTC hour before our own collection, skipping hours without a price. */
+export function hourlyRows(series: { t: string; min: number | null; median: number | null; quantity?: number | null }[]): HourRow[] {
+  const byHour = new Map<number, HourRow>();
+  for (const p of series) {
+    const hour = Math.floor(Date.parse(p.t) / 3_600_000);
+    if (!Number.isFinite(hour) || hour >= OWN_FIRST_HOUR || !(p.median! > 0) || !(p.min! > 0)) continue;
+    byHour.set(hour, [hour, Math.round(p.median!), Math.round(p.min!), Math.max(0, Math.round(p.quantity ?? 0))]);
+  }
+  return [...byHour.values()].sort((a, b) => a[0] - b[0]);
+}
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -124,6 +148,8 @@ async function fetchAll(stateDir: string, maxMinutes = Infinity): Promise<void> 
   const cacheFile = join(stateDir, "cache.json");
   const stopAt = Date.now() + maxMinutes * 60_000;
   const cache: Cache = existsSync(cacheFile) ? JSON.parse(readFileSync(cacheFile, "utf8")) : {};
+  const hcacheFile = join(stateDir, "hcache.json");
+  const hcache: HourCache = existsSync(hcacheFile) ? JSON.parse(readFileSync(hcacheFile, "utf8")) : {};
   // Which items each market has: AHledger's price table (refreshed once a run).
   const ids = new Map<string, number[]>();
   for (const { market } of MARKETS) {
@@ -144,8 +170,22 @@ async function fetchAll(stateDir: string, maxMinutes = Infinity): Promise<void> 
   }
   for (const [market, list] of ids) ids.set(market, [...list.filter((id) => first.has(id)), ...list.filter((id) => !first.has(id))]);
   // Interleave markets so every house fills at the same pace.
+  // Hourly first ("h:" keys): the 7-day window moves every hour. Skipped: items whose daily history is known and has
+  // nothing from 13 Nov on, and every hourly ask once the window no longer reaches before our own collection.
   const keys: string[] = [];
   const longest = Math.max(...[...ids.values()].map((a) => a.length));
+  const windowOpen = Date.now() / 3_600_000 - 7 * 24 < OWN_FIRST_HOUR;
+  if (windowOpen) {
+    for (let i = 0; i < longest; i++) for (const { market } of MARKETS) {
+      const id = ids.get(market)![i];
+      if (id == null) continue;
+      const k = `${market}:${id}`;
+      if (k in hcache) continue;
+      const daily = cache[k];
+      if (k in cache && !daily?.some((r) => r[0] >= HOURLY_FROM_DAY)) continue;
+      keys.push(`h:${k}`);
+    }
+  }
   for (let i = 0; i < longest; i++) for (const { market } of MARKETS) { const id = ids.get(market)![i]; if (id != null && !(`${market}:${id}` in cache)) keys.push(`${market}:${id}`); }
   const key = apiKeys()[0];
   const pace = pacer(PACE_MS);
@@ -158,12 +198,20 @@ async function fetchAll(stateDir: string, maxMinutes = Infinity): Promise<void> 
     for (const k of share(keys, w, workers.length)) {
       if (stop) return;
       if (Date.now() >= stopAt) { stop = true; console.log(`time limit after ${n} requests; the next run resumes`); return; }
-      const [market, id] = k.split(":");
+      const hourly = k.startsWith("h:");
+      const [market, id] = (hourly ? k.slice(2) : k).split(":");
       await pace();
-      const res = await get(`${API}/prices/${market}/${id}?range=90d`, key);
+      const res = await get(`${API}/prices/${market}/${id}?range=${hourly ? "7d" : "90d"}`, key);
       if (!res) { stop = true; console.log(`worker ${w + 1}: API unreachable; stopping, resume later`); return; }
       n++;
-      if (res.status === 404) cache[k] = null;
+      if (hourly) {
+        if (res.status === 404) hcache[k.slice(2)] = null;
+        else if (res.ok) {
+          const body = (await res.json()) as { series?: { t: string; min: number | null; median: number | null; quantity?: number | null }[] };
+          const rows = hourlyRows(body.series ?? []);
+          hcache[k.slice(2)] = rows.length ? rows : null;
+        } else console.log(`${k}: HTTP ${res.status} (retry next run)`);
+      } else if (res.status === 404) cache[k] = null;
       else if (res.ok) {
         const body = (await res.json()) as { series?: { t: string; min: number | null; median: number | null; quantity?: number | null }[] };
         const rows = dailyRows(body.series ?? []);
@@ -173,14 +221,17 @@ async function fetchAll(stateDir: string, maxMinutes = Infinity): Promise<void> 
       } else if (res.status === 401) {
         console.log(`worker ${w + 1}: 401, its API key was refused; this worker stops`); return;
       } else console.log(`${k}: HTTP ${res.status} (retry next run)`);
-      if (n % 500 === 0) { writeFileSync(cacheFile, JSON.stringify(cache)); console.log(`${new Date().toISOString().slice(11, 16)} ${n} requests, ${Object.keys(cache).length} cached`); }
+      if (n % 500 === 0) { writeFileSync(cacheFile, JSON.stringify(cache)); writeFileSync(hcacheFile, JSON.stringify(hcache)); console.log(`${new Date().toISOString().slice(11, 16)} ${n} requests, ${Object.keys(cache).length} daily and ${Object.keys(hcache).length} hourly cached`); }
     }
   };
   await Promise.all(workers.map((_, w) => run(w)));
   writeFileSync(cacheFile, JSON.stringify(cache));
-  const left = keys.filter((k) => !(k in cache)).length;
-  if (left === 0) writeFileSync(join(stateDir, "done.json"), JSON.stringify({ done: new Date().toISOString(), entries: Object.keys(cache).length }));
-  console.log(`${n} requests this run; ${left} left`);
+  writeFileSync(hcacheFile, JSON.stringify(hcache));
+  const hoursLeft = keys.filter((k) => k.startsWith("h:") && !(k.slice(2) in hcache)).length;
+  const daysLeft = keys.filter((k) => !k.startsWith("h:") && !(k in cache)).length;
+  if (daysLeft === 0) writeFileSync(join(stateDir, "done.json"), JSON.stringify({ done: new Date().toISOString(), entries: Object.keys(cache).length }));
+  if (hoursLeft === 0 || !windowOpen) writeFileSync(join(stateDir, "hdone.json"), JSON.stringify({ done: new Date().toISOString(), entries: Object.keys(hcache).length }));
+  console.log(`${n} requests this run; ${hoursLeft} hourly and ${daysLeft} daily left`);
 }
 
 export function writeExt(stateDir: string, dataDir: string): void {
@@ -205,6 +256,32 @@ export function writeExt(stateDir: string, dataDir: string): void {
   }
   writeFileSync(join(root, "meta.json"), JSON.stringify({ label: LABEL, measure: "daily median and lowest buyout, and quantity listed", fetched: new Date().toISOString(), markets: MARKETS, coverage }));
   console.log(Object.entries(coverage).map(([h, c]) => `${h}: ${c.items} items from ${c.firstDay}`).join("; "));
+  // Hourly prices before our own collection (early-h/), merged history only: the app shows them as real candles.
+  const hfile = join(stateDir, "hcache.json");
+  if (!existsSync(hfile)) return;
+  const hcache: HourCache = JSON.parse(readFileSync(hfile, "utf8"));
+  const hroot = join(dataDir, "early-h");
+  const hcoverage: Record<number, { items: number; hours: number; firstHour: string | null }> = {};
+  for (const { market, house } of MARKETS) {
+    const shards = new Map<number, Record<string, HourRow[]>>();
+    let items = 0;
+    let hours = 0;
+    let first = Infinity;
+    for (const [key, rows] of Object.entries(hcache)) {
+      if (!rows || !key.startsWith(`${market}:`)) continue;
+      const id = Number(key.slice(market.length + 1));
+      if (!shards.has(id % 256)) shards.set(id % 256, {});
+      shards.get(id % 256)![id] = rows;
+      items++;
+      hours += rows.length;
+      first = Math.min(first, rows[0]![0]);
+    }
+    hcoverage[house] = { items, hours, firstHour: Number.isFinite(first) ? new Date(first * 3_600_000).toISOString().slice(0, 13) + ":00Z" : null };
+    mkdirSync(join(hroot, String(house)), { recursive: true });
+    for (let s = 0; s < 256; s++) writeFileSync(join(hroot, String(house), `${s}.json`), JSON.stringify({ items: shards.get(s) ?? {} }));
+  }
+  writeFileSync(join(hroot, "meta.json"), JSON.stringify({ merged: new Date().toISOString(), until: new Date(OWN_FIRST_HOUR * 3_600_000).toISOString(), coverage: hcoverage }));
+  console.log("early hourly: " + Object.entries(hcoverage).map(([h, c]) => `${h} ${c.items} items, ${c.hours} hours from ${c.firstHour}`).join("; "));
 }
 
 if (process.argv[1]?.endsWith("backfill-ahledger.ts")) {
