@@ -37,6 +37,8 @@ export interface Candle {
   close: number;
   /** Average quantity listed during the candle. */
   volume: number;
+  /** Estimated from the day's price (only daily data for that period): drawn flat and faded. */
+  estimated?: boolean;
 }
 
 /** Share of the listed quantity whose price is the top of an hour's candle wick. */

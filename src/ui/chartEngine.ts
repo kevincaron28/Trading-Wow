@@ -149,19 +149,21 @@ export class ChartEngine {
       return series;
     };
 
+    const est = css("--muted") + "b0";
     // Main price series.
     if (input.chartType === "line" || input.chartType === "area") {
       const s =
         input.chartType === "line"
           ? add(this.chart.addSeries(LineSeries, { color: accent, lineWidth: 2, priceFormat, autoscaleInfoProvider }))
           : add(this.chart.addSeries(AreaSeries, { lineColor: accent, topColor: css("--accent-soft"), bottomColor: "rgba(0,0,0,0)", lineWidth: 2, priceFormat, autoscaleInfoProvider }));
-      s.setData(candles.map((c) => ({ time: ts(c.time), value: c.close })));
+      s.setData(candles.map((c, i) => ({ time: ts(c.time), value: c.close, ...(input.candles[i]?.estimated && input.chartType === "line" ? { color: est } : {}) })));
     } else {
       const s =
         input.chartType === "bars"
           ? add(this.chart.addSeries(BarSeries, { upColor: up, downColor: down, priceFormat, autoscaleInfoProvider }))
           : add(this.chart.addSeries(CandlestickSeries, { upColor: up, downColor: down, borderUpColor: up, borderDownColor: down, wickUpColor: up, wickDownColor: down, priceFormat, autoscaleInfoProvider }));
-      s.setData(candles.map((c) => ({ time: ts(c.time), open: c.open, high: c.high, low: c.low, close: c.close })));
+      // Estimated bars (only a daily price for that period) are flat and faded.
+      s.setData(candles.map((c, i) => ({ time: ts(c.time), open: c.open, high: c.high, low: c.low, close: c.close, ...(input.candles[i]?.estimated ? { color: est, borderColor: est, wickColor: est } : {}) })));
     }
 
     // Earlier scans: real days only, dotted with point markers, never joined to the live candles.

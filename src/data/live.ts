@@ -51,6 +51,8 @@ export interface ItemHistory {
   daily: Candle[];
   /** Days before Goldline's own collection covered the item (one merged value per day; see collector/merge-history.ts). */
   early?: EarlyPoint[];
+  /** Hourly prices before our own collection (time = hour start), when known. */
+  earlyHourly?: EarlyPoint[];
 }
 
 export interface EarlyPoint { time: number; market: number; min: number; quantity: number }
@@ -62,7 +64,7 @@ const fetchedAt = new Map<string, number>();
 
 /** Files kept on the device so the app still shows the last prices offline. */
 const OFFLINE_PREFIX = "goldline:file:";
-const offlineWorthy = (path: string) => path === "meta.json" || path === "items.json" || path.startsWith("latest/") || path.startsWith("h2/") || path.startsWith("early/");
+const offlineWorthy = (path: string) => path === "meta.json" || path === "items.json" || path.startsWith("latest/") || path.startsWith("h2/") || path.startsWith("early/") || path.startsWith("early-h/");
 let offline = false;
 const offlineListeners = new Set<(offline: boolean) => void>();
 export function isOffline(): boolean {
@@ -163,11 +165,18 @@ type DayRow = [number, number, number, number, number, number, number];
 export async function loadHistory(house: number, itemId: number): Promise<ItemHistory> {
   type ShardFile = { items: Record<string, { h: HourRow[]; d: DayRow[] }> };
   // v2 layout (256 small files per house); older data only has the v1 layout (32 files).
-  const [shard, early] = await Promise.all([
+  const none = () => ({ items: {} as Record<string, number[][]> });
+  const [shard, early, earlyH] = await Promise.all([
     getJson<ShardFile>(`h2/${house}/${itemId % SHARDS_V2}.json`).catch(() => getJson<ShardFile>(`history/${house}/${itemId % SHARDS}.json`)),
-    getJson<{ items: Record<string, number[][]> }>(`early/${house}/${itemId % SHARDS_V2}.json`).catch(() => ({ items: {} as Record<string, number[][]> })),
+    getJson<{ items: Record<string, number[][]> }>(`early/${house}/${itemId % SHARDS_V2}.json`).catch(none),
+    getJson<{ items: Record<string, number[][]> }>(`early-h/${house}/${itemId % SHARDS_V2}.json`).catch(none),
   ]);
-  return { ...parseHistory(shard.items[itemId]), early: parseEarly(early.items[itemId]) };
+  return { ...parseHistory(shard.items[itemId]), early: parseEarly(early.items[itemId]), earlyHourly: parseEarlyHourly(earlyH.items[itemId]) };
+}
+
+/** Early hourly rows [hour, market, min, quantity]. */
+export function parseEarlyHourly(rows: number[][] | undefined): EarlyPoint[] {
+  return (rows ?? []).filter((r) => r[1]! > 0).map((r) => ({ time: r[0]! * HOUR, market: r[1]!, min: r[2]! || r[1]!, quantity: r[3] ?? 0 }));
 }
 
 /** Early rows [day, market, min, quantity, sources]: the source mask is internal and dropped here. */
