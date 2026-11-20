@@ -26,37 +26,60 @@ describe("index maths", () => {
 
   it("picks liquid items by gold volume and values the basket from price relatives", () => {
     const herbs = INDEXES.find((d) => d.id === "herbs")!;
-    const catalog = new Map([[1, { itemClass: 7, subclass: 9 }], [2, { itemClass: 7, subclass: 9 }], [3, { itemClass: 7, subclass: 5 }], [4, { itemClass: 7, subclass: 9 }]]);
+    const catalog = new Map([1, 2, 3, 4, 5, 6, 7].map((id) => [id, { itemClass: 7, subclass: id === 3 ? 5 : 9 }]));
     const h = 1000;
     const day = (p: number): [number, number][] => Array.from({ length: 24 }, (_, i) => [h - 23 + i, p]);
+    const later = (p: number): [number, number][] => Array.from({ length: 7 }, (_, i) => [h + 1 + i, p]);
     const items = new Map([
-      [1, series([...day(100), [h + 1, 110]], [[h, 30]])], // volume 3,000
-      [2, series([...day(1000), [h + 1, 1000]], [[h, 5]])], // volume 5,000
+      [1, series([...day(100), ...later(110)], [[h, 30]])], // volume 3,000; rises 10% for 7 hours
+      [2, series([...day(1000), ...later(1000)], [[h, 5]])], // volume 5,000
       [3, series(day(5), [[h, 999]])], // cloth: not a herb
       [4, series(day(9999), [[h, 2]])], // only 2 sold: not liquid enough
+      ...[5, 6, 7].map((id) => [id, series([...day(10), ...later(10)], [[h, 5]])] as [number, Series]), // volume 50 each
     ]);
     const basket = chooseBasket(herbs, items, catalog, h * H, 24);
-    expect(basket.map((b) => b[0])).toEqual([2, 1]);
+    expect(basket.map((b) => b[0])).toEqual([2, 1, 5, 6, 7]);
     const period = { start: h * H, level: 100, basket };
     expect(valueAt(period, items, h)).toBeCloseTo(100);
-    // Two items cannot both stay under a 25% cap, so capWeights gives them equal weight; item 1 rises 10%.
+    // Hourly prices are a 7-hour median: one hour at +10% does not move the index yet, seven hours do.
     const w1 = basket.find((b) => b[0] === 1)![1];
-    expect(valueAt(period, items, h + 1)).toBeCloseTo(100 * (w1 * 1.1 + (1 - w1) * 1));
+    expect(valueAt(period, items, h + 1)).toBeCloseTo(100);
+    expect(valueAt(period, items, h + 7)).toBeCloseTo(100 * (w1 * 1.1 + (1 - w1) * 1));
+  });
+
+  it("uses the window median as base price and needs at least 5 liquid items", () => {
+    const herbs = INDEXES.find((d) => d.id === "herbs")!;
+    const catalog = new Map([1, 2, 3, 4, 5].map((id) => [id, { itemClass: 7, subclass: 9 }]));
+    const h = 1000;
+    // Item 1 has one cheap listing in the last hour of the window: it must not become the base price.
+    const prices = (p: number, last = p): [number, number][] => Array.from({ length: 24 }, (_, i) => [h - 23 + i, i === 23 ? last : p]);
+    const items = new Map([1, 2, 3, 4, 5].map((id) => [id, series(prices(100, id === 1 ? 3 : 100), [[h, 10]])]));
+    expect(chooseBasket(herbs, items, catalog, h * H, 24).find((b) => b[0] === 1)![2]).toBe(100);
+    items.delete(5);
+    expect(chooseBasket(herbs, items, catalog, h * H, 24)).toEqual([]);
   });
 
   it("is provisional before the base day closes and fixed (base 100) after", () => {
     const def = INDEXES.find((d) => d.id === "herbs")!;
-    const catalog = new Map([[1, { itemClass: 7, subclass: 9 }]]);
+    const ids = [1, 2, 3, 4, 5];
+    const catalog = new Map(ids.map((id) => [id, { itemClass: 7, subclass: 9 }]));
     const baseHour = BASE_END / H;
     const prices: [number, number][] = Array.from({ length: 23 }, (_, i) => [baseHour - 24 + i, 100]);
-    const items = new Map([[1, series([...prices, [baseHour - 1, 120], [baseHour + 1, 90]], [[baseHour - 2, 5]])]]);
+    const after: [number, number][] = Array.from({ length: 7 }, (_, i) => [baseHour + 1 + i, 90]);
+    // A one-hour spike to 120 just before the base close is ignored; seven hours at 90 bring the index to 90.
+    const items = new Map(ids.map((id) => [id, series([...prices, [baseHour - 1, 120], ...after], [[baseHour - 2, 5]])]));
     const early = updateIndex(def, null, items, catalog, BASE_END - 600)!;
     expect(early.periods[0]!.provisional).toBe(true);
-    const fixed = updateIndex(def, early, items, catalog, BASE_END + 3 * H)!;
+    const fixed = updateIndex(def, early, items, catalog, BASE_END + 8 * H)!;
     expect(fixed.periods[0]).toMatchObject({ start: BASE_END, level: 100 });
     expect(fixed.periods[0]!.provisional).toBeUndefined();
     expect(fixed.hourly.find(([hh]) => hh === baseHour - 1)![1]).toBe(100);
-    expect(fixed.hourly.find(([hh]) => hh === baseHour + 1)![1]).toBe(75);
+    expect(fixed.hourly.find(([hh]) => hh === baseHour + 7)![1]).toBe(90);
+  });
+  it("leaves gear without a catalog class out of Goldline 100", () => {
+    const gl = INDEXES.find((d) => d.id === "gl100")!;
+    expect(gl.select({ itemClass: -1, subclass: 0 })).toBe(false);
+    expect(gl.select({ itemClass: 7, subclass: 9 })).toBe(true);
   });
 });
 

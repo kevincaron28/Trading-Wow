@@ -38,7 +38,7 @@ export function ExploreScreen() {
   // different items: keep it out of deals and flips.
   const isGear = (id: number) => {
     const c = catalog.data?.get(id)?.itemClass;
-    return c === 2 || c === 4;
+    return c === 2 || c === 4 || c == null || c < 0;
   };
 
   // Movers only among items that really trade: thin or relisted junk swings by thousands of percent.

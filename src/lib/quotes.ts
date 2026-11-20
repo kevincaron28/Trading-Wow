@@ -15,18 +15,32 @@ export interface Quote {
   avg7d: number;
   /** Estimated quantity sold in the last 24 hours (auctions bought or cancelled before expiring), or null when unknown. */
   soldPerDay: number | null;
+  /** Market price about an hour earlier (previous snapshot, at most 3 hours old), or null when unknown. */
+  prev1h: number | null;
+  /** Average quantity sold per day over the last 7 days (or since sales were first counted), or null when unknown. */
+  soldAvg7d: number | null;
 }
 
-/** Latest file row: [min, market, listed, auctions, market 24h ago | 0, 7-day average, sold last 24h | -1 (newer files)]. */
-export type LatestRow = [number, number, number, number, number, number, number?];
+/**
+ * Latest file row: [min, market, listed, auctions, market 24h ago | 0, 7-day average, sold last 24h | -1,
+ * market 1h ago | 0, average sold per day over 7 days | -1]. The last four are missing in older files.
+ */
+export type LatestRow = [number, number, number, number, number, number, number?, number?, number?];
 
 export function toQuote(id: number, row: LatestRow): Quote {
-  return { id, min: row[0], market: row[1], listed: row[2], auctions: row[3], prev24h: row[4] > 0 ? row[4] : null, avg7d: row[5], soldPerDay: row[6] != null && row[6] >= 0 ? row[6] : null };
+  return { id, min: row[0], market: row[1], listed: row[2], auctions: row[3], prev24h: row[4] > 0 ? row[4] : null, avg7d: row[5], soldPerDay: row[6] != null && row[6] >= 0 ? row[6] : null, prev1h: row[7] != null && row[7] > 0 ? row[7] : null, soldAvg7d: row[8] != null && row[8] >= 0 ? row[8] : null };
 }
 
 /** 24h change of the market price in percent, or null. */
 export function change24h(q: Quote): number | null {
   return q.prev24h ? ((q.market - q.prev24h) / q.prev24h) * 100 : null;
+}
+
+/** Change over the chosen window (last 24 hours or last hour): percent and copper, null when unknown. */
+export function changeOver(q: Quote | undefined, window: "1d" | "1h"): { pct: number | null; abs: number | null } {
+  const before = q ? (window === "1h" ? q.prev1h : q.prev24h) : null;
+  if (!q || !before) return { pct: null, abs: null };
+  return { pct: ((q.market - before) / before) * 100, abs: q.market - before };
 }
 
 /** Auction house cut on a sale: 5% on faction houses, 15% on the neutral (Blackwater) house. */

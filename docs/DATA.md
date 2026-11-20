@@ -311,3 +311,20 @@ slots and the backfill workflow's stale-data check only restart the relay if it 
 **Freshness note (19 Nov 2026).** raw.githubusercontent.com caches each file for up to 5 minutes and ignores the
 `?t=` query, so the app can see new prices up to 5 minutes after they are published. The live countdown in the app
 allows for that delay. Update manifests come from GitHub release downloads, which this cache does not affect.
+
+## 0.12 (20 Nov 2026): one series, hourly change, flipper numbers, clean indexes
+
+- **One price series per item.** Goldline's own hourly snapshots win. Before them the merged history (`early/`, `early-h/`)
+  fills in, with no source labels in the app. AHLedger's "median" covers every listing (typically 1.5x the lowest buyout;
+  ours is within 5% of it for 90% of items), so its market value is capped at 1.25x the day's lowest buyout
+  (`AHL_MARKET_CAP`, merge-history.ts) and at 1.1x the hour's lowest buyout for early hourly prices (`EARLY_HOUR_CAP`,
+  src/data/series.ts). TSM values feed the merged days and stand in for the current price when we have no snapshot. The
+  TSM credit their terms require stays as one link: "Includes data from TradeSkillMaster".
+- **`latest/{house}.json` rows** gain two fields: `[7]` the market at the previous snapshot (at most 3 h earlier, 0 =
+  unknown), which drives the 1h change, and `[8]` the average estimated sold per day over 7 days (-1 = unknown).
+- **Indexes, method 2** (`METHOD` in collector/indexes.ts). Base prices are the base day's median. Each item's hourly
+  price is the median of its last 7 hours. Items without a catalog class (gear) are left out of Goldline 100. An index
+  needs 5 liquid items in a house. Stored files from method 1 are rebuilt from h2/ on the next run.
+- **Charts.** Estimated 1H/4H stretches are a faded straight line between the known prices. Days need at least half
+  their hours covered for real early candles. More than ~140 bars in view draw as a line. Times and day boundaries use the
+  device time zone, or the one picked in Settings.

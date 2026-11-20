@@ -1,3 +1,4 @@
+import { activeZone } from "../lib/time";
 import { Capacitor } from "@capacitor/core";
 import { formatMoney } from "../lib/money";
 import type { Lang } from "../lib/i18n";
@@ -45,7 +46,7 @@ export function buildChartImage(o: ShareChartOpts): HTMLCanvasElement {
   g.textAlign = "left";
   g.fillStyle = muted;
   g.font = `${13 * px}px system-ui, sans-serif`;
-  const date = new Date().toLocaleDateString(o.lang === "fr" ? "fr-CA" : "en-CA", { year: "numeric", month: "short", day: "numeric" });
+  const date = new Date().toLocaleDateString(o.lang === "fr" ? "fr-CA" : "en-CA", { year: "numeric", month: "short", day: "numeric", timeZone: activeZone() });
   g.fillText(`${o.houseLabel} · ${date}`, pad, 48 * px);
   g.drawImage(o.chart, 0, headH);
   g.fillStyle = accent;

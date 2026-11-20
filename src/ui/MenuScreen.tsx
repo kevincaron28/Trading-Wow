@@ -4,6 +4,7 @@ import { clearCache, houseUpdated } from "../data/live";
 import { bumpRefresh, useMeta } from "./data";
 import { HouseBadge } from "./WatchlistScreen";
 import { relativeTime } from "./parts";
+import { DEVICE_TZ, TIME_ZONES, deviceZone, zoneLabel } from "../lib/time";
 
 import { UpdateSection } from "./UpdateBanner";
 
@@ -30,6 +31,24 @@ export function MenuScreen() {
             </button>
           ))}
         </div>
+        <p class="sheet-label">{t(s.lang, "changeDisplay")}</p>
+        <div class="seg">
+          {(["1d", "1h"] as const).map((w) => (
+            <button type="button" class={w === s.changeWindow ? "on" : ""} aria-pressed={w === s.changeWindow} onClick={() => setState({ changeWindow: w })}>{t(s.lang, w === "1d" ? "windowDay" : "windowHour")}</button>
+          ))}
+        </div>
+        <div class="seg">
+          {(["pct", "abs"] as const).map((m) => (
+            <button type="button" class={m === s.changeMode ? "on" : ""} aria-pressed={m === s.changeMode} onClick={() => setState({ changeMode: m })}>{t(s.lang, m === "pct" ? "pctLabel" : "absLabel")}</button>
+          ))}
+        </div>
+        <label class="field">
+          <span class="sheet-label">{t(s.lang, "timeZone")}</span>
+          <select value={s.timeZone} onChange={(e) => setState({ timeZone: (e.target as HTMLSelectElement).value })}>
+            <option value={DEVICE_TZ}>{`${t(s.lang, "deviceZone")} (${deviceZone().replace(/_/g, " ")} · ${zoneLabel(s.lang, deviceZone())})`}</option>
+            {TIME_ZONES.filter((z) => z !== deviceZone()).map((z) => <option value={z}>{`${z.replace(/_/g, " ")} · ${zoneLabel(s.lang, z)}`}</option>)}
+          </select>
+        </label>
         <p class="sheet-label">{t(s.lang, "priceField")}</p>
         <div class="seg">
           {(["market", "min"] as const).map((f) => (
@@ -69,7 +88,7 @@ export function MenuScreen() {
         <p class="small">{t(s.lang, "aboutText")}</p>
         <p class="small muted">{t(s.lang, "chartsBy")} <a href="https://www.tradingview.com/" target="_blank" rel="noopener">tradingview.com</a></p>
         <p class="small muted">
-          <a href="https://www.tradeskillmaster.com/" target="_blank" rel="noopener">Pricing data from TradeSkillMaster</a>
+          <a href="https://www.tradeskillmaster.com/" target="_blank" rel="noopener">{t(s.lang, "tsmIncluded")}</a>
         </p>
       </div>
     </section>
