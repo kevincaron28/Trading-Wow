@@ -184,7 +184,16 @@ async function main(): Promise<void> {
     log(`house ${house.id}: ${auctions.length} auctions, ${points.size} items, sold ${sold ? [...sold.values()].reduce((a, b) => a + b, 0) : "n/a"} @ ${new Date(time * 1000).toISOString()}`);
   }
 
-  // Catalog: names (en/fr), quality, class, subclass and icon for items not seen before.
+  // Catalog: names (en/fr), quality, class, subclass and icon for items not seen before. Every recipe reagent and
+  // crafted item is named too (0.13.1), even before it is first listed, so the Crafting card and search show names.
+  const recipeFile = new URL("../src/data/recipes.json", import.meta.url);
+  if (existsSync(recipeFile)) {
+    const book = JSON.parse(readFileSync(recipeFile, "utf8")) as { recipes: [number, number, number, number, number, [number, number][]][] };
+    for (const r of book.recipes) {
+      seen.add(r[2]);
+      for (const [id] of r[5]) seen.add(id);
+    }
+  }
   const missing = [...seen].filter((id) => !catalog[id]).slice(0, CATALOG_PER_RUN);
   let iconBase = meta.iconBase;
   let fetched = 0;

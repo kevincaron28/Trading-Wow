@@ -345,3 +345,21 @@ allows for that delay. Update manifests come from GitHub release downloads, whic
   cut, craft profit (copper and % of the material cost). Deposits and cooldowns (transmutes) are not included.
 - **Explore → Markets → Crafts**: recipes ranked by profit per item in the current house (crafted item with at least 2
   auctions, every reagent priced, margins over 1,000% left out as thin markets), filterable by profession.
+
+## 0.13.1 (20 Nov 2026): item and index audit
+
+Checked against every house's snapshot of 20 Nov 19:00 UTC (7,697 items listed) and Blizzard's static-forever data:
+
+- **Catalog**: every listed item is in items.json. 300 rows have no Blizzard class (WoW Forever drops and quest gear that
+  Blizzard's API does not serve yet, 404 in static-forever and static-classic1x): they stay under "Other" and out of
+  indexes, deals and flips until the API has them. The collector now also names every recipe reagent and crafted item
+  (1,106 were missing), so the Crafting card and search show names before an item is first listed.
+- **Watchlists** (list version 3, appended once to saved lists): WoW Forever goods (Fel Hide and Leather, Pristine Hide
+  and Scale, Heavy Thorium Ore, Torbernite, Pyrite, Demonsage, Marefoil, Rosecap, Magenta Dye, Sulfuric Acid,
+  Sandpaper, Mote of Magic, Luminous Residue, Forever elixirs, teas, steaks and healing potions) and the most traded
+  classic goods no list had. New lists: **Crates & writs** (Waylaid Crates, Sealed Writs) and **Camp & stations**
+  (campfire kits, tents, workstations). Every built-in item is listed and sold in at least one big house.
+- **Indexes**: method 3 in all 12 houses, base 19 Nov (base 100 linked to launch), last value 20 Nov 19:00 UTC. Baskets
+  already hold Forever items (Death Lotus, Frilled Lichen, Stranglevine, Legionite Bar, Pristine Scale, Fel Crystal,
+  Sage's Tea). Small Blackwater houses 121 and 125 have no Enchanting/Elementals (and 121 no Raid prep) index: fewer than
+  5 traded items. New items enter baskets at the monthly rebalance.
