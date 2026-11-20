@@ -106,8 +106,12 @@ export function addPoint(history: ItemHistory, point: PricePoint, now: number = 
   return { h, d };
 }
 
-/** Latest row per item: [min, market, listed, auctions, market 24h ago | 0, 7-day avg market, estimated sold in the last 24h | -1 unknown]. */
-export type LatestRow = [number, number, number, number, number, number, number];
+/**
+ * Latest row per item: [min, market, listed, auctions, market 24h ago | 0, 7-day avg market, estimated sold in the
+ * last 24h | -1 unknown, market at the previous snapshot (at most 3 hours earlier) | 0, average estimated sold per day
+ * over the last 7 days | -1 unknown]. The app reads the last two from 0.12 (hourly change, sales trend).
+ */
+export type LatestRow = [number, number, number, number, number, number, number, number, number];
 
 export function latestRow(history: ItemHistory): LatestRow | null {
   const last = history.h.at(-1);
@@ -119,7 +123,12 @@ export function latestRow(history: ItemHistory): LatestRow | null {
   const day = history.h.filter((r) => r[0] > last[0] - 24);
   const known = day.filter((r) => r[5] != null && r[5] >= 0);
   const sold = known.length === 0 ? -1 : known.reduce((s, r) => s + (r[5] ?? 0), 0);
-  return [last[1], last[2], last[3], last[4], dayAgo ? dayAgo[2] : 0, avg, sold];
+  const prev = history.h.at(-2);
+  const hourAgo = prev && prev[0] >= last[0] - 3 ? prev[2] : 0;
+  // Sales per day over the week: hours with a count, scaled to 24 hours (at least 6 counted hours).
+  const weekKnown = week.filter((r) => r[5] != null && r[5] >= 0);
+  const soldWeek = weekKnown.length < 6 ? -1 : Math.round((weekKnown.reduce((s, r) => s + (r[5] ?? 0), 0) / weekKnown.length) * 24);
+  return [last[1], last[2], last[3], last[4], dayAgo ? dayAgo[2] : 0, avg, sold, hourAgo, soldWeek];
 }
 
 /** Mark items that vanished from the house this hour: they keep their history but get no new point. */

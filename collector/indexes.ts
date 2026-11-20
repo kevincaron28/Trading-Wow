@@ -27,6 +27,16 @@ import { categoryOf } from "../src/lib/categories.ts";
 const HOUR = 3_600;
 export const BASE_END = Date.UTC(2026, 10, 20) / 1000; // close of 19 Nov 2026 (first full day)
 const STALE_HOURS = 72;
+/**
+ * Method version (0.12, 20 Nov 2026): base prices are the window median, hourly prices the median of the last
+ * SMOOTH_HOURS hours, gear without a catalog class is left out, and an index needs MIN_BASKET items. A stored file from
+ * another version is rebuilt from the price history instead of being continued.
+ */
+export const METHOD = 2;
+/** Each item's price at an hour is the median of its prices over this many hours (one-listing spikes do not move it). */
+export const SMOOTH_HOURS = 7;
+/** Fewer liquid items than this: the index is not published for that house ("not enough trading"). */
+export const MIN_BASKET = 5;
 export const MIN_SOLD = 5;
 
 export interface IndexDef {
@@ -45,7 +55,7 @@ const cat = (c: string, ...subs: string[]) => (item: { itemClass: number; subcla
 };
 
 export const INDEXES: readonly IndexDef[] = [
-  { id: "gl100", name: { en: "Goldline 100", fr: "Goldline 100" }, about: { en: "The 100 most traded items by daily gold volume. Weapons and armour are left out (random suffixes share one item ID), and so are recipes (rare one-off purchases whose estimated sales are too noisy).", fr: "Les 100 objets les plus échangés selon le volume quotidien en or. Armes et armures exclues (les suffixes aléatoires partagent un même identifiant), ainsi que les recettes (achats ponctuels dont les ventes estimées sont trop incertaines)." }, size: 100, cap: 0.1, select: (i) => !["weapon", "armor", "recipe"].includes(categoryOf(i)[0]) },
+  { id: "gl100", name: { en: "Goldline 100", fr: "Goldline 100" }, about: { en: "The 100 most traded items by daily gold volume. Weapons and armour are left out (random suffixes share one item ID), and so are recipes (rare one-off purchases whose estimated sales are too noisy).", fr: "Les 100 objets les plus échangés selon le volume quotidien en or. Armes et armures exclues (les suffixes aléatoires partagent un même identifiant), ainsi que les recettes (achats ponctuels dont les ventes estimées sont trop incertaines)." }, size: 100, cap: 0.1, select: (i) => i.itemClass >= 0 && !["weapon", "armor", "recipe"].includes(categoryOf(i)[0]) },
   { id: "herbs", name: { en: "Herbs", fr: "Herbes" }, about: { en: "Up to 30 herbs.", fr: "Jusqu’à 30 herbes." }, size: 30, cap: 0.25, select: cat("trade", "herb") },
   { id: "ores", name: { en: "Ores & Bars", fr: "Minerais et lingots" }, about: { en: "Up to 30 ores, bars and stones.", fr: "Jusqu’à 30 minerais, lingots et pierres." }, size: 30, cap: 0.25, select: cat("trade", "metal") },
   { id: "cloth", name: { en: "Cloth", fr: "Tissu" }, about: { en: "Up to 30 cloth items.", fr: "Jusqu’à 30 tissus." }, size: 30, cap: 0.25, select: cat("trade", "cloth") },
@@ -85,6 +95,19 @@ export function priceAt(s: Series | undefined, h: number): number | null {
   return null;
 }
 
+/** Median of the item's prices over the SMOOTH_HOURS hours up to h (falls back to the last price within STALE_HOURS). */
+export function smoothPriceAt(s: Series | undefined, h: number): number | null {
+  if (!s) return null;
+  const v: number[] = [];
+  for (let k = h - SMOOTH_HOURS + 1; k <= h; k++) {
+    const p = s.price.get(k);
+    if (p != null) v.push(p);
+  }
+  if (!v.length) return priceAt(s, h);
+  v.sort((a, b) => a - b);
+  return v.length % 2 ? v[(v.length - 1) / 2]! : Math.round((v[v.length / 2 - 1]! + v[v.length / 2]!) / 2);
+}
+
 /** Cap each weight at `cap`, spreading the excess over the others in proportion (repeated until stable). */
 export function capWeights(raw: number[], cap: number): number[] {
   let w = raw.map((x) => Math.max(0, x));
@@ -108,8 +131,7 @@ export function chooseBasket(def: IndexDef, items: Map<number, Series>, catalog:
   for (const [id, s] of items) {
     const info = catalog.get(id);
     if (!info || !def.select(info)) continue;
-    const p0 = priceAt(s, h);
-    if (p0 == null || p0 <= 0) continue;
+    if (priceAt(s, h) == null) continue;
     let sold = 0;
     const prices: number[] = [];
     for (let k = h - windowHours + 1; k <= h; k++) {
@@ -121,10 +143,14 @@ export function chooseBasket(def: IndexDef, items: Map<number, Series>, catalog:
     // expensive listing cannot dominate an index.
     if (sold < MIN_SOLD || prices.length < Math.max(1, Math.floor(windowHours / 2))) continue;
     prices.sort((a, b) => a - b);
-    scored.push({ id, volume: sold * prices[Math.floor(prices.length / 2)]!, p0 });
+    // Base price: the window's median, never one hour's price (a single cheap or overpriced listing set it before).
+    const p0 = prices[Math.floor(prices.length / 2)]!;
+    if (!(p0 > 0)) continue;
+    scored.push({ id, volume: sold * p0, p0 });
   }
   scored.sort((a, b) => b.volume - a.volume || a.id - b.id);
   const top = scored.slice(0, def.size);
+  if (top.length < MIN_BASKET) return [];
   const weights = capWeights(top.map((x) => x.volume), def.cap);
   return top.map((x, i) => [x.id, Math.round(weights[i]! * 1e6) / 1e6, x.p0]);
 }
@@ -134,7 +160,7 @@ export function valueAt(period: Period, items: Map<number, Series>, h: number): 
   let num = 0;
   let wsum = 0;
   for (const [id, w, p0] of period.basket) {
-    const p = priceAt(items.get(id), h);
+    const p = smoothPriceAt(items.get(id), h);
     if (p == null || p0 <= 0) continue;
     num += w * (p / p0);
     wsum += w;
@@ -150,6 +176,8 @@ export interface IndexFile {
   link?: number;
   /** Hours below this are early daily points (one per day, at the day's last hour). */
   earlyUntil?: number;
+  /** METHOD the file was built with; a file from another version is rebuilt. */
+  method?: number;
 }
 
 const DAY_H = 24;
@@ -249,7 +277,7 @@ export function updateIndex(def: IndexDef, stored: IndexFile | null, items: Map<
   if (!periods.length) {
     if (now >= BASE_END) {
       const basket = chooseBasket(def, items, catalog, BASE_END - HOUR, 24);
-      if (!basket.length) return stored;
+      if (!basket.length) return null;
       periods = [{ start: BASE_END, level: 100, basket }];
     } else {
       // Before the base day closes: a provisional basket from the latest 24 hours, base 100 at the latest hour.
@@ -327,8 +355,9 @@ function main(): void {
     const stored = existsSync(file) ? (JSON.parse(readFileSync(file, "utf8")) as { indexes: Record<string, IndexFile> }) : { indexes: {} };
     const indexes: Record<string, IndexFile> = {};
     for (const def of INDEXES) {
-      const next = updateIndex(def, rawIndex(stored.indexes[def.id] ?? null), items, catalog, now);
-      if (next) indexes[def.id] = withEarly(next, early);
+      const old = stored.indexes[def.id];
+      const next = updateIndex(def, rawIndex(old?.method === METHOD ? old : null), items, catalog, now);
+      if (next) indexes[def.id] = { ...withEarly(next, early), method: METHOD };
     }
     writeFileSync(file, JSON.stringify({ house, updated: now, indexes }));
     const g = indexes.gl100;

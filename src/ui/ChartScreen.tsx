@@ -6,7 +6,9 @@ import { newAlertId } from "../lib/alerts";
 import { MAX_LINES, RANGES, addLine, alertOpFor, earliestPoint, removeLine, type ChartRange } from "../lib/ranges";
 import { formatMoneyAxis } from "../lib/money";
 import "./chart-tools.css";
-import { change24h, houseCut } from "../lib/quotes";
+import { changeOver, houseCut } from "../lib/quotes";
+import { flipStats } from "../lib/flip";
+import { activeZone, formatDate, localeOf } from "../lib/time";
 import {
   REALM_GROUPS,
   activeWatchlist,
@@ -69,8 +71,9 @@ export function ChartScreen() {
   const holder = useRef<HTMLDivElement>(null);
   const engine = useRef<ChartEngine | null>(null);
 
-  const candles = useMemo(() => (history.data ? candlesFor(history.data, s.timeframe, s.priceField) : []), [history.data, s.timeframe, s.priceField]);
-  const compareCandles = useMemo(() => (s.compareItem && compareHistory.data ? candlesFor(compareHistory.data, s.timeframe, s.priceField) : null), [compareHistory.data, s.compareItem, s.timeframe, s.priceField]);
+  const zone = activeZone();
+  const candles = useMemo(() => (history.data ? candlesFor(history.data, s.timeframe, s.priceField, zone) : []), [history.data, s.timeframe, s.priceField, zone]);
+  const compareCandles = useMemo(() => (s.compareItem && compareHistory.data ? candlesFor(compareHistory.data, s.timeframe, s.priceField, zone) : null), [compareHistory.data, s.compareItem, s.timeframe, s.priceField, zone]);
 
   useEffect(() => {
     if (!holder.current) return;
@@ -88,7 +91,7 @@ export function ChartScreen() {
       range: s.range,
       // The visible window is set again only when one of these changes, so a data refresh or a new line keeps the
       // user's zoom and pan.
-      rangeKey: `${s.chartItem}|${s.compareItem ?? ""}|${s.timeframe}|${s.priceField}|${s.range}`,
+      rangeKey: `${s.chartItem}|${s.compareItem ?? ""}|${s.timeframe}|${s.priceField}|${s.range}|${zone}`,
       logScale: s.logScale,
     });
   }, [candles, compareCandles, s.chartType, s.indicators, s.lang, s.theme, lines.join(","), s.range, s.logScale]);
@@ -96,14 +99,23 @@ export function ChartScreen() {
   useEffect(() => { setPlacing(false); setLineMsg(""); }, [s.chartItem]);
 
   const shown = hover ?? candles.at(-1) ?? null;
-  const pct = quote ? change24h(quote) : null;
+  const day = changeOver(quote, "1d");
+  const hour = changeOver(quote, "1h");
+  const shownChange = s.changeWindow === "1h" ? hour : day;
+  const flip = flipStats(quote, houseCut(s.faction), tsmRegion.data ?? null);
+  // One price for the item: our own snapshot, else the TradeSkillMaster value for this house when we have none.
+  const headPrice = quote?.[s.priceField] ?? (s.priceField === "min" ? tsm.data?.minBuyout : tsm.data?.marketValue) ?? null;
+  const loc = localeOf(s.lang);
+  const num = (n: number | null, digits = 0) => (n == null ? "–" : n.toLocaleString(loc, { maximumFractionDigits: digits }));
+  const pctCell = (n: number | null) => <dd class={n == null ? "" : n >= 0 ? "up" : "down"}>{formatPct(n, s.lang)}</dd>;
   const inList = list.items.includes(s.chartItem);
   const name = item?.name[s.lang] ?? `#${s.chartItem}`;
   const firstPoint = history.data?.hourly[0]?.time;
   // Earliest price in the item's history, for "History since <date>" (unix seconds).
   const earliest = earliestPoint([history.data?.early?.[0]?.time, history.data?.daily[0]?.time, firstPoint]);
   const earlierThanLive = earliest != null && firstPoint != null && earliest < firstPoint - 86_400;
-  const dateFmt = (t: number) => new Date(t * 1000).toLocaleDateString(s.lang === "fr" ? "fr-CA" : "en-US", { dateStyle: "medium", timeZone: "UTC" });
+  // Early history is stored per date (UTC); hourly prices are moments shown in the active time zone.
+  const dateFmt = (t: number) => formatDate(t, s.lang, "UTC");
   const [sharing, setSharing] = useState(false);
   const onShare = () => {
     if (sharing) return;
@@ -123,8 +135,11 @@ export function ChartScreen() {
           <div>
             <h1 class={`name q${item?.quality ?? 1}`}>{name}</h1>
             <div class="symbol-price">
-              <Money copper={quote?.[s.priceField]} lang={s.lang} />
-              <ChangePill pct={pct} abs={quote?.prev24h ? quote.market - quote.prev24h : null} mode={s.changeMode} lang={s.lang} />
+              <Money copper={headPrice} lang={s.lang} />
+              <button type="button" class="pill-btn" aria-label={`${t(s.lang, "sortChange")}: ${t(s.lang, s.changeWindow === "1h" ? "windowHour" : "windowDay")}`} onClick={() => setState({ changeWindow: s.changeWindow === "1h" ? "1d" : "1h" })}>
+                <ChangePill pct={shownChange.pct} abs={shownChange.abs} mode={s.changeMode} lang={s.lang} />
+                <span class="pill-window">{t(s.lang, s.changeWindow === "1h" ? "windowHour" : "windowDay")}</span>
+              </button>
             </div>
           </div>
         </div>
@@ -197,34 +212,38 @@ export function ChartScreen() {
           {earliest != null ? (
             <span class="history-since small">
               <b>{t(s.lang, "historySince")} {dateFmt(earliest)}</b>
-              {firstPoint ? <span class="muted">{t(s.lang, "hourlySince")} {dateFmt(firstPoint)}</span> : null}
+              {firstPoint ? <span class="muted">{t(s.lang, "hourlySince")} {formatDate(firstPoint, s.lang)}</span> : null}
             </span>
           ) : null}
         </div>
         <dl class="stats">
-          <div><dt>{t(s.lang, "market")}</dt><dd><Money copper={quote?.market} lang={s.lang} /></dd></div>
-          <div><dt>{t(s.lang, "minBuyout")}</dt><dd><Money copper={quote?.min} lang={s.lang} /></dd></div>
-          <div><dt>{t(s.lang, "change24h")}</dt><dd class={pct == null ? "" : pct >= 0 ? "up" : "down"}>{formatPct(pct, s.lang)}</dd></div>
+          <div><dt>{t(s.lang, "market")}</dt><dd><Money copper={quote?.market ?? tsm.data?.marketValue} lang={s.lang} /></dd></div>
+          <div><dt>{t(s.lang, "minBuyout")}</dt><dd><Money copper={quote?.min ?? tsm.data?.minBuyout} lang={s.lang} /></dd></div>
+          <div><dt>{t(s.lang, "change24h")}</dt>{pctCell(day.pct)}</div>
+          <div><dt>{t(s.lang, "change1h")}</dt>{pctCell(hour.pct)}</div>
           <div><dt>{t(s.lang, "avg7d")}</dt><dd><Money copper={quote?.avg7d} lang={s.lang} /></dd></div>
-          <div><dt>{t(s.lang, "listed")}</dt><dd>{quote?.listed.toLocaleString(s.lang === "fr" ? "fr-CA" : "en-US") ?? "–"}</dd></div>
+          <div><dt>{t(s.lang, "listed")}</dt><dd>{quote ? num(quote.listed) : "–"}</dd></div>
           <div><dt>{t(s.lang, "auctions")}</dt><dd>{quote?.auctions ?? "–"}</dd></div>
-          <div title={t(s.lang, "soldDayHint")}><dt>{t(s.lang, "soldDay")}</dt><dd>{quote?.soldPerDay != null ? quote.soldPerDay.toLocaleString(s.lang === "fr" ? "fr-CA" : "en-US") : "–"}</dd></div>
         </dl>
-        {(tsm.data || tsmRegion.data) && (
-          <div class="tsm-card">
-            <p class="sheet-label">TradeSkillMaster</p>
-            <dl class="stats">
-              {tsm.data && <div><dt>{t(s.lang, "tsmMarket")}</dt><dd><Money copper={tsm.data.marketValue} lang={s.lang} /></dd></div>}
-              {tsm.data && <div><dt>{t(s.lang, "tsmHistorical")}</dt><dd><Money copper={tsm.data.historical} lang={s.lang} /></dd></div>}
-              {tsmRegion.data && <div><dt>{t(s.lang, "tsmSoldDay")}</dt><dd>{tsmRegion.data.soldPerDay.toLocaleString(s.lang === "fr" ? "fr-CA" : "en-US", { maximumFractionDigits: 1 })}</dd></div>}
-              {tsmRegion.data && <div><dt>{t(s.lang, "tsmSaleRate")}</dt><dd>{Math.round(tsmRegion.data.saleRate * 100)}%</dd></div>}
-              {tsmRegion.data && <div><dt>{t(s.lang, "tsmAvgSale")}</dt><dd><Money copper={tsmRegion.data.avgSalePrice} lang={s.lang} /></dd></div>}
-            </dl>
-            <p class="muted small">{t(s.lang, "tsmNote")} <a href="https://www.tradeskillmaster.com/" target="_blank" rel="noopener">{t(s.lang, "tsmCredit")}</a></p>
-          </div>
-        )}
+        <div class="flip-card">
+          <p class="sheet-label">{t(s.lang, "flipping")}</p>
+          <dl class="stats">
+            <div title={t(s.lang, "soldDayHint")}><dt>{t(s.lang, "sold24h")}{flip.sold24hRegion ? t(s.lang, "regionTag") : ""}</dt><dd>{num(flip.sold24h, flip.sold24hRegion ? 1 : 0)}</dd></div>
+            <div><dt>{t(s.lang, "soldAvg7d")}</dt><dd>{num(flip.soldAvg7d)}</dd></div>
+            <div><dt>{t(s.lang, "salesTrend")}</dt>{pctCell(flip.salesTrend)}</div>
+            <div><dt>{t(s.lang, "saleRate")}{t(s.lang, "regionTag")}</dt><dd>{flip.saleRate == null ? "–" : `${Math.round(flip.saleRate * 100)}%`}</dd></div>
+            <div><dt>{t(s.lang, "sellThrough")}</dt><dd>{flip.sellThrough == null ? "–" : `${num(flip.sellThrough, 1)}%`}</dd></div>
+            <div><dt>{t(s.lang, "daysSupply")}</dt><dd>{num(flip.daysSupply, 1)}</dd></div>
+            <div><dt>{t(s.lang, "flipMargin")}</dt><dd class={flip.margin == null ? "" : flip.margin >= 0 ? "up" : "down"}><Money copper={flip.margin} lang={s.lang} short />{flip.marginPct != null ? ` (${formatPct(flip.marginPct, s.lang)})` : ""}</dd></div>
+            <div><dt>{t(s.lang, "spread")}</dt><dd>{formatPct(flip.spreadPct, s.lang, false)}</dd></div>
+            <div><dt>{t(s.lang, "vsAvg7d")}</dt>{pctCell(flip.vsAvg7d)}</div>
+            <div><dt>{t(s.lang, "avgSale")}{t(s.lang, "regionTag")}</dt><dd><Money copper={flip.avgSale} lang={s.lang} /></dd></div>
+          </dl>
+          <p class="muted small">{t(s.lang, "flipNote")}</p>
+        </div>
         <AcrossHouses itemId={s.chartItem} />
         <p class="muted small">{t(s.lang, "listedNote")}</p>
+        <p class="muted small"><a href="https://www.tradeskillmaster.com/" target="_blank" rel="noopener">{t(s.lang, "tsmIncluded")}</a></p>
       </div>
 
       {sheet === "type" && (

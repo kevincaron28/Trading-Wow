@@ -25,6 +25,17 @@ export type EarlyRow = [day: number, market: number, min: number, quantity: numb
 /** One day's observations from every source. */
 export interface DayObs { market: number[]; min: number[]; qty: number[]; sources: number }
 
+/**
+ * AHledger's "median" is the median of every listing, typically 1.5x the lowest buyout (3x at the 90th percentile),
+ * while Goldline's market value (cheapest 30%, robust) is within 5% of the lowest buyout for 90% of items (20 Nov 2026).
+ * So that one history reads as one series, an AHledger day's market value is capped at 1.25x its lowest buyout of the
+ * day (the day's lowest is below a typical hour's lowest, hence more than our 1.05).
+ */
+export const AHL_MARKET_CAP = 1.25;
+export function ahledgerMarket(medianPrice: number, minPrice: number): number {
+  return minPrice > 0 ? Math.min(medianPrice, Math.round(minPrice * AHL_MARKET_CAP)) : medianPrice;
+}
+
 export function median(xs: number[]): number {
   const s = [...xs].sort((a, b) => a - b);
   const m = s.length >> 1;
@@ -74,7 +85,7 @@ export function mergeHouse(dataDir: string, house: number): { shards: Map<number
     o.sources |= src;
   };
   for (let s = 0; s < SHARDS; s++) {
-    for (const [id, rows] of Object.entries(readShard(join(dataDir, "ext", "ahledger", String(house), `${s}.json`)) as Record<string, number[][]>)) for (const r of rows) add(Number(id), r[0]!, SRC.ahledger, r[1]!, r[2]!, r[3]!);
+    for (const [id, rows] of Object.entries(readShard(join(dataDir, "ext", "ahledger", String(house), `${s}.json`)) as Record<string, number[][]>)) for (const r of rows) add(Number(id), r[0]!, SRC.ahledger, ahledgerMarket(r[1]!, r[2]!), r[2]!, r[3]!);
     for (const [id, rows] of Object.entries(readShard(join(dataDir, "ext", "ahprice", String(house), `${s}.json`)) as Record<string, number[][]>)) for (const r of rows) add(Number(id), r[0]!, SRC.ahprice, null, r[1]!, r[2]!);
     for (const [id, rows] of Object.entries(readShard(join(dataDir, "seed", String(house), `${s}.json`)) as Record<string, number[][]>)) for (const r of rows) add(Number(id), r[0]!, SRC.seed, null, r[1]!, r[3]! >= 0 ? r[3]! : null);
     for (const [id, v] of Object.entries(readShard(join(dataDir, "tsm", String(house), `${s}.json`)) as Record<string, { d: number[][] }>)) for (const r of v.d) add(Number(id), r[0]!, SRC.tsm, r[1]!, r[2]!, null);

@@ -4,7 +4,7 @@ import type { CatalogItem } from "../src/data/live";
 import type { Quote } from "../src/lib/quotes";
 
 const item = (id: number, en: string, fr: string, itemClass: number, subclass: number): CatalogItem => ({ id, name: { en, fr }, quality: 1, itemClass, subclass, icon: "" });
-const quote = (id: number, market: number, listed: number): Quote => ({ id, min: market, market, listed, auctions: 1, prev24h: null, avg7d: market, soldPerDay: null });
+const quote = (id: number, market: number, listed: number): Quote => ({ id, min: market, market, listed, auctions: 1, prev24h: null, avg7d: market, soldPerDay: null, prev1h: null, soldAvg7d: null });
 
 const items = [
   item(2589, "Linen Cloth", "Étoffe de lin", 7, 5),

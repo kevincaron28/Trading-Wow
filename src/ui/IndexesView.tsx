@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import { onBack } from "../app/back";
-import { houseId, openChart, useStore } from "../app/store";
+import { houseId, openChart, setState, useStore } from "../app/store";
+import { activeZone, formatDate, formatDateTime, toWall } from "../lib/time";
 import type { IndexDefMeta, IndexPeriod, IndexSeries } from "../data/live";
 import { toCandles, type Timeframe } from "../lib/candles";
 import { t } from "../lib/i18n";
@@ -8,7 +9,7 @@ import { ChartEngine } from "./chartEngine";
 import { tfLabel } from "./ChartScreen";
 import { formatPoints } from "../lib/money";
 import { useCatalog, useIndexes, useIndexMeta, useMeta, useQuotes } from "./data";
-import { EmptyState, ErrorMsg, Icon, ItemIcon, Loading, formatPct } from "./parts";
+import { EmptyState, ErrorMsg, Icon, ItemIcon, Loading, WindowToggle, formatPct } from "./parts";
 
 const HOUR = 3_600;
 /** The first UTC day of prices (5 Nov 00:00 UTC) is WoW Forever's launch evening (4 Nov, 15:00 PST). */
@@ -25,14 +26,23 @@ export function baseLabel(series: IndexSeries | undefined, baseEnd: number, lang
 /** Index points with two decimals in the reader's language (100.00 / 100,00). */
 export const pts = formatPoints;
 
-/** Value now, 24 hours earlier, and the last 7 days for the sparkline. */
-export function summarize(s: IndexSeries | undefined): { value: number; change: number | null; spark: number[] } | null {
+/** Value now, its change over 24 hours and over the last hour, and the last 7 days for the sparkline. */
+export function summarize(s: IndexSeries | undefined): { value: number; change: number | null; change1h: number | null; spark: number[] } | null {
   const h = s?.hourly ?? [];
   if (!h.length) return null;
   const [lastHour, value] = h.at(-1)!;
   const dayAgo = [...h].reverse().find(([x]) => x <= lastHour - 24);
+  const prev = h.at(-2);
+  const hourAgo = prev && prev[0] >= lastHour - 3 ? prev : undefined;
   const spark = h.filter(([x]) => x > lastHour - 24 * 7).map(([, v]) => v);
-  return { value, change: dayAgo ? ((value - dayAgo[1]) / dayAgo[1]) * 100 : null, spark };
+  return { value, change: dayAgo ? ((value - dayAgo[1]) / dayAgo[1]) * 100 : null, change1h: hourAgo ? ((value - hourAgo[1]) / hourAgo[1]) * 100 : null, spark };
+}
+
+/** The change shown for the chosen window (24h by default). */
+const pick = (sum: { change: number | null; change1h: number | null }, w: "1d" | "1h") => (w === "1h" ? sum.change1h : sum.change);
+
+function ChangeCell({ value, lang }: { value: number | null; lang: "en" | "fr" }) {
+  return <span class={`pill ${value == null ? "" : value >= 0 ? "up" : "down"}`}>{formatPct(value, lang)}</span>;
 }
 
 function Sparkline({ values, up }: { values: number[]; up: boolean }) {
@@ -65,7 +75,10 @@ export function IndexesView() {
   const fromLaunch = Object.values(data.data).some((x) => x.link);
   return (
     <div class="indexes">
-      <p class="hint">{fromLaunch ? `${t(s.lang, "indexBase")} ${baseLabel(data.data.gl100, meta.data.baseEnd, s.lang)}` : t(s.lang, "indexProvisional")}</p>
+      <div class="index-hint-row">
+        <p class="hint">{fromLaunch ? `${t(s.lang, "indexBase")} ${baseLabel(data.data.gl100, meta.data.baseEnd, s.lang)}` : t(s.lang, "indexProvisional")}</p>
+        <WindowToggle lang={s.lang} value={s.changeWindow} onChange={(w) => setState({ changeWindow: w })} />
+      </div>
       {rows.length === 0 ? (
         <EmptyState art="list" text={t(s.lang, "indexesUnavailable")} />
       ) : (
@@ -75,11 +88,11 @@ export function IndexesView() {
               <button type="button" class="row-main index-row" onClick={() => setOpen(d.id)}>
                 <span class="row-name">
                   <span class="name">{d.name[s.lang]}</span>
-                  <span class="sub">{data.data![d.id]!.periods.at(-1)!.basket.length} {t(s.lang, "itemsCount")}</span>
+                  <span class="sub">{data.data![d.id]!.periods.at(-1)!.basket.length} {t(s.lang, "itemsCount")} · {t(s.lang, "indexBase")} {baseLabel(data.data![d.id], meta.data!.baseEnd, s.lang)}</span>
                 </span>
                 <Sparkline values={sum!.spark} up={(sum!.change ?? 0) >= 0} />
                 <span class="row-price">{pts(sum!.value, s.lang)}</span>
-                <span class={`pill ${sum!.change == null ? "" : sum!.change >= 0 ? "up" : "down"}`}>{formatPct(sum!.change, s.lang)}</span>
+                <ChangeCell value={pick(sum!, s.changeWindow)} lang={s.lang} />
               </button>
             </li>
           ))}
@@ -98,9 +111,10 @@ function IndexDetail({ def, series, baseEnd, onClose }: { def: IndexDefMeta; ser
   const [tf, setTf] = useState<Timeframe>("1d");
   const holder = useRef<HTMLDivElement>(null);
   const engine = useRef<ChartEngine | null>(null);
+  const zone = activeZone();
   const candles = useMemo(
-    () => toCandles((series?.hourly ?? []).map(([h, v]) => ({ time: h * HOUR, minBuyout: v, market: v, listed: 0, auctions: 0 })), tf),
-    [series, tf],
+    () => toCandles((series?.hourly ?? []).map(([h, v]) => ({ time: toWall(h * HOUR, zone), minBuyout: v, market: v, listed: 0, auctions: 0 })), tf),
+    [series, tf, zone],
   );
   useEffect(() => {
     if (!holder.current) return;
@@ -128,7 +142,7 @@ function IndexDetail({ def, series, baseEnd, onClose }: { def: IndexDefMeta; ser
       sinceStart: now != null ? ((now - p0) / p0) * 100 : null,
     };
   });
-  const fmtDate = (sec: number) => new Date(sec * 1000).toLocaleDateString(s.lang === "fr" ? "fr-CA" : "en-US", { dateStyle: "medium" });
+  const fmtDate = (sec: number) => formatDate(sec, s.lang);
   return (
     <div class="index-detail">
       <div class="index-head">
@@ -138,7 +152,9 @@ function IndexDetail({ def, series, baseEnd, onClose }: { def: IndexDefMeta; ser
           {sum && (
             <p class="index-value">
               <b>{pts(sum.value, s.lang)}</b>{" "}
-              <span class={sum.change == null ? "muted" : sum.change >= 0 ? "up" : "down"}>{formatPct(sum.change, s.lang)}</span>
+              <button type="button" class={`pill-btn ${pick(sum, s.changeWindow) == null ? "muted" : pick(sum, s.changeWindow)! >= 0 ? "up" : "down"}`} onClick={() => setState({ changeWindow: s.changeWindow === "1h" ? "1d" : "1h" })}>
+                {formatPct(pick(sum, s.changeWindow), s.lang)} <span class="pill-window">{t(s.lang, s.changeWindow === "1h" ? "windowHour" : "windowDay")}</span>
+              </button>
             </p>
           )}
         </div>
@@ -156,7 +172,7 @@ function IndexDetail({ def, series, baseEnd, onClose }: { def: IndexDefMeta; ser
         <p class="muted small">
           {`${t(s.lang, "indexBase")} ${baseLabel(series, baseEnd, s.lang)}`}
           {series && series.periods.length > 1 ? ` · ${t(s.lang, "indexRebalanced")} ${fmtDate(period!.start)}` : ""}
-          {lastHour ? ` · ${t(s.lang, "updated")} ${new Date(lastHour * HOUR * 1000).toLocaleString(s.lang === "fr" ? "fr-CA" : "en-US", { dateStyle: "short", timeStyle: "short" })}` : ""}
+          {lastHour ? ` · ${t(s.lang, "updated")} ${formatDateTime(lastHour * HOUR, s.lang)}` : ""}
         </p>
         <p class="sheet-label">{t(s.lang, "constituents")}</p>
         <div class="table-head constituents-head">

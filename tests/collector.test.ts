@@ -45,7 +45,7 @@ describe("latestRow", () => {
   it("reports the newest point, the market 24h earlier and the 7-day average", () => {
     let h: ItemHistory = { h: [], d: [] };
     for (let i = 0; i <= 24; i++) h = addPoint(h, point(T0 + i * HOUR, i < 24 ? 100 : 130, 95, 7, 3));
-    expect(latestRow(h)).toEqual([95, 130, 7, 3, 100, 101, -1]);
+    expect(latestRow(h)).toEqual([95, 130, 7, 3, 100, 101, -1, 100, -1]);
     expect(latestRow({ h: [], d: [] })).toBeNull();
   });
 
@@ -97,6 +97,13 @@ describe("estimated sales", () => {
     h = addPoint(h, point(T0, 100), T0, 4);
     h = addPoint(h, point(T0 + HOUR, 100), T0 + HOUR, 6);
     expect(latestRow(h)![6]).toBe(10);
+    // Hourly change reference: the previous snapshot; weekly sales need at least 6 counted hours (scaled to a day).
+    expect(latestRow(h)![7]).toBe(100);
+    expect(latestRow(h)![8]).toBe(-1);
+    for (let i = 2; i < 8; i++) h = addPoint(h, point(T0 + i * HOUR, 100), T0 + i * HOUR, 2);
+    expect(latestRow(h)![8]).toBe(Math.round(((4 + 6 + 6 * 2) / 8) * 24));
+    h = addPoint(h, point(T0 + 12 * HOUR, 120), T0 + 12 * HOUR, 0);
+    expect(latestRow(h)![7]).toBe(0);
     expect(shardOfV2(13468)).toBe(13468 % 256);
   });
 });

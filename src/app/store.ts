@@ -1,8 +1,9 @@
 import { useEffect, useState } from "preact/hooks";
-import { BUILT_IN_WATCHLISTS, type WatchlistDef } from "../data/watchlists";
+import { BUILT_IN_WATCHLISTS, LISTS_ADDED, LISTS_VERSION, type WatchlistDef } from "../data/watchlists";
 import type { PriceAlert } from "../lib/alerts";
 import { LANGS, detectLang, type Lang } from "../lib/i18n";
 import { readJson, writeJson } from "../lib/storage";
+import { DEVICE_TZ, setActiveZone } from "../lib/time";
 
 export type Faction = "alliance" | "horde" | "blackwater";
 export type Tab = "watchlist" | "chart" | "explore" | "alerts" | "menu";
@@ -32,6 +33,10 @@ export interface State {
   indicators: IndicatorKey[];
   priceField: PriceField;
   changeMode: "pct" | "abs";
+  /** Price change window: the last 24 hours (default) or the last hour. */
+  changeWindow: "1d" | "1h";
+  /** Time zone for every time and day boundary: "device" (default) or an IANA zone picked in Settings. */
+  timeZone: string;
   watchlists: WatchlistDef[];
   activeList: string;
   alerts: PriceAlert[];
@@ -43,11 +48,13 @@ export interface State {
   logScale: boolean;
   /** First-run setup finished. */
   onboarded: boolean;
+  /** Version of the built-in list contents already merged into the saved lists. */
+  listsVersion: number;
 }
 
 const KEY = "goldline:v2";
 const PERSISTED: (keyof State)[] = [
-  "lang", "realm", "faction", "theme", "chartItem", "timeframe", "chartType", "indicators", "priceField", "changeMode", "watchlists", "activeList", "alerts", "recent", "drawings", "logScale", "onboarded",
+  "lang", "realm", "faction", "theme", "chartItem", "timeframe", "chartType", "indicators", "priceField", "changeMode", "changeWindow", "timeZone", "watchlists", "activeList", "alerts", "recent", "drawings", "logScale", "onboarded", "listsVersion",
 ];
 
 function initial(): State {
@@ -65,6 +72,8 @@ function initial(): State {
     indicators: ["volume", "sma20"],
     priceField: "market",
     changeMode: "pct",
+    changeWindow: "1d",
+    timeZone: DEVICE_TZ,
     watchlists: BUILT_IN_WATCHLISTS.map((w) => ({ ...w, items: [...w.items] })),
     activeList: "flipping",
     alerts: [],
@@ -73,6 +82,7 @@ function initial(): State {
     range: "all",
     logScale: false,
     onboarded: false,
+    listsVersion: LISTS_VERSION,
   };
   const saved = readJson<Partial<State>>(KEY, {});
   const merged = { ...base, ...pick(saved) };
@@ -81,7 +91,14 @@ function initial(): State {
   if (!["alliance", "horde", "blackwater"].includes(merged.faction)) merged.faction = base.faction;
   // New built-in lists added in later versions appear for existing users too.
   for (const list of BUILT_IN_WATCHLISTS) if (!merged.watchlists.some((w) => w.id === list.id)) merged.watchlists.push({ ...list, items: [...list.items] });
+  // Items added to built-in lists since the user's copy was saved are appended once (removing them later sticks).
+  if (saved.watchlists && (saved.listsVersion ?? 1) < LISTS_VERSION) {
+    merged.watchlists = merged.watchlists.map((w) => (LISTS_ADDED[w.id] ? { ...w, items: [...w.items, ...LISTS_ADDED[w.id]!.filter((id) => !w.items.includes(id))] } : w));
+  }
+  merged.listsVersion = LISTS_VERSION;
   if (!merged.watchlists.some((w) => w.id === merged.activeList)) merged.activeList = merged.watchlists[0]!.id;
+  if (merged.changeWindow !== "1h") merged.changeWindow = "1d";
+  setActiveZone(merged.timeZone);
   return merged;
 }
 
@@ -101,6 +118,7 @@ export function getState(): State {
 export function setState(patch: Partial<State> | ((s: State) => Partial<State>)): void {
   const next = typeof patch === "function" ? patch(state) : patch;
   state = { ...state, ...next };
+  if (next.timeZone !== undefined) setActiveZone(next.timeZone);
   writeJson(KEY, pick(state));
   listeners.forEach((fn) => fn());
 }

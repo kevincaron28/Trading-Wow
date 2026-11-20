@@ -2,7 +2,7 @@ import type { ComponentChildren } from "preact";
 import { useEffect, useState } from "preact/hooks";
 import { iconUrl, type CatalogItem, type Meta } from "../data/live";
 import { onBack } from "../app/back";
-import type { Lang } from "../lib/i18n";
+import { t, type Lang } from "../lib/i18n";
 import { splitCopper, COIN_SUFFIX } from "../lib/money";
 
 /** Simple original line icons (24px grid). */
@@ -67,6 +67,19 @@ export function formatPct(value: number | null, lang: Lang, signed = true): stri
   if (value == null || !Number.isFinite(value)) return "–";
   const text = `${signed && value > 0 ? "+" : ""}${value.toFixed(Math.abs(value) >= 100 ? 0 : 2)}%`;
   return lang === "fr" ? text.replace(".", ",").replace("%", " %") : text;
+}
+
+/** 24h / 1h switch for price changes (the choice is saved and used everywhere). */
+export function WindowToggle({ lang, value, onChange }: { lang: Lang; value: "1d" | "1h"; onChange: (w: "1d" | "1h") => void }) {
+  return (
+    <span class="seg mini window-toggle" role="radiogroup" aria-label={t(lang, "sortChange")}>
+      {(["1d", "1h"] as const).map((w) => (
+        <button type="button" role="radio" aria-checked={w === value} class={w === value ? "on" : ""} onClick={(e) => { e.stopPropagation(); onChange(w); }}>
+          {t(lang, w === "1d" ? "windowDay" : "windowHour")}
+        </button>
+      ))}
+    </span>
+  );
 }
 
 export function ChangePill({ pct, abs, mode, lang }: { pct: number | null; abs: number | null; mode: "pct" | "abs"; lang: Lang }) {

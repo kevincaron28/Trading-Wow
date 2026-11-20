@@ -45,6 +45,9 @@ export interface ChartInput {
   points?: boolean;
 }
 
+/** More candles than this in view on a 360 px wide chart: candles are drawn as a line (they would be under 2 px wide). */
+export const DENSE_BARS = 140;
+
 const css = (name: string) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 const ts = (t: number) => t as UTCTimestamp;
 
@@ -67,6 +70,8 @@ export class ChartEngine {
   private rangeKey: string | undefined;
   private ranged = false;
   private onHover: (c: Candle | null) => void;
+  /** Candle series and its line stand-in, switched by how many bars are in view (see DENSE_BARS). */
+  private dense: { candles: ISeriesApi<SeriesType>; line: ISeriesApi<SeriesType> } | null = null;
 
   private placing = false;
   private onPlace: ((price: number) => void) | null;
@@ -89,11 +94,19 @@ export class ChartEngine {
       if (price == null || !(price > 0)) return;
       this.onPlace?.(Math.round(price));
     });
+    this.chart.timeScale().subscribeVisibleLogicalRangeChange((r) => this.updateDense(r ? r.to - r.from : null));
     this.chart.subscribeCrosshairMove((p) => {
       const time = p.time as number | undefined;
       const shown = this.shownCandles();
       this.onHover(time === undefined ? null : (shown.find((c) => c.time === time) ?? null));
     });
+  }
+
+  private updateDense(bars: number | null): void {
+    if (!this.dense) return;
+    const many = bars != null && bars > DENSE_BARS * (this.chart.timeScale().width() / 360);
+    this.dense.candles.applyOptions({ visible: !many });
+    this.dense.line.applyOptions({ visible: many });
   }
 
   setPlacing(on: boolean): void {
@@ -122,7 +135,7 @@ export class ChartEngine {
     const down = css("--down");
     const accent = css("--accent");
     // Prices are never below zero: the margin under the lowest price shows no labels rather than "-10g".
-    const fmt = input.points ? (p: number) => formatPoints(p, input.lang) : (p: number) => (p < 0 ? "" : p === 0 ? "0" : formatMoneyAxis(p, input.lang));
+    const fmt = input.points ? (p: number) => formatPoints(p, input.lang) : (p: number) => (p <= 0 ? "" : formatMoneyAxis(p, input.lang));
     const comparing = input.compare !== null;
     this.chart.applyOptions({
       layout: {
@@ -149,21 +162,36 @@ export class ChartEngine {
       return series;
     };
 
-    const est = css("--muted") + "b0";
+    // Estimated stretches (only a daily price there) are a faded line, never candles: see series.ts earlyIntraday.
+    const est = css("--muted") + "c0";
+    const isEst = (i: number) => input.candles[i]?.estimated === true;
+    this.dense = null;
     // Main price series.
     if (input.chartType === "line" || input.chartType === "area") {
       const s =
         input.chartType === "line"
           ? add(this.chart.addSeries(LineSeries, { color: accent, lineWidth: 2, priceFormat, autoscaleInfoProvider }))
           : add(this.chart.addSeries(AreaSeries, { lineColor: accent, topColor: css("--accent-soft"), bottomColor: "rgba(0,0,0,0)", lineWidth: 2, priceFormat, autoscaleInfoProvider }));
-      s.setData(candles.map((c, i) => ({ time: ts(c.time), value: c.close, ...(input.candles[i]?.estimated && input.chartType === "line" ? { color: est } : {}) })));
+      s.setData(candles.map((c, i) => ({ time: ts(c.time), value: c.close, ...(isEst(i) ? (input.chartType === "line" ? { color: est } : { lineColor: est, topColor: "rgba(0,0,0,0)" }) : {}) })));
     } else {
       const s =
         input.chartType === "bars"
           ? add(this.chart.addSeries(BarSeries, { upColor: up, downColor: down, priceFormat, autoscaleInfoProvider }))
           : add(this.chart.addSeries(CandlestickSeries, { upColor: up, downColor: down, borderUpColor: up, borderDownColor: down, wickUpColor: up, wickDownColor: down, priceFormat, autoscaleInfoProvider }));
-      // Estimated bars (only a daily price for that period) are flat and faded.
-      s.setData(candles.map((c, i) => ({ time: ts(c.time), open: c.open, high: c.high, low: c.low, close: c.close, ...(input.candles[i]?.estimated ? { color: est, borderColor: est, wickColor: est } : {}) })));
+      s.setData(candles.map((c, i) => (isEst(i) ? { time: ts(c.time) } : { time: ts(c.time), open: c.open, high: c.high, low: c.low, close: c.close })));
+      const firstReal = input.candles.findIndex((c) => !c.estimated);
+      if (input.candles.some((c) => c.estimated)) {
+        // The faded line runs up to the first real candle's open so the two join.
+        const e = add(this.chart.addSeries(LineSeries, { color: est, lineWidth: 2, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false, priceFormat, autoscaleInfoProvider }));
+        // Over real candles the line is transparent (the library joins across whitespace), so it never cuts across them.
+        const clear = "rgba(0,0,0,0)";
+        e.setData(input.candles.map((c, i) => (c.estimated ? { time: ts(c.time), value: c.close } : { time: ts(c.time), value: c.open, ...(i === firstReal || input.candles[i - 1]?.estimated ? {} : { color: clear }) })));
+      }
+      const clear2 = "rgba(0,0,0,0)";
+      // Too many candles to read (zoomed out): the real prices switch to a clean line until the user zooms in.
+      const d = add(this.chart.addSeries(LineSeries, { color: accent, lineWidth: 2, visible: false, priceLineVisible: false, lastValueVisible: false, priceFormat, autoscaleInfoProvider }));
+      d.setData(input.candles.flatMap((c, i) => (c.estimated ? (i > firstReal ? [{ time: ts(c.time), value: c.close, color: clear2 }] : []) : [{ time: ts(c.time), value: c.close }])));
+      this.dense = { candles: s, line: d };
     }
 
     // Earlier scans: real days only, dotted with point markers, never joined to the live candles.
@@ -213,7 +241,7 @@ export class ChartEngine {
     if (on("volume")) {
       const v = add(this.chart.addSeries(HistogramSeries, { priceScaleId: "vol", priceFormat: { type: "volume" }, lastValueVisible: false, priceLineVisible: false }));
       this.chart.priceScale("vol").applyOptions({ scaleMargins: { top: 0.82, bottom: 0 } });
-      v.setData(input.candles.map((c) => ({ time: ts(c.time), value: c.volume, color: c.close >= c.open ? css("--up-soft") : css("--down-soft") })));
+      v.setData(input.candles.map((c) => (c.estimated ? { time: ts(c.time) } : { time: ts(c.time), value: c.volume, color: c.close >= c.open ? css("--up-soft") : css("--down-soft") })));
     }
     let pane = 1;
     if (on("rsi")) {
@@ -254,6 +282,8 @@ export class ChartEngine {
       applyRange();
       requestAnimationFrame(applyRange);
     }
+    const r = this.chart.timeScale().getVisibleLogicalRange();
+    this.updateDense(r ? r.to - r.from : input.candles.length);
     this.onHover(null);
   }
 }

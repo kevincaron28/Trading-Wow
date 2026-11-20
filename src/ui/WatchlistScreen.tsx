@@ -7,10 +7,10 @@ import { NextUpdate } from "./NextUpdate";
 import { PullToRefresh } from "./PullToRefresh";
 import { BUILT_IN_WATCHLISTS } from "../data/watchlists";
 import { t } from "../lib/i18n";
-import { change24h } from "../lib/quotes";
+import { changeOver } from "../lib/quotes";
 import { REALM_GROUPS, activeWatchlist, copyToList, houseId, openChart, reorderInList, setState, toggleInList, useStore } from "../app/store";
 import { bumpRefresh, useCatalog, useMeta, useQuotes } from "./data";
-import { ChangePill, ErrorMsg, Icon, ItemIcon, Loading, Money, Sheet, relativeTime, EmptyState } from "./parts";
+import { ChangePill, ErrorMsg, Icon, ItemIcon, Loading, Money, Sheet, relativeTime, EmptyState, WindowToggle } from "./parts";
 
 type Sort = "list" | "name" | "price" | "sold" | "change";
 
@@ -86,9 +86,10 @@ export function WatchlistScreen({ onSearch }: { onSearch: () => void }) {
     if (sort === "name") items.sort((a, b) => name(a).localeCompare(name(b), s.lang));
     if (sort === "price") items.sort((a, b) => (b.quote?.[s.priceField] ?? -1) - (a.quote?.[s.priceField] ?? -1));
     if (sort === "sold") items.sort((a, b) => (b.quote?.soldPerDay ?? -1) - (a.quote?.soldPerDay ?? -1));
-    if (sort === "change") items.sort((a, b) => (b.quote ? (change24h(b.quote) ?? -1e9) : -2e9) - (a.quote ? (change24h(a.quote) ?? -1e9) : -2e9));
+    const ch = (q: (typeof items)[number]["quote"]) => (q ? (changeOver(q, s.changeWindow).pct ?? -1e9) : -2e9);
+    if (sort === "change") items.sort((a, b) => ch(b.quote) - ch(a.quote));
     return items;
-  }, [list, catalog.data, quotes.data, sort, s.lang, s.priceField]);
+  }, [list, catalog.data, quotes.data, sort, s.lang, s.priceField, s.changeWindow]);
 
   const builtIn = BUILT_IN_WATCHLISTS.find((w) => w.id === list.id);
   const snapshot = houseUpdated(meta.data?.houses.find((h) => h.id === house));
@@ -115,10 +116,8 @@ export function WatchlistScreen({ onSearch }: { onSearch: () => void }) {
       <div class="table-head">
         <button type="button" onClick={() => setSort(sort === "name" ? "list" : "name")} class={sort === "name" ? "on" : ""}>{t(s.lang, "sortName")}</button>
         <span />
-        <button type="button" onClick={() => setSort(sort === "price" ? "sold" : sort === "sold" ? "list" : "price")} class={sort === "price" || sort === "sold" ? "on" : ""}>{sort === "sold" ? L[s.lang].sold : t(s.lang, "sortPrice")}</button>
-        <button type="button" onClick={() => setState({ changeMode: s.changeMode === "pct" ? "abs" : "pct" })} onDblClick={() => setSort(sort === "change" ? "list" : "change")} class={sort === "change" ? "on" : ""}>
-          {t(s.lang, "sortChange")} {s.changeMode === "pct" ? "%" : "±"}
-        </button>
+        <button type="button" onClick={() => setSort(sort === "price" ? "sold" : sort === "sold" ? "change" : sort === "change" ? "list" : "price")} class={sort !== "list" && sort !== "name" ? "on" : ""}>{sort === "sold" ? L[s.lang].sold : sort === "change" ? t(s.lang, "sortChange") : t(s.lang, "sortPrice")}</button>
+        <WindowToggle lang={s.lang} value={s.changeWindow} onChange={(w) => setState({ changeWindow: w })} />
       </div>
       {quotes.error && !quotes.data ? (
         <ErrorMsg text={t(s.lang, "loadError")} retry={bumpRefresh} retryLabel={t(s.lang, "retry")} />
@@ -130,8 +129,7 @@ export function WatchlistScreen({ onSearch }: { onSearch: () => void }) {
         <PullToRefresh onRefresh={async () => { clearCache(); bumpRefresh(); await new Promise((r) => setTimeout(r, 700)); }}>
         <ul class="rows">
           {rows.map(({ id, item, quote }, i) => {
-            const pct = quote ? change24h(quote) : null;
-            const abs = quote?.prev24h ? quote.market - quote.prev24h : null;
+            const { pct, abs } = changeOver(quote, s.changeWindow);
             const name = item?.name[s.lang] ?? `#${id}`;
             let shift = 0;
             if (drag) {
