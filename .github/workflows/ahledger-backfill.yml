@@ -38,7 +38,8 @@ jobs:
         run: |
           git fetch -q origin ahledger-state
           git worktree add -q state FETCH_HEAD
-          if [ -f state/done.json ]; then echo "done=true" >> "$GITHUB_OUTPUT"; else echo "done=false" >> "$GITHUB_OUTPUT"; fi
+          # Done when the daily backfill is complete and the hourly pass is complete or out of reach (7-day window).
+          if [ -f state/done.json ] && { [ -f state/hdone.json ] || [ "$(date -u +%s)" -gt "$(date -u -d '2026-11-25T02:00:00Z' +%s)" ]; }; then echo "done=true" >> "$GITHUB_OUTPUT"; else echo "done=false" >> "$GITHUB_OUTPUT"; fi
       - name: Fetch (up to 50 minutes)
         if: steps.state.outputs.done == 'false'
         env:
