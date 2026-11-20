@@ -50,11 +50,13 @@ export interface State {
   onboarded: boolean;
   /** Version of the built-in list contents already merged into the saved lists. */
   listsVersion: number;
+  /** Draw the material cost line on charts of craftable items (0.13). */
+  showMaterials: boolean;
 }
 
 const KEY = "goldline:v2";
 const PERSISTED: (keyof State)[] = [
-  "lang", "realm", "faction", "theme", "chartItem", "timeframe", "chartType", "indicators", "priceField", "changeMode", "changeWindow", "timeZone", "watchlists", "activeList", "alerts", "recent", "drawings", "logScale", "onboarded", "listsVersion",
+  "lang", "realm", "faction", "theme", "chartItem", "timeframe", "chartType", "indicators", "priceField", "changeMode", "changeWindow", "timeZone", "watchlists", "activeList", "alerts", "recent", "drawings", "logScale", "onboarded", "listsVersion", "showMaterials",
 ];
 
 function initial(): State {
@@ -83,6 +85,7 @@ function initial(): State {
     logScale: false,
     onboarded: false,
     listsVersion: LISTS_VERSION,
+    showMaterials: true,
   };
   const saved = readJson<Partial<State>>(KEY, {});
   const merged = { ...base, ...pick(saved) };

@@ -5,14 +5,17 @@ import { change24h, houseCut, type Quote } from "../lib/quotes";
 import { REALM_GROUPS, houseId, openChart, useStore, type Faction } from "../app/store";
 import { clearCache } from "../data/live";
 import { PullToRefresh } from "./PullToRefresh";
-import { bumpRefresh, useCatalog, useMeta, useQuotes } from "./data";
+import { bumpRefresh, useCatalog, useMeta, useQuotes, useRecipes } from "./data";
+import { PROFESSIONS, profitableCrafts } from "../lib/crafting";
 import { ChangePill, ErrorMsg, ItemIcon, Loading, Money, formatPct } from "./parts";
 import { HouseBadge } from "./WatchlistScreen";
 import { BrowseView } from "./BrowseView";
 import { IndexesView } from "./IndexesView";
 
-type View = "gainers" | "losers" | "topSellers" | "mostListed" | "deals" | "flips";
-const VIEWS: View[] = ["gainers", "losers", "topSellers", "mostListed", "deals", "flips"];
+type View = "gainers" | "losers" | "topSellers" | "mostListed" | "deals" | "flips" | "crafts";
+const VIEWS: View[] = ["gainers", "losers", "topSellers", "mostListed", "deals", "flips", "crafts"];
+/** Professions offered as filters on Profitable crafts (the ones whose recipes make tradable items). */
+const CRAFT_PROFESSIONS = [171, 164, 185, 333, 202, 129, 165, 186, 197];
 /** Browse (every item by category) or Markets (movers, deals, flips); kept while the app runs. */
 let rememberedMode: "browse" | "markets" | "indexes" = "browse";
 
@@ -78,6 +81,14 @@ export function ExploreScreen() {
       .slice(0, 50);
   }, [view, buyQuotes.data, sellQuotes.data, sellFaction, catalog.data]);
 
+  // Profitable crafts (0.13): cheapest recipe per item, every reagent priced, the crafted item listed.
+  const recipes = useRecipes();
+  const [profession, setProfession] = useState<number | null>(null);
+  const crafts = useMemo(() => {
+    if (view !== "crafts" || !recipes.data || !quotes.data) return [];
+    return profitableCrafts(recipes.data, quotes.data, s.priceField, houseCut(s.faction), { profession, minAuctions: 2, maxPct: 1000, limit: 100 });
+  }, [view, recipes.data, quotes.data, s.priceField, s.faction, profession]);
+
   const factionName = (f: Faction) => t(s.lang, f === "blackwater" ? "blackwaterShort" : f);
   const name = (id: number) => catalog.data?.get(id)?.name[s.lang] ?? `#${id}`;
   const refresh = async () => {
@@ -104,6 +115,16 @@ export function ExploreScreen() {
         ))}
       </div>
       {view === "deals" && <p class="hint">{t(s.lang, "dealsHint")}</p>}
+      {view === "crafts" && (
+        <div class="hint">
+          <p>{t(s.lang, "craftsHint")}</p>
+          <div class="chips small" role="tablist">
+            {[null, ...CRAFT_PROFESSIONS].map((p) => (
+              <button type="button" role="tab" aria-selected={p === profession} class={p === profession ? "chip on" : "chip"} onClick={() => setProfession(p)}>{p == null ? t(s.lang, "allCategories") : PROFESSIONS[p]![s.lang]}</button>
+            ))}
+          </div>
+        </div>
+      )}
       {view === "flips" && (
         <div class="hint">
           <p>{t(s.lang, "flipsHint")}</p>
@@ -117,6 +138,23 @@ export function ExploreScreen() {
         <ErrorMsg text={t(s.lang, "loadError")} retry={bumpRefresh} retryLabel={t(s.lang, "retry")} />
       ) : !quotes.data || !catalog.data ? (
         <Loading text={t(s.lang, "loading")} />
+      ) : view === "crafts" ? (
+        <ul class="rows">
+          {crafts.map((c) => (
+            <li key={c.item} class="row">
+              <button type="button" class="row-main" onClick={() => openChart(c.item)}>
+                <ItemIcon item={catalog.data!.get(c.item)} meta={meta.data} />
+                <span class="row-name">
+                  <span class={`name q${catalog.data!.get(c.item)?.quality ?? 1}`}>{name(c.item)}</span>
+                  <span class="sub"><Money copper={c.cost.perItem} lang={s.lang} short /> → <Money copper={c.sell} lang={s.lang} short />{c.soldPerDay != null ? ` · ~${c.soldPerDay.toLocaleString(s.lang === "fr" ? "fr-CA" : "en-US")}${s.lang === "fr" ? "/j" : "/day"}` : ""}</span>
+                </span>
+                <span class={`row-price ${c.profit >= 0 ? "up" : "down"}`}><Money copper={c.profit} lang={s.lang} short /></span>
+                <span class={`pill ${c.profit >= 0 ? "up" : "down"}`}>{formatPct(c.pct, s.lang)}</span>
+              </button>
+            </li>
+          ))}
+          {crafts.length === 0 && <p class="state-msg">{recipes.data ? t(s.lang, "noResults") : t(s.lang, "loading")}</p>}
+        </ul>
       ) : view === "flips" ? (
         <ul class="rows">
           {flips.map((f) => (

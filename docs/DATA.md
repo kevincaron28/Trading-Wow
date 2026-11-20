@@ -328,3 +328,20 @@ allows for that delay. Update manifests come from GitHub release downloads, whic
 - **Charts.** Estimated 1H/4H stretches are a faded straight line between the known prices. Days need at least half
   their hours covered for real early candles. More than ~140 bars in view draw as a line. Times and day boundaries use the
   device time zone, or the one picked in Settings.
+
+## 0.13 (20 Nov 2026): crafting cost and profitable recipes
+
+- **Recipes** come from Blizzard's Game Data API for WoW Forever (`static-forever` namespace: profession → skill tier →
+  recipe). `collector/build-recipes.ts` writes `src/data/recipes.json` (2,310 recipes that make an item, 583 reagents),
+  which ships with the app. Rerun it after a game patch. Enchantments (no crafted item) are left out.
+- **Reagent prices**: the auction price in the chosen field (market or lowest buyout). Reagents sold by merchants
+  (`VENDOR_REAGENTS`: vials, threads, dyes, flux, salt, spices, stocks, rods, drinks...) cost Blizzard's merchant price,
+  or the auction price when that is lower. A reagent with no price makes the material cost unknown: it is never shown
+  as a partial total.
+- **Material cost per item** = sum of quantity × unit price / average number made. When several recipes make the item,
+  the cheapest complete one is used.
+- **Chart**: a dashed teal line (Mats) per candle, from each reagent's close at that candle (last close within 3 days).
+  It can be switched off in the indicators sheet. **Crafting card**: reagents, material cost, sell price after the house
+  cut, craft profit (copper and % of the material cost). Deposits and cooldowns (transmutes) are not included.
+- **Explore → Markets → Crafts**: recipes ranked by profit per item in the current house (crafted item with at least 2
+  auctions, every reagent priced, margins over 1,000% left out as thin markets), filterable by profession.

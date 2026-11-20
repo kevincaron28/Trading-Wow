@@ -43,6 +43,9 @@ export interface ChartInput {
   ahl?: { time: number; value: number }[];
   /** Index points (base 100) instead of gold on the price axis. */
   points?: boolean;
+  /** Material cost per crafted item at each candle (0.13): a dashed line, the break-even before the house cut. */
+  material?: { time: number; value: number }[];
+  materialLabel?: string;
 }
 
 /** More candles than this in view on a 360 px wide chart: candles are drawn as a line (they would be under 2 px wide). */
@@ -213,6 +216,11 @@ export class ChartEngine {
     if (input.ahl && input.ahl.length > 0 && !comparing) {
       const s = add(this.chart.addSeries(LineSeries, { color: css("--ind-4"), lineWidth: 2, lineStyle: 1, pointMarkersVisible: true, pointMarkersRadius: 3, priceLineVisible: false, lastValueVisible: false, priceFormat }));
       s.setData(input.ahl.map((p) => ({ time: ts(p.time), value: p.value })));
+    }
+
+    if (input.material && input.material.length > 0 && !comparing) {
+      const s = add(this.chart.addSeries(LineSeries, { color: css("--ind-4"), lineWidth: 2, lineStyle: 2, priceLineVisible: false, lastValueVisible: true, crosshairMarkerVisible: false, title: input.materialLabel ?? "", priceFormat }));
+      s.setData(input.material.map((p) => ({ time: ts(p.time), value: p.value })));
     }
 
     // Comparison line (both on a percent scale from the first visible bar).
