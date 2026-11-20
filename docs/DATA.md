@@ -322,7 +322,7 @@ allows for that delay. Update manifests come from GitHub release downloads, whic
   TSM credit their terms require stays as one link: "Includes data from TradeSkillMaster".
 - **`latest/{house}.json` rows** gain two fields: `[7]` the market at the previous snapshot (at most 3 h earlier, 0 =
   unknown), which drives the 1h change, and `[8]` the average estimated sold per day over 7 days (-1 = unknown).
-- **Indexes, method 2** (`METHOD` in collector/indexes.ts). Base prices are the base day's median. Each item's hourly
+- **Indexes, method 3** (`METHOD` in collector/indexes.ts). Base prices are the base day's median. One item counts as at most x3 or /3 of its base. Each item's hourly
   price is the median of its last 7 hours. Items without a catalog class (gear) are left out of Goldline 100. An index
   needs 5 liquid items in a house. Stored files from method 1 are rebuilt from h2/ on the next run.
 - **Charts.** Estimated 1H/4H stretches are a faded straight line between the known prices. Days need at least half
