@@ -55,13 +55,20 @@ describe("chart series", () => {
     expect(candlesFor(history, "1d", "market").map((c) => c.close)).toEqual([123, 129]);
     expect(candlesFor(history, "1w", "market")).toHaveLength(1);
   });
-  it("shows the whole history at 1H and 4H: one candle a day before the hourly prices", () => {
-    const early = [{ time: T0 - 3 * 86_400, market: 80, min: 70, quantity: 4 }, { time: T0 - 2 * 86_400, market: 90, min: 85, quantity: 5 }];
-    const h = candlesFor({ ...history, early }, "1h", "market");
-    expect(h.slice(0, 2).map((c) => [c.time, c.close])).toEqual([[T0 - 3 * 86_400, 80], [T0 - 2 * 86_400, 90]]);
-    expect(h).toHaveLength(32);
-    expect(candlesFor({ ...history, early }, "4h", "min")[0]!.close).toBe(70);
-    for (let i = 1; i < h.length; i++) expect(h[i]!.time).toBeGreaterThan(h[i - 1]!.time);
+  it("fills 1H and 4H before our own prices: real early hours, else flat estimated bars, evenly spaced", () => {
+    const early = [{ time: T0 - 2 * 86_400, market: 80, min: 70, quantity: 4 }, { time: T0 - 86_400, market: 90, min: 85, quantity: 5 }];
+    // One known hour on the day before our collection: 10:00, market 95, lowest 88.
+    const earlyHourly = [{ time: T0 - 86_400 + 10 * HOUR, market: 95, min: 88, quantity: 6 }];
+    const h = candlesFor({ ...history, early, earlyHourly }, "1h", "market");
+    expect(h).toHaveLength(48 + 30);
+    for (let i = 1; i < h.length; i++) expect(h[i]!.time - h[i - 1]!.time).toBe(HOUR);
+    expect(h[0]).toEqual({ time: T0 - 2 * 86_400, open: 80, high: 80, low: 80, close: 80, volume: 0, estimated: true });
+    expect(h[24]).toMatchObject({ close: 90, estimated: true });
+    expect(h[34]).toEqual({ time: T0 - 86_400 + 10 * HOUR, open: 90, high: 95, low: 88, close: 95, volume: 6 });
+    expect(h[35]).toMatchObject({ close: 90, estimated: true });
+    expect(h[48]!.estimated).toBeUndefined();
+    const four = candlesFor({ ...history, early }, "4h", "min");
+    expect(four.slice(0, 12).every((c) => c.estimated && c.close === (c.time < T0 - 86_400 ? 70 : 85))).toBe(true);
   });
   it("charts the lowest buyout from hourly points", () => {
     expect(candlesFor(history, "1h", "min").at(-1)!.close).toBe(109);
