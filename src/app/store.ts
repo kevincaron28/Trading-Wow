@@ -1,5 +1,5 @@
 import { useEffect, useState } from "preact/hooks";
-import { BUILT_IN_WATCHLISTS, LISTS_ADDED, LISTS_VERSION, type WatchlistDef } from "../data/watchlists";
+import { BUILT_IN_WATCHLISTS, LISTS_VERSION, addNewListItems, type WatchlistDef } from "../data/watchlists";
 import type { PriceAlert } from "../lib/alerts";
 import { LANGS, detectLang, type Lang } from "../lib/i18n";
 import { readJson, writeJson } from "../lib/storage";
@@ -96,7 +96,7 @@ function initial(): State {
   for (const list of BUILT_IN_WATCHLISTS) if (!merged.watchlists.some((w) => w.id === list.id)) merged.watchlists.push({ ...list, items: [...list.items] });
   // Items added to built-in lists since the user's copy was saved are appended once (removing them later sticks).
   if (saved.watchlists && (saved.listsVersion ?? 1) < LISTS_VERSION) {
-    merged.watchlists = merged.watchlists.map((w) => (LISTS_ADDED[w.id] ? { ...w, items: [...w.items, ...LISTS_ADDED[w.id]!.filter((id) => !w.items.includes(id))] } : w));
+    merged.watchlists = addNewListItems(merged.watchlists, saved.listsVersion ?? 1);
   }
   merged.listsVersion = LISTS_VERSION;
   if (!merged.watchlists.some((w) => w.id === merged.activeList)) merged.activeList = merged.watchlists[0]!.id;
