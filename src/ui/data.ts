@@ -1,6 +1,7 @@
 import { useEffect, useState } from "preact/hooks";
 import { loadCatalog, loadExt, loadHistory, loadIndexes, loadIndexMeta, loadMeta, loadQuotes, loadSeed, loadTsm, loadTsmRegion, type IndexDefMeta, type IndexSeries, type TsmItem, type TsmRegion, type CatalogItem, type ItemHistory, type Meta, type SeedPoint } from "../data/live";
 import type { Quote } from "../lib/quotes";
+import { parseRecipes, type RecipeBook, type RecipeRow } from "../lib/crafting";
 
 export interface Async<T> {
   data: T | null;
@@ -87,4 +88,21 @@ export function useExt(house: number, itemId: number): Async<SeedPoint[]> {
 
 export function useSeed(house: number, itemId: number): Async<SeedPoint[]> {
   return useAsync(() => loadSeed(house, itemId), `seed:${house}:${itemId}:0`);
+}
+
+let recipesPromise: Promise<RecipeBook> | null = null;
+/** WoW Forever recipes (shipped with the app, loaded on first use). */
+export function useRecipes(): Async<RecipeBook> {
+  recipesPromise ??= import("../data/recipes.json?raw").then((m) => parseRecipes(JSON.parse(m.default) as { recipes: RecipeRow[]; vendor: Record<string, number> }));
+  recipesPromise.catch(() => (recipesPromise = null));
+  return useAsync(() => recipesPromise!, "recipes");
+}
+
+/** Price histories of several items in one house (e.g. a recipe's reagents). */
+export function useHistories(house: number, ids: readonly number[]): Async<Map<number, ItemHistory>> {
+  const v = useRefreshVersion();
+  return useAsync(
+    () => Promise.all(ids.map((id) => loadHistory(house, id).then((h) => [id, h] as const, () => [id, { hourly: [], daily: [] } as ItemHistory] as const))).then((rows) => new Map(rows)),
+    `histories:${house}:${ids.join(",")}:${v}`,
+  );
 }

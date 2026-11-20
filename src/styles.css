@@ -329,3 +329,11 @@ body.fresh-data .row-price, body.fresh-data .symbol-price .money { animation: fr
 .pill-window { font-size: 11px; color: var(--muted); font-weight: 600; }
 .field select { width: 100%; padding: 10px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface-2); color: var(--text); font: inherit; }
 .menu-section .seg + .seg { margin-top: 8px; }
+.craft-card { margin: 12px 0; padding: 12px; border-radius: 12px; background: var(--surface-2); border: 1px solid var(--border); }
+.craft-card .reagents { list-style: none; margin: 4px 0 8px; padding: 0; }
+.craft-card .reagent { display: flex; align-items: center; gap: 8px; width: 100%; padding: 6px 0; background: none; border: 0; color: inherit; font: inherit; text-align: left; }
+.craft-card .reagent-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.craft-card .reagent-price { font-variant-numeric: tabular-nums; }
+.craft-card .tag { margin-left: 6px; font-size: 11px; padding: 1px 6px; border-radius: 6px; background: var(--surface); color: var(--muted); }
+.material-tag { color: var(--ind-4); }
+.chips.small { margin-top: 6px; }

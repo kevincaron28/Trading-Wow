@@ -8,6 +8,7 @@ import { formatMoneyAxis } from "../lib/money";
 import "./chart-tools.css";
 import { changeOver, houseCut } from "../lib/quotes";
 import { flipStats } from "../lib/flip";
+import { PROFESSIONS, bestCost, craftProfit, materialSeries } from "../lib/crafting";
 import { activeZone, formatDate, localeOf } from "../lib/time";
 import {
   REALM_GROUPS,
@@ -22,7 +23,7 @@ import {
   type Timeframe,
 } from "../app/store";
 import { ChartEngine } from "./chartEngine";
-import { useCatalog, useHistory, useMeta, useQuotes, useTsm, useTsmRegion, bumpRefresh } from "./data";
+import { useCatalog, useHistories, useHistory, useMeta, useQuotes, useRecipes, useTsm, useTsmRegion, bumpRefresh } from "./data";
 import { ChangePill, Icon, ItemIcon, Loading, Money, Sheet, formatPct , ErrorMsg } from "./parts";
 import { SearchScreen } from "./SearchScreen";
 import { HouseBadge } from "./WatchlistScreen";
@@ -73,6 +74,21 @@ export function ChartScreen() {
 
   const zone = activeZone();
   const candles = useMemo(() => (history.data ? candlesFor(history.data, s.timeframe, s.priceField, zone) : []), [history.data, s.timeframe, s.priceField, zone]);
+  // Crafting (0.13): the cheapest recipe for this item, its material cost now and per candle.
+  const recipes = useRecipes();
+  const itemRecipes = recipes.data?.byItem.get(s.chartItem);
+  const vendor = recipes.data?.vendor;
+  const craft = useMemo(
+    () => (vendor ? bestCost(itemRecipes, (id) => quotes.data?.get(id)?.[s.priceField], vendor) : null),
+    [itemRecipes, vendor, quotes.data, s.priceField],
+  );
+  const reagentIds = useMemo(() => (craft ? craft.recipe.reagents.map((r) => r.id).filter((id) => !vendor?.has(id)) : []), [craft?.recipe.id, vendor]);
+  const reagentHistories = useHistories(house, reagentIds);
+  const material = useMemo(() => {
+    if (!craft || !vendor || !s.showMaterials || !reagentHistories.data || !candles.length) return undefined;
+    const byId = new Map([...reagentHistories.data].map(([id, h]) => [id, candlesFor(h, s.timeframe, s.priceField, zone)]));
+    return materialSeries(candles.map((c) => c.time), craft.recipe, byId, vendor);
+  }, [craft?.recipe.id, vendor, s.showMaterials, reagentHistories.data, candles, s.timeframe, s.priceField, zone]);
   const compareCandles = useMemo(() => (s.compareItem && compareHistory.data ? candlesFor(compareHistory.data, s.timeframe, s.priceField, zone) : null), [compareHistory.data, s.compareItem, s.timeframe, s.priceField, zone]);
 
   useEffect(() => {
@@ -93,8 +109,10 @@ export function ChartScreen() {
       // user's zoom and pan.
       rangeKey: `${s.chartItem}|${s.compareItem ?? ""}|${s.timeframe}|${s.priceField}|${s.range}|${zone}`,
       logScale: s.logScale,
+      material,
+      materialLabel: t(s.lang, "materialsShort"),
     });
-  }, [candles, compareCandles, s.chartType, s.indicators, s.lang, s.theme, lines.join(","), s.range, s.logScale]);
+  }, [candles, compareCandles, s.chartType, s.indicators, s.lang, s.theme, lines.join(","), s.range, s.logScale, material]);
   useEffect(() => { engine.current?.setPlacing(placing); }, [placing]);
   useEffect(() => { setPlacing(false); setLineMsg(""); }, [s.chartItem]);
 
@@ -188,6 +206,7 @@ export function ChartScreen() {
           ) : null}
           {s.compareItem && <span class="compare-tag">vs {catalog.data?.get(s.compareItem)?.name[s.lang]}</span>}
           {!daily && earlierThanLive && <span class="seed-tag">{t(s.lang, "seedHint")}</span>}
+          {material && material.length > 0 && !s.compareItem && <span class="material-tag">{t(s.lang, "materialLine")}</span>}
         </div>
         <div ref={holder} class={`chart ${placing ? "placing" : ""}`} role="img" aria-label={`${name}: ${candles.length} ${t(s.lang, "points")}`} />
         {history.loading && !history.data && <div class="chart-overlay"><Loading text={t(s.lang, "loading")} /></div>}
@@ -241,6 +260,7 @@ export function ChartScreen() {
           </dl>
           <p class="muted small">{t(s.lang, "flipNote")}</p>
         </div>
+        {craft && <CraftCard craft={craft} sell={quote?.[s.priceField] ?? null} cut={houseCut(s.faction)} count={itemRecipes?.length ?? 1} />}
         <AcrossHouses itemId={s.chartItem} />
         <p class="muted small">{t(s.lang, "listedNote")}</p>
         <p class="muted small"><a href="https://www.tradeskillmaster.com/" target="_blank" rel="noopener">{t(s.lang, "tsmIncluded")}</a></p>
@@ -264,6 +284,14 @@ export function ChartScreen() {
       {sheet === "indicators" && (
         <Sheet title={t(s.lang, "indicators")} onClose={() => setSheet(null)}>
           <ul class="menu-list">
+            {itemRecipes?.length ? (
+              <li>
+                <button type="button" class={s.showMaterials ? "on" : ""} aria-pressed={s.showMaterials} onClick={() => setState({ showMaterials: !s.showMaterials })}>
+                  <span>{t(s.lang, "materialCost")}</span>
+                  {s.showMaterials && <Icon name="check" size={18} />}
+                </button>
+              </li>
+            ) : null}
             {INDICATOR_KEYS.map((k) => {
               const on = s.indicators.includes(k);
               return (
@@ -366,5 +394,38 @@ function AlertSheet({ itemId, name, current, onClose }: { itemId: number; name: 
       }}>{t(s.lang, "alertCreate")}</button>
       <p class="muted small">{t(s.lang, "alertNote")}</p>
     </Sheet>
+  );
+}
+
+/** Crafting card (0.13): reagents with their prices, the material cost per item and the profit of crafting to sell. */
+function CraftCard({ craft, sell, cut, count }: { craft: import("../lib/crafting").CraftCost; sell: number | null; cut: number; count: number }) {
+  const s = useStore();
+  const catalog = useCatalog();
+  const meta = useMeta();
+  const { profit, pct } = craftProfit(craft.perItem, sell, cut);
+  const prof = PROFESSIONS[craft.recipe.profession]?.[s.lang] ?? "";
+  const makes = craft.recipe.makes;
+  return (
+    <div class="craft-card">
+      <p class="sheet-label">{t(s.lang, "crafting")}{prof ? ` · ${prof}` : ""}{count > 1 ? ` · ${t(s.lang, "cheapestOf").replace("{n}", String(count))}` : ""}</p>
+      <ul class="reagents">
+        {craft.reagents.map((r) => (
+          <li key={r.id}>
+            <button type="button" class="reagent" onClick={() => setState({ chartItem: r.id })}>
+              <ItemIcon item={catalog.data?.get(r.id)} meta={meta.data} size={20} />
+              <span class="reagent-name">{r.qty} × {catalog.data?.get(r.id)?.name[s.lang] ?? `#${r.id}`}{r.source === "vendor" ? <span class="tag">{t(s.lang, "vendorTag")}</span> : null}</span>
+              <span class="reagent-price">{r.total == null ? <span class="muted">{t(s.lang, "noPrice")}</span> : <Money copper={r.total} lang={s.lang} short />}</span>
+            </button>
+          </li>
+        ))}
+      </ul>
+      <dl class="stats">
+        <div><dt>{t(s.lang, "materialCost")}{makes !== 1 ? ` (${t(s.lang, "perItem")})` : ""}</dt><dd><Money copper={craft.perItem} lang={s.lang} /></dd></div>
+        <div><dt>{t(s.lang, "sellAfterCut")}</dt><dd><Money copper={sell == null ? null : Math.round(sell * (1 - cut))} lang={s.lang} /></dd></div>
+        <div><dt>{t(s.lang, "craftProfit")}</dt><dd class={profit == null ? "" : profit >= 0 ? "up" : "down"}><Money copper={profit} lang={s.lang} short />{pct != null ? ` (${formatPct(pct, s.lang)})` : ""}</dd></div>
+        {makes !== 1 && <div><dt>{t(s.lang, "makesPerCraft")}</dt><dd>{makes}</dd></div>}
+      </dl>
+      <p class="muted small">{craft.missing.length ? t(s.lang, "craftMissing") : t(s.lang, "craftNote")}</p>
+    </div>
   );
 }
