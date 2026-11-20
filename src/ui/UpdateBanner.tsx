@@ -46,7 +46,7 @@ export function UpdateSection() {
   return (
     <div class="menu-section">
       <p class="sheet-label">{t(s.lang, "appUpdates")}</p>
-      <p class="small">Goldline {__APP_VERSION__}{text ? ` · ${text}` : ""}</p>
+      <p class="small">Goblin Ledger {__APP_VERSION__}{text ? ` · ${text}` : ""}</p>
       <button type="button" class="btn" disabled={u.status === "checking" || u.status === "downloading"} onClick={() => void checkForUpdates()}>{t(s.lang, "checkUpdates")}</button>
     </div>
   );

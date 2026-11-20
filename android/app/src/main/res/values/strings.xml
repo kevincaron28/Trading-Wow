@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">Goldline</string>
-    <string name="title_activity_main">Goldline</string>
+    <string name="app_name">Goblin Ledger</string>
+    <string name="title_activity_main">Goblin Ledger</string>
     <string name="package_name">top.kcaron.goldline</string>
     <string name="custom_url_scheme">top.kcaron.goldline</string>
 </resources>

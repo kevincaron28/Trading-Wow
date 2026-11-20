@@ -52,7 +52,7 @@ export function buildChartImage(o: ShareChartOpts): HTMLCanvasElement {
   g.fillStyle = accent;
   g.font = `700 ${14 * px}px system-ui, sans-serif`;
   g.textAlign = "right";
-  g.fillText("Goldline", out.width - pad, headH + o.chart.height + footH / 2);
+  g.fillText("Goblin Ledger", out.width - pad, headH + o.chart.height + footH / 2);
   return out;
 }
 
@@ -63,7 +63,7 @@ function toBlob(c: HTMLCanvasElement): Promise<Blob> {
 /** Builds the PNG and shares it (native share sheet, Web Share, or a download). */
 export async function shareChart(o: ShareChartOpts): Promise<void> {
   const canvas = buildChartImage(o);
-  const title = `${o.name} - Goldline`;
+  const title = `${o.name} - Goblin Ledger`;
   const fileName = `goldline-${o.itemId}.png`;
   if (Capacitor.isNativePlatform()) {
     const data = canvas.toDataURL("image/png").split(",")[1]!;

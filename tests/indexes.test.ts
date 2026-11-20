@@ -81,7 +81,7 @@ describe("index maths", () => {
     const period = { start: 0, level: 100, basket: [[1, 0.5, 100], [2, 0.5, 100]] as [number, number, number][] };
     expect(valueAt(period, items, 10)).toBeCloseTo(100 * (0.5 * 3 + 0.5 * 1));
   });
-  it("leaves gear without a catalog class out of Goldline 100", () => {
+  it("leaves gear without a catalog class out of Ledger 100", () => {
     const gl = INDEXES.find((d) => d.id === "gl100")!;
     expect(gl.select({ itemClass: -1, subclass: 0 })).toBe(false);
     expect(gl.select({ itemClass: 7, subclass: 9 })).toBe(true);

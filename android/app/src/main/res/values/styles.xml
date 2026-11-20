@@ -24,7 +24,7 @@
         <item name="android:windowLightNavigationBar">false</item>
     </style>
 
-    <!-- Launch splash: the round Goldline icon on the app's dark background, in light and dark system themes. -->
+    <!-- Launch splash: the Goblin Ledger coin icon on the app's dark background, in light and dark system themes. -->
     <style name="AppTheme.NoActionBarLaunch" parent="Theme.SplashScreen">
         <item name="android:background">@drawable/splash</item>
         <item name="windowSplashScreenBackground">@color/goldline_bg</item>
