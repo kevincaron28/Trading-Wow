@@ -55,31 +55,6 @@ describe("chart series", () => {
     expect(candlesFor(history, "1d", "market").map((c) => c.close)).toEqual([123, 129]);
     expect(candlesFor(history, "1w", "market")).toHaveLength(1);
   });
-  it("fills 1H and 4H before our own prices: real early hours as candles, else a straight estimated line, evenly spaced", () => {
-    const D1 = T0 - 86_400;
-    const early = [{ time: T0 - 2 * 86_400, market: 80, min: 70, quantity: 4 }, { time: D1, market: 90, min: 85, quantity: 5 }];
-    // 14 known hours on the day before our collection (00:00-13:00) at 95, lowest 88; 05:00 is a lone spike to 300.
-    const earlyHourly = Array.from({ length: 14 }, (_, i) => ({ time: D1 + i * HOUR, market: i === 5 ? 300 : 95, min: 88, quantity: 6 }));
-    const h = candlesFor({ ...history, early, earlyHourly }, "1h", "market");
-    expect(h).toHaveLength(48 + 30);
-    for (let i = 1; i < h.length; i++) expect(h[i]!.time - h[i - 1]!.time).toBe(HOUR);
-    // Flat before the first day's noon, then a straight line to the first real hour.
-    expect(h[0]).toEqual({ time: T0 - 2 * 86_400, open: 80, high: 80, low: 80, close: 80, volume: 0, estimated: true });
-    expect(h[12]).toMatchObject({ close: 80, estimated: true });
-    expect(h[18]).toMatchObject({ close: 88, estimated: true });
-    expect(h[24]).toEqual({ time: D1, open: 94, high: 95, low: 88, close: 95, volume: 6 });
-    // The spike is smoothed away (median of neighbouring hours): no wick to 300.
-    expect(h[29]).toEqual({ time: D1 + 5 * HOUR, open: 95, high: 95, low: 88, close: 95, volume: 6 });
-    expect(h[37]!.estimated).toBeUndefined();
-    expect(h[38]).toMatchObject({ close: 95, estimated: true });
-    expect(h[48]!.estimated).toBeUndefined();
-    // A lone scanned hour does not make a candle: the day stays on the estimated line.
-    const sparse = candlesFor({ ...history, early, earlyHourly: [earlyHourly[3]!] }, "1h", "market");
-    expect(sparse.slice(0, 48).every((c) => c.estimated)).toBe(true);
-    const four = candlesFor({ ...history, early }, "4h", "min");
-    expect(four.slice(0, 12).map((c) => c.close)).toEqual([70, 70, 70, 70, 73, 75, 78, 80, 83, 85, 85, 85]);
-    expect(four.slice(0, 12).every((c) => c.estimated)).toBe(true);
-  });
   it("draws hourly candles in the chosen time zone (wall time)", () => {
     const ny = candlesFor(history, "1h", "market", "America/New_York");
     expect(ny.at(-1)!.time).toBe(T0 + 29 * HOUR - 5 * HOUR);

@@ -8,7 +8,7 @@ on:
   schedule:
     # GitHub stopped firing scheduled runs on this repo for hours at a time (19 Nov), so each run now collects four
     # times, 15 minutes apart, and then starts the next run itself (relay, below). These slots only restart the relay if
-    # it ever breaks; the backfill workflow's check job also starts a run when the data is more than 75 minutes old.
+    # it ever breaks; the collector-watchdog workflow also starts a run when the data is more than 75 minutes old.
     # An already stored snapshot is skipped, so an extra collection costs a few seconds.
     - cron: "5 * * * *"
     - cron: "20 * * * *"

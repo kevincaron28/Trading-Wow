@@ -12,15 +12,10 @@ import { useCatalog, useIndexes, useIndexMeta, useMeta, useQuotes } from "./data
 import { EmptyState, ErrorMsg, Icon, ItemIcon, Loading, WindowToggle, formatPct } from "./parts";
 
 const HOUR = 3_600;
-/** The first UTC day of prices (5 Nov 00:00 UTC) is WoW Forever's launch evening (4 Nov, 15:00 PST). */
-const LAUNCH_BUCKET_END = Date.UTC(2026, 10, 5) / 1000;
-
-/** "Base 100 = ..." date: launch when the series starts there, else its base day (the close of 19 Nov without early prices). */
-export function baseLabel(series: IndexSeries | undefined, baseEnd: number, lang: "en" | "fr"): string {
+/** "Base 100 = ..." date: the base day, the close of 19 Nov 2026 (our first full day of prices). */
+export function baseLabel(_series: IndexSeries | undefined, baseEnd: number, lang: "en" | "fr"): string {
   const fmt = (sec: number) => new Date(sec * 1000).toLocaleDateString(lang === "fr" ? "fr-CA" : "en-US", { dateStyle: "medium", timeZone: "UTC" });
-  const start = series?.link ? series.periods[0]?.start : undefined;
-  if (start == null) return fmt(baseEnd - 1);
-  return start <= LAUNCH_BUCKET_END ? t(lang, "launchLabel") : fmt(start);
+  return fmt(baseEnd - 1);
 }
 
 /** Index points with two decimals in the reader's language (100.00 / 100,00). */
@@ -72,11 +67,10 @@ export function IndexesView() {
   if (def) return <IndexDetail def={def} series={data.data[def.id]} baseEnd={meta.data.baseEnd} onClose={() => setOpen(null)} />;
 
   const rows = meta.data.indexes.map((d) => ({ d, sum: summarize(data.data![d.id]) })).filter((r) => r.sum);
-  const fromLaunch = Object.values(data.data).some((x) => x.link);
   return (
     <div class="indexes">
       <div class="index-hint-row">
-        <p class="hint">{fromLaunch ? `${t(s.lang, "indexBase")} ${baseLabel(data.data.gl100, meta.data.baseEnd, s.lang)}` : t(s.lang, "indexProvisional")}</p>
+        <p class="hint">{t(s.lang, "indexProvisional")}</p>
         <WindowToggle lang={s.lang} value={s.changeWindow} onChange={(w) => setState({ changeWindow: w })} />
       </div>
       {rows.length === 0 ? (

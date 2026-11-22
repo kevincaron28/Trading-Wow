@@ -1,4 +1,6 @@
-# Goldline market indexes / Indices du marché Goldline
+# Goblin Ledger market indexes / Indices du marché Goblin Ledger
+
+> 22 Nov 2026: indexes use only our own Blizzard-API prices and start at the close of 19 Nov 2026 (base 100). The earlier launch-week segment built from imported history was removed (METHOD 4).
 
 ## English
 

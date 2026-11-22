@@ -25,7 +25,8 @@ attribution logo on the chart is required by that licence and stays.
 ## Live data
 
 Prices come from Blizzard's official Game Data API for WoW Forever, collected hourly by `collector/` and
-published as JSON on the `data` branch, which the app reads. Details, verified routes and file formats:
+published as JSON on the `data` branch, which the app reads. The public data is Blizzard API data only: all history
+is our own, starting 18 Nov 2026, and charts say "History since <date>". Imported third-party history is not published. Details, verified routes and file formats:
 [docs/DATA.md](docs/DATA.md). The app contains no secret.
 
 To run the collection on GitHub instead of a PC, add two repository secrets (Settings → Secrets and variables →

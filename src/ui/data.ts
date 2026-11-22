@@ -1,5 +1,5 @@
 import { useEffect, useState } from "preact/hooks";
-import { loadCatalog, loadExt, loadHistory, loadIndexes, loadIndexMeta, loadMeta, loadQuotes, loadSeed, loadTsm, loadTsmRegion, type IndexDefMeta, type IndexSeries, type TsmItem, type TsmRegion, type CatalogItem, type ItemHistory, type Meta, type SeedPoint } from "../data/live";
+import { loadCatalog, loadHistory, loadIndexes, loadIndexMeta, loadMeta, loadQuotes, type IndexDefMeta, type IndexSeries, type CatalogItem, type ItemHistory, type Meta } from "../data/live";
 import type { Quote } from "../lib/quotes";
 import { parseRecipes, type RecipeBook, type RecipeRow } from "../lib/crafting";
 
@@ -67,27 +67,12 @@ export function useHistory(house: number, itemId: number | null): Async<ItemHist
   return useAsync(() => (itemId == null ? Promise.resolve({ hourly: [], daily: [] }) : loadHistory(house, itemId)), `history:${house}:${itemId}:${v}`);
 }
 
-export function useTsm(house: number, itemId: number): Async<TsmItem | null> {
-  const v = useRefreshVersion();
-  return useAsync(() => loadTsm(house, itemId), `tsm:${house}:${itemId}:${v}`);
-}
-export function useTsmRegion(itemId: number): Async<TsmRegion | null> {
-  return useAsync(() => loadTsmRegion(itemId), `tsmr:${itemId}:0`);
-}
 export function useIndexMeta(): Async<{ baseEnd: number; indexes: IndexDefMeta[] }> {
   return useAsync(() => loadIndexMeta(), "indexmeta:0");
 }
 export function useIndexes(house: number): Async<Record<string, IndexSeries>> {
   const v = useRefreshVersion();
   return useAsync(() => loadIndexes(house), `indexes:${house}:${v}`);
-}
-
-export function useExt(house: number, itemId: number): Async<SeedPoint[]> {
-  return useAsync(() => loadExt(house, itemId), `ext:${house}:${itemId}:0`);
-}
-
-export function useSeed(house: number, itemId: number): Async<SeedPoint[]> {
-  return useAsync(() => loadSeed(house, itemId), `seed:${house}:${itemId}:0`);
 }
 
 let recipesPromise: Promise<RecipeBook> | null = null;

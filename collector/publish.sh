@@ -17,24 +17,32 @@ else
   node "$ROOT/collector/collect.ts" "$DATA_DIR"
 fi
 
-# Market indexes and TradeSkillMaster series: extras that must never stop the price collection.
+# Public data is Blizzard API data only. Folders that once held imported third-party history (TradeSkillMaster, AHledger,
+# ahprice.com, Auctionator scans, and the history merged from them) are taken off the branch; on a PC checkout they are
+# first moved into the private, gitignored folder private-data/ next to this script's repo (never deleted there).
+for d in tsm ext early early-h seed audit; do
+  if [ -d "$DATA_DIR/$d" ]; then
+    if [ -d "$ROOT/private-data" ] && [ ! -e "$ROOT/private-data/$d" ]; then mv "$DATA_DIR/$d" "$ROOT/private-data/$d"; else rm -rf "$DATA_DIR/$d"; fi
+  fi
+done
+
+# Market indexes: an extra that must never stop the price collection.
 node "$ROOT/collector/indexes.ts" "$DATA_DIR" || echo "indexes failed (prices still published)"
-node "$ROOT/collector/tsm.ts" "$DATA_DIR" || echo "tsm failed (prices still published)"
 
 cd "$DATA_DIR"
 cat > README.md <<'EOF'
-# Goldline price data
+# Goblin Ledger price data
 
-Published by the Goldline collector from Blizzard's WoW Forever auction house API, about once an hour.
+Published by the Goblin Ledger collector from Blizzard's WoW Forever auction house API, about once an hour.
 This branch is replaced on every update. File formats: docs/DATA.md on the main branch.
 EOF
 printf "state/
 " > .gitignore
 git add -A
 if git rev-parse -q --verify HEAD >/dev/null; then
-  git commit -q --amend -m "Goldline data $(date -u +%Y-%m-%dT%H:%MZ)"
+  git commit -q --amend -m "Goblin Ledger data $(date -u +%Y-%m-%dT%H:%MZ)"
 else
-  git commit -q -m "Goldline data $(date -u +%Y-%m-%dT%H:%MZ)"
+  git commit -q -m "Goblin Ledger data $(date -u +%Y-%m-%dT%H:%MZ)"
 fi
 git push -q -f origin HEAD:data
 echo "published $(date -u +%H:%M) UTC"

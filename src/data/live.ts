@@ -49,13 +49,7 @@ export interface CatalogItem {
 export interface ItemHistory {
   hourly: PricePoint[];
   daily: Candle[];
-  /** Days before Goldline's own collection covered the item (one merged value per day; see collector/merge-history.ts). */
-  early?: EarlyPoint[];
-  /** Hourly prices before our own collection (time = hour start), when known. */
-  earlyHourly?: EarlyPoint[];
 }
-
-export interface EarlyPoint { time: number; market: number; min: number; quantity: number }
 
 const cache = new Map<string, Promise<unknown>>();
 /** Files change about hourly; refetch after this long. */
@@ -165,23 +159,8 @@ type DayRow = [number, number, number, number, number, number, number];
 export async function loadHistory(house: number, itemId: number): Promise<ItemHistory> {
   type ShardFile = { items: Record<string, { h: HourRow[]; d: DayRow[] }> };
   // v2 layout (256 small files per house); older data only has the v1 layout (32 files).
-  const none = () => ({ items: {} as Record<string, number[][]> });
-  const [shard, early, earlyH] = await Promise.all([
-    getJson<ShardFile>(`h2/${house}/${itemId % SHARDS_V2}.json`).catch(() => getJson<ShardFile>(`history/${house}/${itemId % SHARDS}.json`)),
-    getJson<{ items: Record<string, number[][]> }>(`early/${house}/${itemId % SHARDS_V2}.json`).catch(none),
-    getJson<{ items: Record<string, number[][]> }>(`early-h/${house}/${itemId % SHARDS_V2}.json`).catch(none),
-  ]);
-  return { ...parseHistory(shard.items[itemId]), early: parseEarly(early.items[itemId]), earlyHourly: parseEarlyHourly(earlyH.items[itemId]) };
-}
-
-/** Early hourly rows [hour, market, min, quantity]. */
-export function parseEarlyHourly(rows: number[][] | undefined): EarlyPoint[] {
-  return (rows ?? []).filter((r) => r[1]! > 0).map((r) => ({ time: r[0]! * HOUR, market: r[1]!, min: r[2]! || r[1]!, quantity: r[3] ?? 0 }));
-}
-
-/** Early rows [day, market, min, quantity, sources]: the source mask is internal and dropped here. */
-export function parseEarly(rows: number[][] | undefined): EarlyPoint[] {
-  return (rows ?? []).filter((r) => r[1]! > 0).map((r) => ({ time: r[0]! * DAY, market: r[1]!, min: r[2]! || r[1]!, quantity: r[3] ?? 0 }));
+  const shard = await getJson<ShardFile>(`h2/${house}/${itemId % SHARDS_V2}.json`).catch(() => getJson<ShardFile>(`history/${house}/${itemId % SHARDS}.json`));
+  return parseHistory(shard.items[itemId]);
 }
 
 export function parseHistory(raw: { h: HourRow[]; d: DayRow[] } | undefined): ItemHistory {
@@ -206,17 +185,9 @@ export function iconUrl(meta: Meta | null, icon: string): string {
   return `${base}${icon}.jpg`;
 }
 
-/** Genuine daily rows from before collection started (Auctionator scans by the owner and a guildmate; PvP Horde only). */
-export interface SeedPoint {
-  time: number;
-  low: number;
-  high: number;
-  available: number | null;
-}
-
 export interface IndexDefMeta { id: string; name: { en: string; fr: string }; about: { en: string; fr: string }; size: number; cap: number }
 export interface IndexPeriod { start: number; level: number; provisional?: boolean; basket: [number, number, number][] }
-export interface IndexSeries { id: string; periods: IndexPeriod[]; hourly: [number, number][]; link?: number; earlyUntil?: number }
+export interface IndexSeries { id: string; periods: IndexPeriod[]; hourly: [number, number][] }
 
 /** Goldline indexes: definitions (index/meta.json) and one house's series (index/<house>.json). */
 export function loadIndexMeta(): Promise<{ baseEnd: number; indexes: IndexDefMeta[] }> {
@@ -224,46 +195,4 @@ export function loadIndexMeta(): Promise<{ baseEnd: number; indexes: IndexDefMet
 }
 export async function loadIndexes(house: number): Promise<Record<string, IndexSeries>> {
   return (await getJson<{ indexes: Record<string, IndexSeries> }>(`index/${house}.json`)).indexes;
-}
-
-/** TradeSkillMaster public data (credited, separate): realm values and daily history, and region sale data. */
-export interface TsmItem { marketValue: number; minBuyout: number; recent: number; historical: number; daily: { time: number; value: number }[] }
-export interface TsmRegion { marketValue: number; historical: number; avgSalePrice: number; saleRate: number; soldPerDay: number }
-export async function loadTsm(house: number, itemId: number): Promise<TsmItem | null> {
-  try {
-    const file = await getJson<{ items: Record<string, { v: number[]; d: [number, number, number][] }> }>(`tsm/${house}/${itemId % SHARDS_V2}.json`);
-    const x = file.items[itemId];
-    if (!x) return null;
-    return { marketValue: x.v[0]!, minBuyout: x.v[1]!, recent: x.v[2]!, historical: x.v[3]!, daily: x.d.map((r) => ({ time: r[0] * DAY, value: r[1] })) };
-  } catch {
-    return null;
-  }
-}
-export async function loadTsmRegion(itemId: number): Promise<TsmRegion | null> {
-  try {
-    const file = await getJson<{ items: Record<string, number[]> }>(`tsm/region/${itemId % SHARDS_V2}.json`);
-    const r = file.items[itemId];
-    return r ? { marketValue: r[0]!, historical: r[1]!, avgSalePrice: r[2]!, saleRate: r[3]!, soldPerDay: r[4]! } : null;
-  } catch {
-    return null;
-  }
-}
-
-/** Daily lowest buyout from ahprice.com's shared addon scans (used with permission), a separate series: [day, price, qty]. */
-export async function loadExt(house: number, itemId: number): Promise<SeedPoint[]> {
-  try {
-    const file = await getJson<{ items: Record<string, [number, number, number][]> }>(`ext/ahprice/${house}/${itemId % SHARDS_V2}.json`);
-    return (file.items[itemId] ?? []).map((r) => ({ time: r[0] * DAY, low: r[1], high: r[1], available: r[2] }));
-  } catch {
-    return [];
-  }
-}
-
-export async function loadSeed(house: number, itemId: number): Promise<SeedPoint[]> {
-  try {
-    const file = await getJson<{ items: Record<string, [number, number, number, number][]> }>(`seed/${house}/${itemId % SHARDS_V2}.json`);
-    return (file.items[itemId] ?? []).map((r) => ({ time: r[0] * DAY, low: r[1], high: r[2], available: r[3] >= 0 ? r[3] : null }));
-  } catch {
-    return [];
-  }
 }

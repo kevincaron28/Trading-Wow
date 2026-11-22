@@ -87,9 +87,6 @@ export function MenuScreen() {
         <p class="sheet-label">{t(s.lang, "about")}</p>
         <p class="small">{t(s.lang, "aboutText")}</p>
         <p class="small muted">{t(s.lang, "chartsBy")} <a href="https://www.tradingview.com/" target="_blank" rel="noopener">tradingview.com</a></p>
-        <p class="small muted">
-          <a href="https://www.tradeskillmaster.com/" target="_blank" rel="noopener">{t(s.lang, "tsmIncluded")}</a>
-        </p>
       </div>
     </section>
   );

@@ -23,7 +23,7 @@ import {
   type Timeframe,
 } from "../app/store";
 import { ChartEngine } from "./chartEngine";
-import { useCatalog, useHistories, useHistory, useMeta, useQuotes, useRecipes, useTsm, useTsmRegion, bumpRefresh } from "./data";
+import { useCatalog, useHistories, useHistory, useMeta, useQuotes, useRecipes, bumpRefresh } from "./data";
 import { ChangePill, Icon, ItemIcon, Loading, Money, Sheet, formatPct , ErrorMsg } from "./parts";
 import { SearchScreen } from "./SearchScreen";
 import { HouseBadge } from "./WatchlistScreen";
@@ -50,9 +50,6 @@ export function ChartScreen() {
   const meta = useMeta();
   const quotes = useQuotes(house);
   const history = useHistory(house, s.chartItem);
-  const tsm = useTsm(house, s.chartItem);
-  const tsmRegion = useTsmRegion(s.chartItem);
-  const daily = s.timeframe === "1d" || s.timeframe === "1w";
   const compareHistory = useHistory(house, s.compareItem);
   const item = catalog.data?.get(s.chartItem);
   const quote = quotes.data?.get(s.chartItem);
@@ -120,9 +117,8 @@ export function ChartScreen() {
   const day = changeOver(quote, "1d");
   const hour = changeOver(quote, "1h");
   const shownChange = s.changeWindow === "1h" ? hour : day;
-  const flip = flipStats(quote, houseCut(s.faction), tsmRegion.data ?? null);
-  // One price for the item: our own snapshot, else the TradeSkillMaster value for this house when we have none.
-  const headPrice = quote?.[s.priceField] ?? (s.priceField === "min" ? tsm.data?.minBuyout : tsm.data?.marketValue) ?? null;
+  const flip = flipStats(quote, houseCut(s.faction));
+  const headPrice = quote?.[s.priceField] ?? null;
   const loc = localeOf(s.lang);
   const num = (n: number | null, digits = 0) => (n == null ? "–" : n.toLocaleString(loc, { maximumFractionDigits: digits }));
   const pctCell = (n: number | null) => <dd class={n == null ? "" : n >= 0 ? "up" : "down"}>{formatPct(n, s.lang)}</dd>;
@@ -130,9 +126,7 @@ export function ChartScreen() {
   const name = item?.name[s.lang] ?? `#${s.chartItem}`;
   const firstPoint = history.data?.hourly[0]?.time;
   // Earliest price in the item's history, for "History since <date>" (unix seconds).
-  const earliest = earliestPoint([history.data?.early?.[0]?.time, history.data?.daily[0]?.time, firstPoint]);
-  const earlierThanLive = earliest != null && firstPoint != null && earliest < firstPoint - 86_400;
-  // Early history is stored per date (UTC); hourly prices are moments shown in the active time zone.
+  const earliest = earliestPoint([history.data?.daily[0]?.time, firstPoint]);
   const dateFmt = (t: number) => formatDate(t, s.lang, "UTC");
   const [sharing, setSharing] = useState(false);
   const onShare = () => {
@@ -205,7 +199,6 @@ export function ChartScreen() {
             </>
           ) : null}
           {s.compareItem && <span class="compare-tag">vs {catalog.data?.get(s.compareItem)?.name[s.lang]}</span>}
-          {!daily && earlierThanLive && <span class="seed-tag">{t(s.lang, "seedHint")}</span>}
           {material && material.length > 0 && !s.compareItem && <span class="material-tag">{t(s.lang, "materialLine")}</span>}
         </div>
         <div ref={holder} class={`chart ${placing ? "placing" : ""}`} role="img" aria-label={`${name}: ${candles.length} ${t(s.lang, "points")}`} />
@@ -231,13 +224,12 @@ export function ChartScreen() {
           {earliest != null ? (
             <span class="history-since small">
               <b>{t(s.lang, "historySince")} {dateFmt(earliest)}</b>
-              {firstPoint ? <span class="muted">{t(s.lang, "hourlySince")} {formatDate(firstPoint, s.lang)}</span> : null}
             </span>
           ) : null}
         </div>
         <dl class="stats">
-          <div><dt>{t(s.lang, "market")}</dt><dd><Money copper={quote?.market ?? tsm.data?.marketValue} lang={s.lang} /></dd></div>
-          <div><dt>{t(s.lang, "minBuyout")}</dt><dd><Money copper={quote?.min ?? tsm.data?.minBuyout} lang={s.lang} /></dd></div>
+          <div><dt>{t(s.lang, "market")}</dt><dd><Money copper={quote?.market} lang={s.lang} /></dd></div>
+          <div><dt>{t(s.lang, "minBuyout")}</dt><dd><Money copper={quote?.min} lang={s.lang} /></dd></div>
           <div><dt>{t(s.lang, "change24h")}</dt>{pctCell(day.pct)}</div>
           <div><dt>{t(s.lang, "change1h")}</dt>{pctCell(hour.pct)}</div>
           <div><dt>{t(s.lang, "avg7d")}</dt><dd><Money copper={quote?.avg7d} lang={s.lang} /></dd></div>
@@ -247,23 +239,20 @@ export function ChartScreen() {
         <div class="flip-card">
           <p class="sheet-label">{t(s.lang, "flipping")}</p>
           <dl class="stats">
-            <div title={t(s.lang, "soldDayHint")}><dt>{t(s.lang, "sold24h")}{flip.sold24hRegion ? t(s.lang, "regionTag") : ""}</dt><dd>{num(flip.sold24h, flip.sold24hRegion ? 1 : 0)}</dd></div>
+            <div title={t(s.lang, "soldDayHint")}><dt>{t(s.lang, "sold24h")}</dt><dd>{num(flip.sold24h)}</dd></div>
             <div><dt>{t(s.lang, "soldAvg7d")}</dt><dd>{num(flip.soldAvg7d)}</dd></div>
             <div><dt>{t(s.lang, "salesTrend")}</dt>{pctCell(flip.salesTrend)}</div>
-            <div><dt>{t(s.lang, "saleRate")}{t(s.lang, "regionTag")}</dt><dd>{flip.saleRate == null ? "–" : `${Math.round(flip.saleRate * 100)}%`}</dd></div>
             <div><dt>{t(s.lang, "sellThrough")}</dt><dd>{flip.sellThrough == null ? "–" : `${num(flip.sellThrough, 1)}%`}</dd></div>
             <div><dt>{t(s.lang, "daysSupply")}</dt><dd>{num(flip.daysSupply, 1)}</dd></div>
             <div><dt>{t(s.lang, "flipMargin")}</dt><dd class={flip.margin == null ? "" : flip.margin >= 0 ? "up" : "down"}><Money copper={flip.margin} lang={s.lang} short />{flip.marginPct != null ? ` (${formatPct(flip.marginPct, s.lang)})` : ""}</dd></div>
             <div><dt>{t(s.lang, "spread")}</dt><dd>{formatPct(flip.spreadPct, s.lang, false)}</dd></div>
             <div><dt>{t(s.lang, "vsAvg7d")}</dt>{pctCell(flip.vsAvg7d)}</div>
-            <div><dt>{t(s.lang, "avgSale")}{t(s.lang, "regionTag")}</dt><dd><Money copper={flip.avgSale} lang={s.lang} /></dd></div>
           </dl>
           <p class="muted small">{t(s.lang, "flipNote")}</p>
         </div>
         {craft && <CraftCard craft={craft} sell={quote?.[s.priceField] ?? null} cut={houseCut(s.faction)} count={itemRecipes?.length ?? 1} />}
         <AcrossHouses itemId={s.chartItem} />
         <p class="muted small">{t(s.lang, "listedNote")}</p>
-        <p class="muted small"><a href="https://www.tradeskillmaster.com/" target="_blank" rel="noopener">{t(s.lang, "tsmIncluded")}</a></p>
       </div>
 
       {sheet === "type" && (

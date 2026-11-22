@@ -1,4 +1,12 @@
-# Goldline live data
+# Goblin Ledger live data
+
+> **Data policy (22 Nov 2026, owner decision).** Public data is Blizzard API data only. All price history comes from
+> our own hourly collection (first snapshot 18 Nov 2026 02:00 UTC); the app says "History since <date>" and charts start
+> there. The sections below on TradeSkillMaster, AHledger, ahprice.com, Auctionator scans, the merged early history
+> (`early/`, `early-h/`, `seed/`, `ext/`, `tsm/`, `audit/`) and their backfill workflows describe tooling that was
+> **removed** on 22 Nov 2026 and are kept only as history. The files were moved off the public `data` branch into the private,
+> gitignored `private-data/` folder on the owner's PC (`collector/publish.sh` does the move on a PC checkout and just drops
+> them on GitHub Actions). Indexes start at the close of 19 Nov 2026, from our own prices.
 
 ## Where the prices come from
 
