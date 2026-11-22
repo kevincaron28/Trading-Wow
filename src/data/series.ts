@@ -41,7 +41,7 @@ export function smoothHours(rows: { time: number; value: number }[]): number[] {
 }
 
 /**
- * Early hourly prices come from AHledger, whose "median" covers every listing (about 1.5x the lowest buyout); Goldline's
+ * Early hourly prices come from an earlier source whose "median" covers every listing (about 1.5x the lowest buyout); Goldline's
  * market value is within 5% of the lowest buyout for most items. Capping at 1.1x the hour's lowest buyout keeps the
  * history one series (collector/merge-history.ts does the same for days, at 1.25x the day's lowest).
  */

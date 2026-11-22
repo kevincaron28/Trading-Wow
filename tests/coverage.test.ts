@@ -1,10 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { coverageOf, SRC } from "../collector/coverage";
 import { parseAhpriceCsv, tsmItemIds } from "../collector/audit-catalog";
-import { itemOrder } from "../collector/backfill-ahprice";
 import { FOREVER_LAUNCH_DAY as L } from "../collector/import-auctionator";
 import { earliestPoint } from "../src/lib/ranges";
-import { BUILT_IN_WATCHLISTS } from "../src/data/watchlists";
 
 describe("history coverage", () => {
   it("reports first, last, covered days, missing days and sources since launch", () => {
@@ -38,9 +36,4 @@ describe("catalog audit sources", () => {
     expect([...tsmItemIds(lua)].sort((a, b) => a - b)).toEqual([2589, 13468]);
   });
 
-  it("orders the backfill: watchlists, most listed, then every other known item", () => {
-    const order = itemOrder(new Map([[113, { "900001": [1, 1, 50] }]]), [900002, 900001, 900003]);
-    expect(order[0]).toBe(BUILT_IN_WATCHLISTS[0]!.items[0]);
-    expect(order.slice(-3)).toEqual([900001, 900002, 900003]);
-  });
 });

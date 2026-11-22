@@ -1,4 +1,4 @@
-# Goldline market indexes / Indices du marché Goldline
+# Goblin Ledger market indexes / Indices du marché Goblin Ledger
 
 ## English
 

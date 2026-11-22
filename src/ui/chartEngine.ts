@@ -31,16 +31,6 @@ export interface ChartInput {
   /** When given, the visible window is applied only when this key changes (otherwise the user's zoom is kept). */
   rangeKey?: string;
   logScale: boolean;
-  /** Genuine daily points from before collection started (lowest buyout per scanned day); drawn as separate points (no line between days). */
-  seed?: { time: number; low: number }[];
-  seedLabel?: string;
-  /** ahprice.com daily lowest buyout (shared addon scans), drawn as its own labelled points. */
-  ext?: { time: number; low: number }[];
-  extLabel?: string;
-  /** TradeSkillMaster daily market value (separate, credited series). */
-  tsm?: { time: number; value: number }[];
-  /** AHledger daily prices (median or lowest buyout, matching the price field). */
-  ahl?: { time: number; value: number }[];
   /** Index points (base 100) instead of gold on the price axis. */
   points?: boolean;
   /** Material cost per crafted item at each candle (0.13): a dashed line, the break-even before the house cut. */
@@ -195,27 +185,6 @@ export class ChartEngine {
       const d = add(this.chart.addSeries(LineSeries, { color: accent, lineWidth: 2, visible: false, priceLineVisible: false, lastValueVisible: false, priceFormat, autoscaleInfoProvider }));
       d.setData(input.candles.flatMap((c, i) => (c.estimated ? (i > firstReal ? [{ time: ts(c.time), value: c.close, color: clear2 }] : []) : [{ time: ts(c.time), value: c.close }])));
       this.dense = { candles: s, line: d };
-    }
-
-    // Earlier scans: real days only, dotted with point markers, never joined to the live candles.
-    if (input.seed && input.seed.length > 0 && !comparing) {
-      const s = add(this.chart.addSeries(LineSeries, { color: css("--muted"), lineWidth: 2, lineVisible: false, pointMarkersVisible: true, pointMarkersRadius: 4, priceLineVisible: false, lastValueVisible: false, priceFormat }));
-      s.setData(input.seed.map((p) => ({ time: ts(p.time), value: p.low })));
-    }
-
-    if (input.ext && input.ext.length > 0 && !comparing) {
-      const s = add(this.chart.addSeries(LineSeries, { color: css("--ind-2"), lineWidth: 2, lineVisible: false, pointMarkersVisible: true, pointMarkersRadius: 3, priceLineVisible: false, lastValueVisible: false, priceFormat }));
-      s.setData(input.ext.map((p) => ({ time: ts(p.time), value: p.low })));
-    }
-
-    if (input.tsm && input.tsm.length > 0 && !comparing) {
-      const s = add(this.chart.addSeries(LineSeries, { color: css("--ind-3"), lineWidth: 2, lineStyle: 2, pointMarkersVisible: true, pointMarkersRadius: 3, priceLineVisible: false, lastValueVisible: false, priceFormat }));
-      s.setData(input.tsm.map((p) => ({ time: ts(p.time), value: p.value })));
-    }
-
-    if (input.ahl && input.ahl.length > 0 && !comparing) {
-      const s = add(this.chart.addSeries(LineSeries, { color: css("--ind-4"), lineWidth: 2, lineStyle: 1, pointMarkersVisible: true, pointMarkersRadius: 3, priceLineVisible: false, lastValueVisible: false, priceFormat }));
-      s.setData(input.ahl.map((p) => ({ time: ts(p.time), value: p.value })));
     }
 
     if (input.material && input.material.length > 0 && !comparing) {

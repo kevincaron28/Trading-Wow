@@ -1,6 +1,5 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { median, mergeDay, SRC } from "../collector/merge-history";
-import { dailyRows, pricetableIds } from "../collector/backfill-ahledger";
 import { earlyCandles } from "../src/data/series";
 import { parseEarly } from "../src/data/live";
 import { LAUNCH_DAY, rawIndex, withEarly, type IndexFile } from "../collector/indexes";
@@ -40,19 +39,6 @@ describe("early candles", () => {
   });
 });
 
-describe("AHledger backfill parsing", () => {
-  it("keeps one row per day from launch, skipping empty days", () => {
-    expect(dailyRows([
-      { t: "2026-11-03T00:00:00.000Z", min: 1, median: 1 },
-      { t: "2026-11-05T00:00:00.000Z", min: 10, median: 35, quantity: 5874 },
-      { t: "2026-11-06T00:00:00.000Z", min: null, median: null },
-    ])).toEqual([[Date.UTC(2026, 10, 5) / 864e5, 35, 10, 5874]]);
-  });
-  it("reads item ids from a price table", () => {
-    expect(pricetableIds("AHL1|forever/pvp/horde/us|1793000000|2\n2589:20:18\n12784:1500000:1\n")).toEqual([2589, 12784]);
-  });
-});
-
 describe("indexes from launch", () => {
   const H0 = (LAUNCH_DAY + 14) * 24 + 2; // 18 Nov 02:00
   const hourly: IndexFile = { id: "x", periods: [{ start: H0 * 3600, level: 100, basket: [[1, 0.5, 10], [2, 0.5, 20]] }], hourly: [[H0, 100], [H0 + 1, 110]] };
@@ -75,46 +61,5 @@ describe("indexes from launch", () => {
   });
   it("leaves a house without early prices on its own base", () => {
     expect(withEarly(hourly, new Map())).toBe(hourly);
-  });
-});
-
-describe("AHledger keys", () => {
-  it("reads up to three keys in order and skips empty ones", async () => {
-    const { apiKeys, share } = await import("../collector/backfill-ahledger");
-    expect(apiKeys({ AHLEDGER_API_KEY: "a", AHLEDGER_API_KEY_2: " ", AHLEDGER_API_KEY_3: "c" })).toEqual(["a", "c"]);
-    expect(apiKeys({})).toEqual([]);
-    expect(share([1, 2, 3, 4, 5], 1, 2)).toEqual([2, 4]);
-  });
-});
-
-describe("AHledger pacing", () => {
-  it("spaces request starts by the gap even with two in flight", async () => {
-    const { pacer } = await import("../collector/backfill-ahledger");
-    vi.useFakeTimers();
-    const pace = pacer(215);
-    const t0 = Date.now();
-    const done: number[] = [];
-    for (let i = 0; i < 3; i++) void pace().then(() => done.push(Date.now() - t0));
-    await vi.advanceTimersByTimeAsync(1000);
-    vi.useRealTimers();
-    expect(done).toEqual([0, 215, 430]);
-  });
-  it("skips price-table rows without any price", async () => {
-    const { pricetableIds } = await import("../collector/backfill-ahledger");
-    expect(pricetableIds("AHL1|m|1|3\n2589:20:18:3420:22:21:18:25:3600\n999::::::::\n12:0:0:0:0:0:0:0:0\n")).toEqual([2589]);
-  });
-});
-
-describe("AHledger hourly pass", () => {
-  it("keeps one row per hour before our own collection, skipping hours without a price", async () => {
-    const { hourlyRows, OWN_FIRST_HOUR } = await import("../collector/backfill-ahledger");
-    const iso = (h: number) => new Date(h * 3_600_000).toISOString();
-    const rows = hourlyRows([
-      { t: iso(OWN_FIRST_HOUR - 3), min: 90, median: 100, quantity: 5 },
-      { t: iso(OWN_FIRST_HOUR - 2), min: null, median: null, quantity: 0 },
-      { t: iso(OWN_FIRST_HOUR - 1), min: 95.4, median: 104.6, quantity: 7 },
-      { t: iso(OWN_FIRST_HOUR), min: 99, median: 110, quantity: 8 },
-    ]);
-    expect(rows).toEqual([[OWN_FIRST_HOUR - 3, 100, 90, 5], [OWN_FIRST_HOUR - 1, 105, 95, 7]]);
   });
 });

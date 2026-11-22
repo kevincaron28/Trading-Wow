@@ -1,4 +1,15 @@
-# Goldline live data
+# Goblin Ledger live data
+
+> **Data sources and permission (22 Nov 2026, owner decision).** The owner has permission to use TradeSkillMaster and
+> AHledger price data as his own. Their series were already merged into Goblin Ledger's own public price history for the
+> time before our Blizzard API collection started (`early/`, `early-h/`: one series per item, realm and faction; see
+> "Early history" below), and the app presents that history as Goblin Ledger's. **Merge rule:** where days or hours
+> overlap, our Blizzard API data wins (the app and `collector/merge-history.ts` only use the earlier data before our
+> first own price). **Stopped:** from this date no collector or workflow fetches TSM, AHledger or ahprice.com; only the
+> Blizzard API feeds new data. The fetch/backfill scripts and workflows were removed, the sections below on those
+> services describe what was done before, and the already published early files stay as they are. Live TSM numbers
+> (region sale rate, average sale price, TSM price fallback, the TSM credit line) are gone from the app. The old raw
+> folders `tsm/`, `ext/`, `seed/`, `audit/` on the `data` branch are no longer updated or read by the app.
 
 ## Where the prices come from
 

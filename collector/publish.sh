@@ -17,24 +17,26 @@ else
   node "$ROOT/collector/collect.ts" "$DATA_DIR"
 fi
 
-# Market indexes and TradeSkillMaster series: extras that must never stop the price collection.
+# New data comes only from the Blizzard API: nothing here fetches TradeSkillMaster, AHledger or any other service.
+# The history before 18 Nov 2026 (early/, early-h/) is a finished, static part of Goblin Ledger's own series.
+
+# Market indexes: an extra that must never stop the price collection.
 node "$ROOT/collector/indexes.ts" "$DATA_DIR" || echo "indexes failed (prices still published)"
-node "$ROOT/collector/tsm.ts" "$DATA_DIR" || echo "tsm failed (prices still published)"
 
 cd "$DATA_DIR"
 cat > README.md <<'EOF'
-# Goldline price data
+# Goblin Ledger price data
 
-Published by the Goldline collector from Blizzard's WoW Forever auction house API, about once an hour.
+Published by the Goblin Ledger collector from Blizzard's WoW Forever auction house API, about once an hour.
 This branch is replaced on every update. File formats: docs/DATA.md on the main branch.
 EOF
 printf "state/
 " > .gitignore
 git add -A
 if git rev-parse -q --verify HEAD >/dev/null; then
-  git commit -q --amend -m "Goldline data $(date -u +%Y-%m-%dT%H:%MZ)"
+  git commit -q --amend -m "Goblin Ledger data $(date -u +%Y-%m-%dT%H:%MZ)"
 else
-  git commit -q -m "Goldline data $(date -u +%Y-%m-%dT%H:%MZ)"
+  git commit -q -m "Goblin Ledger data $(date -u +%Y-%m-%dT%H:%MZ)"
 fi
 git push -q -f origin HEAD:data
 echo "published $(date -u +%H:%M) UTC"

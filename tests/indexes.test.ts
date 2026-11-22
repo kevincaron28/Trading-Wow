@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import { BASE_END, INDEXES, capWeights, chooseBasket, priceAt, rebalanceTimes, updateIndex, valueAt, type Series } from "../collector/indexes";
-import { parseCsv, upsertDay } from "../collector/tsm";
 
 const H = 3_600;
 const series = (prices: [number, number][], sold: [number, number][] = []): Series => ({ price: new Map(prices), sold: new Map(sold) });
@@ -85,15 +84,5 @@ describe("index maths", () => {
     const gl = INDEXES.find((d) => d.id === "gl100")!;
     expect(gl.select({ itemClass: -1, subclass: 0 })).toBe(false);
     expect(gl.select({ itemClass: 7, subclass: 9 })).toBe(true);
-  });
-});
-
-describe("TSM public data", () => {
-  it("parses CSV with quoted names", () => {
-    const rows = parseCsv('itemId,name,marketValue\n878,"Spinneret, fist-sized",99\r\n1399,Magic Candle,155\n');
-    expect(rows).toEqual([{ itemId: "878", name: "Spinneret, fist-sized", marketValue: "99" }, { itemId: "1399", name: "Magic Candle", marketValue: "155" }]);
-  });
-  it("keeps one daily row per day", () => {
-    expect(upsertDay([[1, 10, 9], [2, 11, 10]], 2, 12, 11)).toEqual([[1, 10, 9], [2, 12, 11]]);
   });
 });
