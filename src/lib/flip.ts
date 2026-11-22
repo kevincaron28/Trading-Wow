@@ -3,7 +3,7 @@ import type { Quote } from "./quotes";
 /**
  * Flipper numbers for one item in one house (0.12). Only what the data supports: every value is null when its inputs
  * are unknown, never guessed.
- * - sold24h: our estimate of units sold in the last 24 hours.
+ * - sold24h: our estimate of units sold in the last 24 hours;
  * - sellThrough: share of the units on offer that sold in 24 hours: sold / (sold + listed now).
  * - daysSupply: listed units / units sold per day (7-day average when known).
  * - margin: buy at the lowest buyout, resell at the market price after the house cut (copper and percent).

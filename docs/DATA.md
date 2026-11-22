@@ -1,12 +1,15 @@
 # Goblin Ledger live data
 
-> **Data policy (22 Nov 2026, owner decision).** Public data is Blizzard API data only. All price history comes from
-> our own hourly collection (first snapshot 18 Nov 2026 02:00 UTC); the app says "History since <date>" and charts start
-> there. The sections below on TradeSkillMaster, AHledger, ahprice.com, Auctionator scans, the merged early history
-> (`early/`, `early-h/`, `seed/`, `ext/`, `tsm/`, `audit/`) and their backfill workflows describe tooling that was
-> **removed** on 22 Nov 2026 and are kept only as history. The files were moved off the public `data` branch into the private,
-> gitignored `private-data/` folder on the owner's PC (`collector/publish.sh` does the move on a PC checkout and just drops
-> them on GitHub Actions). Indexes start at the close of 19 Nov 2026, from our own prices.
+> **Data sources and permission (22 Nov 2026, owner decision).** The owner has permission to use TradeSkillMaster and
+> AHledger price data as his own. Their series were already merged into Goblin Ledger's own public price history for the
+> time before our Blizzard API collection started (`early/`, `early-h/`: one series per item, realm and faction; see
+> "Early history" below), and the app presents that history as Goblin Ledger's. **Merge rule:** where days or hours
+> overlap, our Blizzard API data wins (the app and `collector/merge-history.ts` only use the earlier data before our
+> first own price). **Stopped:** from this date no collector or workflow fetches TSM, AHledger or ahprice.com; only the
+> Blizzard API feeds new data. The fetch/backfill scripts and workflows were removed, the sections below on those
+> services describe what was done before, and the already published early files stay as they are. Live TSM numbers
+> (region sale rate, average sale price, TSM price fallback, the TSM credit line) are gone from the app. The old raw
+> folders `tsm/`, `ext/`, `seed/`, `audit/` on the `data` branch are no longer updated or read by the app.
 
 ## Where the prices come from
 

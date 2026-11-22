@@ -10,4 +10,3 @@ coverage/
 *.p12
 *.jks
 *.keystore
-private-data/

@@ -17,14 +17,8 @@ else
   node "$ROOT/collector/collect.ts" "$DATA_DIR"
 fi
 
-# Public data is Blizzard API data only. Folders that once held imported third-party history (TradeSkillMaster, AHledger,
-# ahprice.com, Auctionator scans, and the history merged from them) are taken off the branch; on a PC checkout they are
-# first moved into the private, gitignored folder private-data/ next to this script's repo (never deleted there).
-for d in tsm ext early early-h seed audit; do
-  if [ -d "$DATA_DIR/$d" ]; then
-    if [ -d "$ROOT/private-data" ] && [ ! -e "$ROOT/private-data/$d" ]; then mv "$DATA_DIR/$d" "$ROOT/private-data/$d"; else rm -rf "$DATA_DIR/$d"; fi
-  fi
-done
+# New data comes only from the Blizzard API: nothing here fetches TradeSkillMaster, AHledger or any other service.
+# The history before 18 Nov 2026 (early/, early-h/) is a finished, static part of Goblin Ledger's own series.
 
 # Market indexes: an extra that must never stop the price collection.
 node "$ROOT/collector/indexes.ts" "$DATA_DIR" || echo "indexes failed (prices still published)"

@@ -50,6 +50,7 @@ export function ChartScreen() {
   const meta = useMeta();
   const quotes = useQuotes(house);
   const history = useHistory(house, s.chartItem);
+  const daily = s.timeframe === "1d" || s.timeframe === "1w";
   const compareHistory = useHistory(house, s.compareItem);
   const item = catalog.data?.get(s.chartItem);
   const quote = quotes.data?.get(s.chartItem);
@@ -126,7 +127,9 @@ export function ChartScreen() {
   const name = item?.name[s.lang] ?? `#${s.chartItem}`;
   const firstPoint = history.data?.hourly[0]?.time;
   // Earliest price in the item's history, for "History since <date>" (unix seconds).
-  const earliest = earliestPoint([history.data?.daily[0]?.time, firstPoint]);
+  const earliest = earliestPoint([history.data?.early?.[0]?.time, history.data?.daily[0]?.time, firstPoint]);
+  const earlierThanLive = earliest != null && firstPoint != null && earliest < firstPoint - 86_400;
+  // Early history is stored per date (UTC); hourly prices are moments shown in the active time zone.
   const dateFmt = (t: number) => formatDate(t, s.lang, "UTC");
   const [sharing, setSharing] = useState(false);
   const onShare = () => {
@@ -199,6 +202,7 @@ export function ChartScreen() {
             </>
           ) : null}
           {s.compareItem && <span class="compare-tag">vs {catalog.data?.get(s.compareItem)?.name[s.lang]}</span>}
+          {!daily && earlierThanLive && <span class="seed-tag">{t(s.lang, "seedHint")}</span>}
           {material && material.length > 0 && !s.compareItem && <span class="material-tag">{t(s.lang, "materialLine")}</span>}
         </div>
         <div ref={holder} class={`chart ${placing ? "placing" : ""}`} role="img" aria-label={`${name}: ${candles.length} ${t(s.lang, "points")}`} />
@@ -224,6 +228,7 @@ export function ChartScreen() {
           {earliest != null ? (
             <span class="history-since small">
               <b>{t(s.lang, "historySince")} {dateFmt(earliest)}</b>
+              {firstPoint ? <span class="muted">{t(s.lang, "hourlySince")} {formatDate(firstPoint, s.lang)}</span> : null}
             </span>
           ) : null}
         </div>

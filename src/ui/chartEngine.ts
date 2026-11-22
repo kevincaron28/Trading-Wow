@@ -155,7 +155,7 @@ export class ChartEngine {
       return series;
     };
 
-    // Estimated stretches (only a daily price there) are a faded line, never candles: .
+    // Estimated stretches (only a daily price there) are a faded line, never candles: see series.ts earlyIntraday.
     const est = css("--muted") + "c0";
     const isEst = (i: number) => input.candles[i]?.estimated === true;
     this.dense = null;

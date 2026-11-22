@@ -49,7 +49,13 @@ export interface CatalogItem {
 export interface ItemHistory {
   hourly: PricePoint[];
   daily: Candle[];
+  /** Days before Goldline's own collection covered the item (one merged value per day; see collector/merge-history.ts). */
+  early?: EarlyPoint[];
+  /** Hourly prices before our own collection (time = hour start), when known. */
+  earlyHourly?: EarlyPoint[];
 }
+
+export interface EarlyPoint { time: number; market: number; min: number; quantity: number }
 
 const cache = new Map<string, Promise<unknown>>();
 /** Files change about hourly; refetch after this long. */
@@ -159,8 +165,23 @@ type DayRow = [number, number, number, number, number, number, number];
 export async function loadHistory(house: number, itemId: number): Promise<ItemHistory> {
   type ShardFile = { items: Record<string, { h: HourRow[]; d: DayRow[] }> };
   // v2 layout (256 small files per house); older data only has the v1 layout (32 files).
-  const shard = await getJson<ShardFile>(`h2/${house}/${itemId % SHARDS_V2}.json`).catch(() => getJson<ShardFile>(`history/${house}/${itemId % SHARDS}.json`));
-  return parseHistory(shard.items[itemId]);
+  const none = () => ({ items: {} as Record<string, number[][]> });
+  const [shard, early, earlyH] = await Promise.all([
+    getJson<ShardFile>(`h2/${house}/${itemId % SHARDS_V2}.json`).catch(() => getJson<ShardFile>(`history/${house}/${itemId % SHARDS}.json`)),
+    getJson<{ items: Record<string, number[][]> }>(`early/${house}/${itemId % SHARDS_V2}.json`).catch(none),
+    getJson<{ items: Record<string, number[][]> }>(`early-h/${house}/${itemId % SHARDS_V2}.json`).catch(none),
+  ]);
+  return { ...parseHistory(shard.items[itemId]), early: parseEarly(early.items[itemId]), earlyHourly: parseEarlyHourly(earlyH.items[itemId]) };
+}
+
+/** Early hourly rows [hour, market, min, quantity]. */
+export function parseEarlyHourly(rows: number[][] | undefined): EarlyPoint[] {
+  return (rows ?? []).filter((r) => r[1]! > 0).map((r) => ({ time: r[0]! * HOUR, market: r[1]!, min: r[2]! || r[1]!, quantity: r[3] ?? 0 }));
+}
+
+/** Early rows [day, market, min, quantity, sources]: the source mask is internal and dropped here. */
+export function parseEarly(rows: number[][] | undefined): EarlyPoint[] {
+  return (rows ?? []).filter((r) => r[1]! > 0).map((r) => ({ time: r[0]! * DAY, market: r[1]!, min: r[2]! || r[1]!, quantity: r[3] ?? 0 }));
 }
 
 export function parseHistory(raw: { h: HourRow[]; d: DayRow[] } | undefined): ItemHistory {
@@ -187,7 +208,7 @@ export function iconUrl(meta: Meta | null, icon: string): string {
 
 export interface IndexDefMeta { id: string; name: { en: string; fr: string }; about: { en: string; fr: string }; size: number; cap: number }
 export interface IndexPeriod { start: number; level: number; provisional?: boolean; basket: [number, number, number][] }
-export interface IndexSeries { id: string; periods: IndexPeriod[]; hourly: [number, number][] }
+export interface IndexSeries { id: string; periods: IndexPeriod[]; hourly: [number, number][]; link?: number; earlyUntil?: number }
 
 /** Goldline indexes: definitions (index/meta.json) and one house's series (index/<house>.json). */
 export function loadIndexMeta(): Promise<{ baseEnd: number; indexes: IndexDefMeta[] }> {
