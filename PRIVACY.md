@@ -1,13 +1,13 @@
-# Goldline privacy policy
+# Goblin Ledger privacy policy
 
-*Last updated: 18 November 2026* · [Version française plus bas](#politique-de-confidentialité-de-goldline)
+*Last updated: 18 November 2026* · [Version française plus bas](#politique-de-confidentialité-de-goblin-ledger)
 
-Goldline is a free app that shows World of Warcraft Forever auction house prices. It is made by Kevin Caron, an
+Goblin Ledger is a free app that shows World of Warcraft Forever auction house prices. It is made by Kevin Caron, an
 independent developer in Québec, Canada.
 
-## What Goldline collects
+## What Goblin Ledger collects
 
-**Nothing.** Goldline has no accounts, no sign-in, no analytics, no advertising and no tracking. The developer
+**Nothing.** Goblin Ledger has no accounts, no sign-in, no analytics, no advertising and no tracking. The developer
 receives no data about you or your device.
 
 ## What stays on your phone
@@ -19,13 +19,13 @@ storage. Uninstalling the app or clearing its data deletes them. They are never 
 
 To show prices, the app downloads public files over HTTPS:
 
-- price data from `raw.githubusercontent.com` (GitHub), published by Goldline's collector from Blizzard's public
+- price data from `raw.githubusercontent.com` (GitHub), published by Goblin Ledger's collector from Blizzard's public
   auction house data;
 - item icons from `render.worldofwarcraft.com` (Blizzard Entertainment).
 
 Like any website, these services receive your IP address and basic request information when the app downloads
 from them; their own privacy policies apply ([GitHub](https://docs.github.com/site-policy/privacy-policies/github-general-privacy-statement),
-[Blizzard](https://www.blizzard.com/legal/privacy)). Goldline sends them no personal information.
+[Blizzard](https://www.blizzard.com/legal/privacy)). Goblin Ledger sends them no personal information.
 
 ## Notifications
 
@@ -34,28 +34,28 @@ nothing is sent to a server.
 
 ## Children
 
-Goldline is not directed at children under 13 and collects no information from anyone.
+Goblin Ledger is not directed at children under 13 and collects no information from anyone.
 
 ## Changes and contact
 
 Changes to this policy are published at this address. Questions: open an issue at
 <https://github.com/kevincaron28/Trading-Wow/issues>.
 
-Goldline is an independent fan project, not affiliated with or endorsed by Blizzard Entertainment.
+Goblin Ledger is an independent fan project, not affiliated with or endorsed by Blizzard Entertainment.
 World of Warcraft is a trademark of Blizzard Entertainment, Inc.
 
 ---
 
-# Politique de confidentialité de Goldline
+# Politique de confidentialité de Goblin Ledger
 
 *Dernière mise à jour : 18 novembre 2026*
 
-Goldline est une application gratuite qui affiche les prix de l'hôtel des ventes de World of Warcraft Forever.
+Goblin Ledger est une application gratuite qui affiche les prix de l'hôtel des ventes de World of Warcraft Forever.
 Elle est conçue par Kevin Caron, développeur indépendant au Québec (Canada).
 
-## Ce que Goldline recueille
+## Ce que Goblin Ledger recueille
 
-**Rien.** Goldline n'a ni compte, ni connexion, ni statistiques d'utilisation, ni publicité, ni pistage. Le
+**Rien.** Goblin Ledger n'a ni compte, ni connexion, ni statistiques d'utilisation, ni publicité, ni pistage. Le
 développeur ne reçoit aucune donnée sur vous ou votre appareil.
 
 ## Ce qui reste sur votre téléphone
@@ -68,12 +68,12 @@ sont jamais envoyés ailleurs.
 
 Pour afficher les prix, l'application télécharge des fichiers publics en HTTPS :
 
-- les données de prix depuis `raw.githubusercontent.com` (GitHub), publiées par le collecteur de Goldline à partir
+- les données de prix depuis `raw.githubusercontent.com` (GitHub), publiées par le collecteur de Goblin Ledger à partir
   des données publiques de l'hôtel des ventes de Blizzard;
 - les icônes d'objets depuis `render.worldofwarcraft.com` (Blizzard Entertainment).
 
 Comme pour tout site Web, ces services reçoivent votre adresse IP et des informations de base sur la requête;
-leurs propres politiques de confidentialité s'appliquent. Goldline ne leur envoie aucun renseignement personnel.
+leurs propres politiques de confidentialité s'appliquent. Goblin Ledger ne leur envoie aucun renseignement personnel.
 
 ## Notifications
 
@@ -82,12 +82,12 @@ sont vérifiées sur votre téléphone; rien n'est envoyé à un serveur.
 
 ## Enfants
 
-Goldline ne s'adresse pas aux enfants de moins de 13 ans et ne recueille aucune information.
+Goblin Ledger ne s'adresse pas aux enfants de moins de 13 ans et ne recueille aucune information.
 
 ## Modifications et contact
 
 Les modifications de cette politique sont publiées à cette adresse. Questions : ouvrez un ticket sur
 <https://github.com/kevincaron28/Trading-Wow/issues>.
 
-Goldline est un projet de fan indépendant, sans affiliation avec Blizzard Entertainment.
+Goblin Ledger est un projet de fan indépendant, sans affiliation avec Blizzard Entertainment.
 World of Warcraft est une marque de commerce de Blizzard Entertainment, Inc.

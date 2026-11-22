@@ -3,6 +3,7 @@ import { useEffect, useState } from "preact/hooks";
 import { iconUrl, type CatalogItem, type Meta } from "../data/live";
 import { onBack } from "../app/back";
 import { t, type Lang } from "../lib/i18n";
+import { getState } from "../app/store";
 import { splitCopper, COIN_SUFFIX } from "../lib/money";
 
 /** Simple original line icons (24px grid). */
@@ -103,7 +104,7 @@ export function Sheet({ title, onClose, children }: { title: string; onClose: ()
       <div class="sheet" role="dialog" aria-modal="true" aria-label={title}>
         <div class="sheet-head">
           <h2>{title}</h2>
-          <button type="button" class="icon-btn" onClick={onClose} aria-label="Close">
+          <button type="button" class="icon-btn" onClick={onClose} aria-label={t(getState().lang, "close")}>
             <Icon name="close" />
           </button>
         </div>

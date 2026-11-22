@@ -1,4 +1,4 @@
-# Goldline
+# Goblin Ledger
 
 Live auction house price charts for **World of Warcraft Forever**, as a phone app (Android APK) and a web app,
 in English and French.
@@ -18,7 +18,7 @@ in English and French.
   background (Capacitor Background Runner, `public/runners/alerts.js`), with a phone notification.
 - Realm and faction picker (PvP and three other realm groups × Alliance / Horde / Blackwater), dark and light themes.
 
-Goldline is an independent fan project, not affiliated with Blizzard Entertainment. Charts use the open-source
+Goblin Ledger is an independent fan project, not affiliated with Blizzard Entertainment. Charts use the open-source
 [Lightweight Charts](https://github.com/tradingview/lightweight-charts) library (Apache 2.0); its small
 attribution logo on the chart is required by that licence and stays.
 
@@ -29,7 +29,7 @@ published as JSON on the `data` branch, which the app reads. Details, verified r
 [docs/DATA.md](docs/DATA.md). The app contains no secret.
 
 To run the collection on GitHub instead of a PC, add two repository secrets (Settings → Secrets and variables →
-Actions): `BNET_CLIENT_ID` and `BNET_CLIENT_SECRET` from the "Goldline Forever" client at
+Actions): `BNET_CLIENT_ID` and `BNET_CLIENT_SECRET` from the "Goldline Forever" Battle.net client (kept under its old name) at
 <https://develop.battle.net/access/clients>. `.github/workflows/collect.yml` then runs every hour (scheduled
 workflows run from `main`, so after this branch is merged).
 
