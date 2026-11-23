@@ -42,3 +42,9 @@ else
 fi
 git push -q -f origin HEAD:data
 echo "published $(date -u +%H:%M) UTC"
+
+# Cloudflare R2 copy (what the app reads first, docs/R2_DATA.md): only when R2 is configured, and never a reason to
+# fail the run (the GitHub copy above is published either way).
+if [ -n "${R2_ACCOUNT_ID:-}" ] || grep -qs '^R2_ACCOUNT_ID=.' "$ROOT/.env"; then
+  node --env-file-if-exists="$ROOT/.env" "$ROOT/collector/r2-publish.ts" "$DATA_DIR" || echo "R2 publish failed (GitHub copy published)"
+fi

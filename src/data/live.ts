@@ -1,5 +1,6 @@
 /**
- * Reads the price files the collector publishes on the repo's `data` branch (docs/DATA.md).
+ * Reads the price files the collector publishes (docs/DATA.md): first from Cloudflare R2 (docs/R2_DATA.md), else from
+ * the repo's `data` branch on GitHub, which stays a copy until R2 is confirmed.
  * No credentials: the files are public and served with Access-Control-Allow-Origin: *.
  */
 import type { Candle, PricePoint } from "../lib/candles";
@@ -7,7 +8,14 @@ import { toQuote, type LatestRow, type Quote } from "../lib/quotes";
 import type { Lang } from "../lib/i18n";
 import type { WeeklyRecap } from "../lib/weekly";
 
+/** The `data` branch on GitHub: the fallback (and a copy of everything). */
 export const DATA_BASE = (import.meta.env.VITE_DATA_BASE as string | undefined) ?? "https://raw.githubusercontent.com/kevincaron28/Trading-Wow/data/";
+/** Cloudflare R2 behind a custom domain (collector/r2-publish.ts). Tried first; an empty VITE_DATA_R2 turns it off. */
+export const R2_BASE = (import.meta.env.VITE_DATA_R2 as string | undefined) ?? "https://data.kcaron.top/";
+/** R2 is used only while its meta.json is at most this old: a stalled R2 copy never hides newer prices on GitHub. */
+const R2_MAX_STALE_S = 3 * 3_600;
+/** R2 keeps histories in 64 files per house (h64/) instead of 256 (h2/); 64 divides 256, so shard s is in s % 64. */
+const R2_SHARDS = 64;
 const SHARDS = 32;
 const SHARDS_V2 = 256;
 const HOUR = 3_600;
@@ -101,13 +109,46 @@ function readOffline(path: string): string | null {
   }
 }
 
+/** Where a data branch path lives on R2, or null when R2 does not hold it (the old history/ layout). */
+export function r2Path(path: string): string | null {
+  const h2 = /^h2\/(\d+)\/(\d+)\.json$/.exec(path);
+  if (h2) return `h64/${h2[1]}/${Number(h2[2]) % R2_SHARDS}.json`;
+  return path.startsWith("history/") ? null : path;
+}
+
+let r2Usable: Promise<boolean> | null = null;
+/** Decided once per refresh (clearCache): R2 answers and its prices are recent. */
+function useR2(): Promise<boolean> {
+  if (!R2_BASE) return Promise.resolve(false);
+  r2Usable ??= fetch(`${R2_BASE}meta.json?t=${Math.floor(Date.now() / 60_000)}`, { signal: AbortSignal.timeout(8_000) })
+    .then(async (res) => res.ok && ((await res.json()) as { updated?: number }).updated! > Date.now() / 1000 - R2_MAX_STALE_S)
+    .catch(() => false);
+  return r2Usable;
+}
+
+/** One file's text: from R2 when it is usable, else (or when that file fails there) from GitHub. */
+export async function fetchText(path: string, fresh = false): Promise<string> {
+  // Shared time buckets keep the CDN cache useful: a minute for fresh checks, 10 minutes otherwise.
+  const t = fresh ? Math.floor(Date.now() / 60_000) : Math.floor(Date.now() / MAX_AGE_MS);
+  const onR2 = r2Path(path);
+  if (onR2 && (await useR2())) {
+    try {
+      const res = await fetch(`${R2_BASE}${onR2}?t=${t}`);
+      if (res.ok) return await res.text();
+    } catch {
+      // Fall through to GitHub.
+    }
+  }
+  const res = await fetch(`${DATA_BASE}${path}?t=${t}`);
+  if (!res.ok) throw new Error(`${path}: HTTP ${res.status}`);
+  return res.text();
+}
+
 async function getJson<T>(path: string, fresh = false): Promise<T> {
   const age = Date.now() - (fetchedAt.get(path) ?? 0);
   if (!fresh && cache.has(path) && age < MAX_AGE_MS) return cache.get(path) as Promise<T>;
-  const promise = fetch(`${DATA_BASE}${path}?t=${fresh ? Date.now() : Math.floor(Date.now() / MAX_AGE_MS)}`)
-    .then(async (res) => {
-      if (!res.ok) throw new Error(`${path}: HTTP ${res.status}`);
-      const text = await res.text();
+  const promise = fetchText(path, fresh)
+    .then(async (text) => {
       saveOffline(path, text);
       setOffline(false);
       return JSON.parse(text) as T;
@@ -127,6 +168,7 @@ async function getJson<T>(path: string, fresh = false): Promise<T> {
 export function clearCache(): void {
   cache.clear();
   fetchedAt.clear();
+  r2Usable = null;
 }
 
 export async function loadMeta(fresh = false): Promise<Meta> {

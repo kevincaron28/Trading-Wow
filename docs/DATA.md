@@ -78,6 +78,9 @@ Both start from the latest published data, so they can overlap safely.
 
 ## Files on the `data` branch
 
+The app reads these from Cloudflare R2 first (`https://data.kcaron.top/`, same paths except item histories in
+`h64/{house}/{itemId % 64}.json`, compacted early hours, gzip): [R2_DATA.md](R2_DATA.md). The branch is the fallback.
+
 | File | Content |
 | --- | --- |
 | `meta.json` | `{ updated, iconBase, houses: [{ id, realm, faction, snapshot, lastModified, items }] }` |

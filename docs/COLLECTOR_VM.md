@@ -16,7 +16,7 @@ squeezed. A run takes about one minute.
 | `deploy/collector/run.sh` | One run: updates the collector code from `main`, then `collector/publish.sh` (collect, indexes, weekly recap, push the `data` branch) |
 | `deploy/collector/goblin-collector.service` | The run, as user `goblin`, with the memory and priority limits |
 | `deploy/collector/goblin-collector.timer` | :30 every hour (Blizzard refreshes around :25) and :45 as a retry; a stored snapshot is skipped |
-| `/etc/goblin-ledger/collector.env` (server only) | `BNET_CLIENT_ID`, `BNET_CLIENT_SECRET`, `GITHUB_TOKEN`; mode 0640 root:goblin, never committed |
+| `/etc/goblin-ledger/collector.env` (server only) | `BNET_CLIENT_ID`, `BNET_CLIENT_SECRET`, `GITHUB_TOKEN`, and the four `R2_*` values once R2 is set up ([R2_DATA.md](R2_DATA.md)); mode 0640 root:goblin, never committed |
 
 ## Install (once, after this PR is merged)
 
