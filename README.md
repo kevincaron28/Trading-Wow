@@ -1,7 +1,7 @@
 # Goblin Ledger
 
-Live auction house price charts for **World of Warcraft Forever**, as a phone app (Android APK) and a web app,
-in English and French.
+Live auction house price charts for **World of Warcraft Forever**, as a phone app (Android APK) and a web preview of it,
+in English and French. The Android app is the product; the website is a preview and companion, with no separate features.
 
 - **Watchlists**: nine prebuilt lists (Flipping, Alchemy & Herbalism, Mining & Blacksmithing, Tailoring,
   Leatherworking & Skinning, Enchanting, Engineering, Cooking & Fishing, Raid consumables) plus your own. Price,
