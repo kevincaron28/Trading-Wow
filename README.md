@@ -29,7 +29,8 @@ published as JSON on the `data` branch, which the app reads. New data comes only
 series (permission and merge rule in docs/DATA.md); where they overlap, our Blizzard data wins. Details, verified routes and file formats:
 [docs/DATA.md](docs/DATA.md). The app contains no secret.
 
-To run the collection on GitHub instead of a PC, add two repository secrets (Settings → Secrets and variables →
+The hourly collection runs on an Oracle VM from a systemd timer: [docs/COLLECTOR_VM.md](docs/COLLECTOR_VM.md) (install,
+checks, troubleshooting). GitHub Actions is the manual fallback: to run the collection on GitHub, add two repository secrets (Settings → Secrets and variables →
 Actions): `BNET_CLIENT_ID` and `BNET_CLIENT_SECRET` from the "Goldline Forever" Battle.net client (kept under its old name) at
 <https://develop.battle.net/access/clients>. `.github/workflows/collect.yml` then runs every hour (scheduled
 workflows run from `main`, so after this branch is merged).

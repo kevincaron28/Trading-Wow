@@ -1,5 +1,10 @@
 name: Collect prices
 
+# Fallback collector. The hourly collection runs on an Oracle VM (systemd timer, deploy/collector/, docs/COLLECTOR_VM.md).
+# Once that timer runs, set the repository variable COLLECTOR_ON_VM to "true" (Settings > Secrets and variables >
+# Actions > Variables): the schedule and the relay below then stop, and this workflow only runs when started by hand
+# (Actions > Collect prices > Run workflow), for example while the VM is down.
+#
 # Hourly: fetch every WoW Forever auction house from Blizzard and publish the price files to the `data` branch.
 # Needs two repository secrets: BNET_CLIENT_ID and BNET_CLIENT_SECRET (the "Goldline Forever" Battle.net client).
 # Without them the job only prints a notice.
@@ -26,6 +31,8 @@ concurrency:
 
 jobs:
   collect:
+    # Scheduled and relayed runs stop once the VM collects; a run started by hand always runs.
+    if: github.event_name == 'workflow_dispatch' || vars.COLLECTOR_ON_VM != 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 75
     env:
@@ -72,7 +79,7 @@ jobs:
             if [ "$i" -lt 4 ]; then sleep 900; fi
           done
       - name: Relay (start the next run)
-        if: always() && steps.check.outputs.ok == 'true'
+        if: always() && steps.check.outputs.ok == 'true' && vars.COLLECTOR_ON_VM != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |

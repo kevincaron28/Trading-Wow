@@ -1,0 +1,34 @@
+# Goblin Ledger price collector: one run (collect, indexes, weekly recap, publish). Started by goblin-collector.timer.
+# Installed by deploy/collector/install.sh; runbook: docs/COLLECTOR_VM.md.
+[Unit]
+Description=Goblin Ledger price collector
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=goblin
+Group=goblin
+WorkingDirectory=/opt/goblin-ledger
+EnvironmentFile=/etc/goblin-ledger/collector.env
+Environment=PATH=/opt/node/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+Environment=HOME=/opt/goblin-ledger
+Environment=NODE_OPTIONS=--max-old-space-size=512
+ExecStart=/bin/bash /opt/goblin-ledger/app/deploy/collector/run.sh
+TimeoutStartSec=40min
+
+# This VM also runs Guilded's PostgreSQL. The collector peaks around 400 MB while it rebuilds a house: keep it in
+# its own memory budget (it may use swap, never the database's memory), let the kernel pick it first if memory
+# runs out, and give it the lowest CPU and disk priority.
+MemoryHigh=450M
+MemoryMax=650M
+OOMScoreAdjust=800
+Nice=15
+CPUWeight=20
+IOSchedulingClass=idle
+
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/opt/goblin-ledger
