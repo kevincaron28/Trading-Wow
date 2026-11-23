@@ -5,6 +5,7 @@
 import type { Candle, PricePoint } from "../lib/candles";
 import { toQuote, type LatestRow, type Quote } from "../lib/quotes";
 import type { Lang } from "../lib/i18n";
+import type { WeeklyRecap } from "../lib/weekly";
 
 export const DATA_BASE = (import.meta.env.VITE_DATA_BASE as string | undefined) ?? "https://raw.githubusercontent.com/kevincaron28/Trading-Wow/data/";
 const SHARDS = 32;
@@ -64,7 +65,7 @@ const fetchedAt = new Map<string, number>();
 
 /** Files kept on the device so the app still shows the last prices offline. */
 const OFFLINE_PREFIX = "goldline:file:";
-const offlineWorthy = (path: string) => path === "meta.json" || path === "items.json" || path.startsWith("latest/") || path.startsWith("h2/") || path.startsWith("early/") || path.startsWith("early-h/");
+const offlineWorthy = (path: string) => path === "meta.json" || path === "items.json" || path.startsWith("latest/") || path.startsWith("h2/") || path.startsWith("early/") || path.startsWith("early-h/") || path.startsWith("weekly/");
 let offline = false;
 const offlineListeners = new Set<(offline: boolean) => void>();
 export function isOffline(): boolean {
@@ -209,6 +210,11 @@ export function iconUrl(meta: Meta | null, icon: string): string {
 export interface IndexDefMeta { id: string; name: { en: string; fr: string }; about: { en: string; fr: string }; size: number; cap: number }
 export interface IndexPeriod { start: number; level: number; provisional?: boolean; basket: [number, number, number][] }
 export interface IndexSeries { id: string; periods: IndexPeriod[]; hourly: [number, number][]; link?: number; earlyUntil?: number }
+
+/** Weekly recap of one house (weekly/<house>.json, collector/weekly.ts); null before the collector first writes it. */
+export async function loadWeekly(house: number): Promise<WeeklyRecap | null> {
+  return getJson<WeeklyRecap>(`weekly/${house}.json`).catch(() => null);
+}
 
 /** Goldline indexes: definitions (index/meta.json) and one house's series (index/<house>.json). */
 export function loadIndexMeta(): Promise<{ baseEnd: number; indexes: IndexDefMeta[] }> {
