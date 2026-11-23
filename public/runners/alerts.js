@@ -4,7 +4,24 @@
  * only fetch, CapacitorKV and CapacitorNotifications exist here. The app sends its alerts with "syncAlerts"
  * and collects the ones that fired with "popFired". Reads only public price files; sends nothing anywhere.
  */
-var BASE = "https://raw.githubusercontent.com/kevincaron28/Trading-Wow/data/";
+// Cloudflare R2 first (docs/R2_DATA.md), then the GitHub copy.
+var BASES = ["https://data.kcaron.top/", "https://raw.githubusercontent.com/kevincaron28/Trading-Wow/data/"];
+
+async function latestItems(house) {
+  for (var b = 0; b < BASES.length; b++) {
+    try {
+      var res = await fetch(BASES[b] + "latest/" + house + ".json?t=" + Math.floor(Date.now() / 600000));
+      if (!res.ok) continue;
+      var file = await res.json();
+      // A stalled R2 copy (snapshot over 3 hours old) must not hide newer prices on GitHub.
+      if (b < BASES.length - 1 && (file.t || 0) < Date.now() / 1000 - 3 * 3600) continue;
+      return file.items || {};
+    } catch (e) {
+      // Next source.
+    }
+  }
+  return null;
+}
 
 function readJson(key, fallback) {
   try {
@@ -61,8 +78,8 @@ addEventListener("checkAlerts", async function (resolve, reject) {
     });
     var quotes = {};
     for (var i = 0; i < houses.length; i++) {
-      var res = await fetch(BASE + "latest/" + houses[i] + ".json?t=" + Math.floor(Date.now() / 600000));
-      if (res.ok) quotes[houses[i]] = (await res.json()).items || {};
+      var items = await latestItems(houses[i]);
+      if (items) quotes[houses[i]] = items;
     }
     var now = Math.floor(Date.now() / 1000);
     var fired = readJson("fired", []);
