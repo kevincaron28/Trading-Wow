@@ -3,8 +3,8 @@
  * right now. Every number comes from the collector's files (latest quotes, the Ledger 100 index, the recipes); when the
  * data is too thin for a section, the function returns null or an empty list and the screen says so. Nothing is guessed.
  */
-import { profitableCrafts, type CraftRow, type RecipeBook } from "./crafting";
-import { change24h, type Quote } from "./quotes";
+import { profitableCrafts, type CraftRow, type RecipeBook } from "./crafting.ts";
+import { change24h, type Quote } from "./quotes.ts";
 
 /** Item class of a catalog row (2 = weapon, 4 = armour; negative or missing = unknown). */
 export type ClassOf = (id: number) => number | null | undefined;

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "preact/hooks";
-import { loadCatalog, loadHistory, loadIndexes, loadIndexMeta, loadMeta, loadQuotes, type IndexDefMeta, type IndexSeries, type CatalogItem, type ItemHistory, type Meta } from "../data/live";
+import { loadCatalog, loadHistory, loadIndexes, loadIndexMeta, loadMeta, loadQuotes, loadWeekly, type IndexDefMeta, type IndexSeries, type CatalogItem, type ItemHistory, type Meta } from "../data/live";
 import type { Quote } from "../lib/quotes";
+import type { WeeklyRecap } from "../lib/weekly";
 import { parseRecipes, type RecipeBook, type RecipeRow } from "../lib/crafting";
 
 export interface Async<T> {
@@ -73,6 +74,11 @@ export function useIndexMeta(): Async<{ baseEnd: number; indexes: IndexDefMeta[]
 export function useIndexes(house: number): Async<Record<string, IndexSeries>> {
   const v = useRefreshVersion();
   return useAsync(() => loadIndexes(house), `indexes:${house}:${v}`);
+}
+
+export function useWeekly(house: number): Async<WeeklyRecap | null> {
+  const v = useRefreshVersion();
+  return useAsync(() => loadWeekly(house), `weekly:${house}:${v}`);
 }
 
 let recipesPromise: Promise<RecipeBook> | null = null;

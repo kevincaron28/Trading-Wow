@@ -1,4 +1,5 @@
-import { useMemo, useState } from "preact/hooks";
+import { useEffect, useMemo, useState } from "preact/hooks";
+import { onBack } from "../app/back";
 import type { ComponentChildren } from "preact";
 import { houseId, openChart, useStore } from "../app/store";
 import { clearCache, houseUpdated } from "../data/live";
@@ -6,7 +7,8 @@ import { t, type Lang } from "../lib/i18n";
 import { houseCut, type Quote } from "../lib/quotes";
 import { breadth, investments, movers, overviewClass, quickFlips, salesVolume, seriesChange, topCrafts, type ClassOf } from "../lib/overview";
 import { formatPoints } from "../lib/money";
-import { bumpRefresh, useCatalog, useIndexes, useMeta, useQuotes, useRecipes } from "./data";
+import { bumpRefresh, useCatalog, useIndexes, useMeta, useQuotes, useRecipes, useWeekly } from "./data";
+import { WeeklyCard, WeeklyFull } from "./WeeklyRecap";
 import { openExplore } from "./ExploreScreen";
 import { ErrorMsg, ItemIcon, Loading, Money, formatPct, relativeTime } from "./parts";
 import { PullToRefresh } from "./PullToRefresh";
@@ -62,6 +64,10 @@ export function OverviewScreen() {
   const indexes = useIndexes(house);
   const recipes = useRecipes();
   const [moveWindow, setMoveWindow] = useState<"1d" | "7d">("1d");
+  const weekly = useWeekly(house);
+  const [weekOpen, setWeekOpen] = useState(false);
+  useEffect(() => (weekOpen ? onBack(() => setWeekOpen(false)) : undefined), [weekOpen]);
+  useEffect(() => { document.querySelector(".content")?.scrollTo({ top: 0 }); }, [weekOpen]);
   const cut = houseCut(s.faction);
   const classOf: ClassOf = (id) => overviewClass(catalog.data?.get(id));
 
@@ -122,8 +128,13 @@ export function OverviewScreen() {
           <ErrorMsg text={t(s.lang, "loadError")} retry={bumpRefresh} retryLabel={t(s.lang, "retry")} />
         ) : !ready ? (
           <Loading text={t(s.lang, "loading")} />
+        ) : weekOpen ? (
+          <WeeklyFull recap={weekly.data ?? null} onClose={() => setWeekOpen(false)} />
         ) : (
           <div class="overview">
+            <Section title={t(s.lang, "thisWeek")} lang={s.lang}>
+              {weekly.loading && !weekly.data ? <span class="ov-empty muted small">{t(s.lang, "loading")}</span> : <WeeklyCard recap={weekly.data ?? null} onOpen={() => setWeekOpen(true)} />}
+            </Section>
             <Section title={t(s.lang, "marketRecap")} lang={s.lang}>
               <button type="button" class="ov-card ov-index" onClick={() => openExplore("indexes")}>
                 {index ? (

@@ -360,3 +360,15 @@ body.fresh-data .row-price, body.fresh-data .symbol-price .money { animation: fr
 .ov-toggle { padding: 0 16px 4px; }
 .ov-sub { margin: 10px 16px 2px; font-size: 13px; font-weight: 600; color: var(--muted); }
 .ov-empty { margin: 4px 16px 10px; color: var(--muted); font-size: 13px; }
+
+/* Weekly recap (This week on the Market tab, and the full recap) */
+.ov-week { display: flex; flex-direction: column; gap: 6px; }
+.ov-week.static { margin-top: 4px; }
+.ov-week-range { font-size: 13px; font-weight: 600; color: var(--accent); }
+.ov-week-line { line-height: 1.4; }
+.ov-week .link-btn { align-self: flex-start; padding-top: 2px; }
+.weekly { padding-bottom: 8px; }
+.weekly .index-head { padding: 12px 16px 4px; }
+.weekly .index-head h2 { margin: 0; font-size: 18px; }
+.weekly .index-head .muted { margin: 2px 0 0; }
+.weekly .row-main.no-icon { cursor: default; }
