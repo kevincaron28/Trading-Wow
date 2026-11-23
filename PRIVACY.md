@@ -39,7 +39,7 @@ Goblin Ledger is not directed at children under 13 and collects no information f
 ## Changes and contact
 
 Changes to this policy are published at this address. Questions: open an issue at
-<https://github.com/kevincaron28/Trading-Wow/issues>. Support email: [PLACEHOLDER: the owner must add a support address here].
+<https://github.com/kevincaron28/Trading-Wow/issues>. Support email: <kevincaron28@gmail.com>.
 
 Goblin Ledger is an independent fan project, not affiliated with or endorsed by Blizzard Entertainment.
 World of Warcraft is a trademark of Blizzard Entertainment, Inc.
@@ -87,7 +87,7 @@ Goblin Ledger ne s'adresse pas aux enfants de moins de 13 ans et ne recueille au
 ## Modifications et contact
 
 Les modifications de cette politique sont publiées à cette adresse. Questions : ouvrez un ticket sur
-<https://github.com/kevincaron28/Trading-Wow/issues>. Courriel de soutien : [À COMPLÉTER : le propriétaire doit ajouter une adresse ici].
+<https://github.com/kevincaron28/Trading-Wow/issues>. Courriel de soutien : <kevincaron28@gmail.com>.
 
 Goblin Ledger est un projet de fan indépendant, sans affiliation avec Blizzard Entertainment.
 World of Warcraft est une marque de commerce de Blizzard Entertainment, Inc.
