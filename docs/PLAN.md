@@ -10,7 +10,7 @@ live feed". Done in 0.2.0:
   branch (docs/DATA.md). History starts 18 Nov 2026 02:00 UTC. Hosting decision changed from "Worker + D1" to
   "collector + static files on GitHub": Blizzard house files are 20–30 MB each, too heavy for a free Worker,
   and static files need no server.
-- **Mobile app** in the style of a trading-chart app (original look): bottom tabs (Watchlist, Chart, Explore,
+- **Mobile app** in the style of a trading-chart app (original look): bottom tabs (Market overview, Watchlist, Chart, Explore,
   Alerts, Menu), nine prebuilt watchlists plus custom ones, search with categories, full chart with five chart
   types, four timeframes, six indicators and comparison, explore (movers, most listed, deals, flip finder),
   price alerts with Android notifications, EN/FR, dark/light.

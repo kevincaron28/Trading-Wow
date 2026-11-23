@@ -6,7 +6,7 @@ import { readJson, writeJson } from "../lib/storage";
 import { DEVICE_TZ, setActiveZone } from "../lib/time";
 
 export type Faction = "alliance" | "horde" | "blackwater";
-export type Tab = "watchlist" | "chart" | "explore" | "alerts" | "menu";
+export type Tab = "overview" | "watchlist" | "chart" | "explore" | "alerts" | "menu";
 export type Timeframe = "1h" | "4h" | "1d" | "1w";
 export type ChartType = "candles" | "bars" | "line" | "area" | "heikin";
 export type IndicatorKey = "volume" | "sma20" | "ema50" | "bb" | "rsi" | "macd";
@@ -66,7 +66,7 @@ function initial(): State {
     realm: "pvp",
     faction: "horde",
     theme: "dark",
-    tab: "watchlist",
+    tab: "overview",
     chartItem: 13468,
     compareItem: null,
     timeframe: "1h",

@@ -16,12 +16,14 @@ import { AlertsScreen } from "./AlertsScreen";
 import { ChartScreen } from "./ChartScreen";
 import { ExploreScreen } from "./ExploreScreen";
 import { MenuScreen } from "./MenuScreen";
+import { OverviewScreen } from "./OverviewScreen";
 import { Icon } from "./parts";
 import { SearchScreen } from "./SearchScreen";
 import { WatchlistScreen } from "./WatchlistScreen";
 import { Onboarding } from "./Onboarding";
 
 const TABS: { id: Tab; icon: string; label: MessageKey }[] = [
+  { id: "overview", icon: "pulse", label: "tabOverview" },
   { id: "watchlist", icon: "list", label: "tabWatchlist" },
   { id: "chart", icon: "chart", label: "tabChart" },
   { id: "explore", icon: "explore", label: "tabExplore" },
@@ -81,14 +83,14 @@ export function App() {
   const [offline, setOfflineState] = useState(isOffline());
   useEffect(() => onOfflineChange(setOfflineState), []);
 
-  // Android back button: close the open search/sheet, else go back to the watchlist, else leave the app.
+  // Android back button: close the open search/sheet, else go back to the market overview, else leave the app.
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) return;
     let remove: (() => void) | undefined;
     void import("@capacitor/app").then(({ App: NativeApp }) =>
       NativeApp.addListener("backButton", () => {
         if (handleBack()) return;
-        if (getState().tab !== "watchlist") setState({ tab: "watchlist" });
+        if (getState().tab !== "overview") setState({ tab: "overview" });
         else void NativeApp.exitApp();
       }).then((h) => (remove = () => void h.remove())),
     );
@@ -188,6 +190,7 @@ export function App() {
       {offline && <p class="offline-bar" role="status">{t(s.lang, "offline")}</p>}
       <UpdateBanner />
       <main class="content">
+        {s.tab === "overview" && <OverviewScreen />}
         {s.tab === "watchlist" && <WatchlistScreen onSearch={() => setSearching(true)} />}
         {s.tab === "chart" && <ChartScreen />}
         {s.tab === "explore" && <ExploreScreen />}

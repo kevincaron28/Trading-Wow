@@ -8,6 +8,7 @@ import { splitCopper, COIN_SUFFIX } from "../lib/money";
 
 /** Simple original line icons (24px grid). */
 const PATHS: Record<string, string> = {
+  pulse: "M3 12h4l3-7 4 14 3-7h4",
   list: "M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01",
   chart: "M4 19V5M4 19h16M7 15l3-4 3 2 5-7",
   explore: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zm3.5 5.5-2 5-5 2 2-5z",

@@ -2,7 +2,7 @@ import { useMemo, useState } from "preact/hooks";
 import { arbitrage, deals, mostListed, topMovers } from "../lib/explore";
 import { t, type MessageKey } from "../lib/i18n";
 import { change24h, houseCut, type Quote } from "../lib/quotes";
-import { REALM_GROUPS, houseId, openChart, useStore, type Faction } from "../app/store";
+import { REALM_GROUPS, houseId, openChart, setState, useStore, type Faction } from "../app/store";
 import { clearCache } from "../data/live";
 import { PullToRefresh } from "./PullToRefresh";
 import { bumpRefresh, useCatalog, useMeta, useQuotes, useRecipes } from "./data";
@@ -18,10 +18,19 @@ const VIEWS: View[] = ["gainers", "losers", "topSellers", "mostListed", "deals",
 const CRAFT_PROFESSIONS = [171, 164, 185, 333, 202, 129, 165, 186, 197];
 /** Browse (every item by category) or Markets (movers, deals, flips); kept while the app runs. */
 let rememberedMode: "browse" | "markets" | "indexes" = "browse";
+let rememberedView: View = "gainers";
+
+/** Open Explore on one mode (and one Markets list), e.g. from the overview's "See all" links. */
+export function openExplore(mode: "browse" | "markets" | "indexes", view?: View): void {
+  rememberedMode = mode;
+  if (view) rememberedView = view;
+  setState({ tab: "explore" });
+}
 
 export function ExploreScreen() {
   const s = useStore();
-  const [view, setView] = useState<View>("gainers");
+  const [view, setViewState] = useState<View>(rememberedView);
+  const setView = (v: View) => { rememberedView = v; setViewState(v); };
   const [mode, setModeState] = useState(rememberedMode);
   const setMode = (m: "browse" | "markets" | "indexes") => { rememberedMode = m; setModeState(m); };
   const house = houseId(s);

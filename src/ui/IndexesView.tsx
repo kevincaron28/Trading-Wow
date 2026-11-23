@@ -45,7 +45,7 @@ function ChangeCell({ value, lang }: { value: number | null; lang: "en" | "fr" }
   return <span class={`pill ${value == null ? "" : value >= 0 ? "up" : "down"}`}>{formatPct(value, lang)}</span>;
 }
 
-function Sparkline({ values, up }: { values: number[]; up: boolean }) {
+export function Sparkline({ values, up }: { values: number[]; up: boolean }) {
   if (values.length < 2) return <svg class="spark" width="72" height="28" aria-hidden="true" />;
   const min = Math.min(...values);
   const max = Math.max(...values);
