@@ -1,11 +1,12 @@
 name: Android APK
 
 # Builds the Goblin Ledger Android app (Capacitor wrapper around the web build).
-# - Manual run (Actions tab > Android APK > Run workflow): APK attached to the run as an artifact.
-# - Pushing a tag v*: also publishes a GitHub release with goldline.apk, so
+# - Manual run (Actions tab > Android APK > Run workflow): APK and Play bundle attached to the run as artifacts.
+# - Pushing a tag v*: also publishes a GitHub release with goldline.apk and the Play bundle, so
 #   https://github.com/kevincaron28/Trading-Wow/releases/latest/download/goldline.apk always points at the newest one.
-# Signing: with the GOLDLINE_KEYSTORE_BASE64 and GOLDLINE_KEYSTORE_PASSWORD secrets set, a release-signed APK;
-# without them, a debug-signed APK (installs fine, but a later release-signed version needs an uninstall first).
+# Signing: with the GOLDLINE_KEYSTORE_BASE64 and GOLDLINE_KEYSTORE_PASSWORD secrets set, a release-signed APK and the
+# Play bundle (goblin-ledger-<version>.aab, signed with the upload key; Play App Signing re-signs it for users);
+# without them, a debug-signed APK only (installs fine, but a later release-signed version needs an uninstall first).
 
 on:
   workflow_dispatch:
@@ -52,6 +53,25 @@ jobs:
           cd android && ./gradlew --no-daemon assembleSideloadRelease
           cp app/build/outputs/apk/sideload/release/app-sideload-release.apk "$GITHUB_WORKSPACE/goldline.apk"
 
+      # The Google Play bundle (the "play" flavour: Play's in-app updates, no APK installs), same version code as the APK.
+      # It used to be built by hand on the owner's PC (docs/PLAY_STORE.md); upload it in Play Console as before.
+      - name: Build Play bundle (signed with the upload key)
+        if: env.HAS_KEY == 'true'
+        env:
+          GOLDLINE_KEYSTORE_PASSWORD: ${{ secrets.GOLDLINE_KEYSTORE_PASSWORD }}
+        run: |
+          export GOLDLINE_KEYSTORE="$RUNNER_TEMP/goldline.p12"
+          cd android && ./gradlew --no-daemon bundlePlayRelease
+          cp app/build/outputs/bundle/playRelease/app-play-release.aab "$GITHUB_WORKSPACE/goblin-ledger-${GOLDLINE_VERSION_NAME}.aab"
+          # The certificate the bundle is signed with (public): its SHA-256 must match Play Console > App integrity >
+          # Upload key certificate, or Play refuses the upload.
+          keytool -printcert -jarfile "$GITHUB_WORKSPACE/goblin-ledger-${GOLDLINE_VERSION_NAME}.aab" | grep -E "Owner|SHA256:" | tee -a "$GITHUB_STEP_SUMMARY"
+          echo "Play bundle: goblin-ledger-${GOLDLINE_VERSION_NAME}.aab, version code ${GOLDLINE_VERSION_CODE}" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Remove the key file
+        if: always()
+        run: rm -f "$RUNNER_TEMP/goldline.p12"
+
       - name: Build debug-signed APK (no release key configured)
         if: env.HAS_KEY != 'true'
         run: |
@@ -87,12 +107,19 @@ jobs:
           name: goldline-apk
           path: goldline*.apk
 
+      - uses: actions/upload-artifact@v4
+        if: env.HAS_KEY == 'true'
+        with:
+          name: goblin-ledger-play-bundle
+          path: goblin-ledger-*.aab
+          if-no-files-found: error
+
       - name: Publish release
         # Without the release key, releases are published from a locally signed build instead (README > Android app).
         if: startsWith(github.ref, 'refs/tags/v') && env.HAS_KEY == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "$GITHUB_REF_NAME" goldline.apk "goldline-${GOLDLINE_VERSION_NAME}.apk" web-bundle.zip update.json \
+          gh release create "$GITHUB_REF_NAME" goldline.apk "goldline-${GOLDLINE_VERSION_NAME}.apk" "goblin-ledger-${GOLDLINE_VERSION_NAME}.aab" web-bundle.zip update.json \
             --title "Goblin Ledger ${GOLDLINE_VERSION_NAME} for Android" \
-            --notes "Goblin Ledger for Android: live WoW Forever auction house prices, refreshed about every hour. On your phone, open the download link, allow installs from your browser when asked, then open goldline.apk."
+            --notes "Goblin Ledger for Android: live WoW Forever auction house prices, refreshed about every hour. On your phone, open the download link, allow installs from your browser when asked, then open goldline.apk. The .aab file is the Google Play bundle (for Play Console, not for phones)."
