@@ -1,3 +1,4 @@
+import { Capacitor } from "@capacitor/core";
 import { LANGS, t } from "../lib/i18n";
 import { REALM_GROUPS, setState, useStore } from "../app/store";
 import { clearCache, houseUpdated } from "../data/live";
@@ -86,6 +87,7 @@ export function MenuScreen() {
       <div class="menu-section">
         <p class="sheet-label">{t(s.lang, "about")}</p>
         <p class="small">{t(s.lang, "aboutText")}</p>
+        {!Capacitor.isNativePlatform() && <p class="small muted">{t(s.lang, "webPreview")}</p>}
         <p class="small muted">{t(s.lang, "chartsBy")} <a href="https://www.tradingview.com/" target="_blank" rel="noopener">tradingview.com</a></p>
       </div>
     </section>
