@@ -2,6 +2,8 @@ name: Collector watchdog
 
 # GitHub sometimes skips scheduled runs for hours. When the published prices are more than 75 minutes old, start a
 # collector run (it skips snapshots it already stored). No secrets: it only starts the "Collect prices" workflow.
+# With the repository variable COLLECTOR_ON_VM = "true" (the VM timer collects, docs/COLLECTOR_VM.md), it starts
+# nothing and only fails when prices are more than 2 hours old, so GitHub emails a warning: check the VM then.
 
 on:
   schedule:
@@ -25,6 +27,13 @@ jobs:
           updated=$(curl -fsS "https://raw.githubusercontent.com/$REPO/data/meta.json" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>console.log(JSON.parse(s).updated||0))' || echo 0)
           age=$(( $(date -u +%s) - updated ))
           echo "prices published ${age}s ago"
+          if [ "${{ vars.COLLECTOR_ON_VM }}" = "true" ]; then
+            if [ "$age" -gt 7200 ]; then
+              echo "::error::Prices are ${age}s old: the collector on the Oracle VM has not published for over 2 hours (docs/COLLECTOR_VM.md, Troubleshooting)."
+              exit 1
+            fi
+            exit 0
+          fi
           if [ "$age" -gt 4500 ]; then
             running=$(gh run list -R "$REPO" -w collect.yml --status in_progress --json databaseId -q 'length' || echo 0)
             queued=$(gh run list -R "$REPO" -w collect.yml --status queued --json databaseId -q 'length' || echo 0)

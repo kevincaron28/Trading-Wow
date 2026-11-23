@@ -1,0 +1,13 @@
+# Hourly Goblin Ledger collection. Blizzard refreshes the auction houses about :25; :45 is the retry (an already
+# stored snapshot is skipped). Persistent: a run missed while the VM was down starts at boot.
+[Unit]
+Description=Goblin Ledger price collector, hourly
+
+[Timer]
+OnCalendar=*-*-* *:30:00
+OnCalendar=*-*-* *:45:00
+RandomizedDelaySec=60
+Persistent=true
+
+[Install]
+WantedBy=timers.target
