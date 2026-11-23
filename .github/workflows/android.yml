@@ -1,6 +1,6 @@
 name: Android APK
 
-# Builds the Goldline Android app (Capacitor wrapper around the web build).
+# Builds the Goblin Ledger Android app (Capacitor wrapper around the web build).
 # - Manual run (Actions tab > Android APK > Run workflow): APK attached to the run as an artifact.
 # - Pushing a tag v*: also publishes a GitHub release with goldline.apk, so
 #   https://github.com/kevincaron28/Trading-Wow/releases/latest/download/goldline.apk always points at the newest one.
@@ -94,5 +94,5 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release create "$GITHUB_REF_NAME" goldline.apk "goldline-${GOLDLINE_VERSION_NAME}.apk" web-bundle.zip update.json \
-            --title "Goldline ${GOLDLINE_VERSION_NAME} for Android" \
-            --notes "Goldline for Android: live WoW Forever auction house prices, refreshed about every hour. On your phone, open the download link, allow installs from your browser when asked, then open goldline.apk."
+            --title "Goblin Ledger ${GOLDLINE_VERSION_NAME} for Android" \
+            --notes "Goblin Ledger for Android: live WoW Forever auction house prices, refreshed about every hour. On your phone, open the download link, allow installs from your browser when asked, then open goldline.apk."
