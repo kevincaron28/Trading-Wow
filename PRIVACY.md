@@ -1,6 +1,6 @@
 # Goblin Ledger privacy policy
 
-*Last updated: 18 November 2026* · [Version française plus bas](#politique-de-confidentialité-de-goblin-ledger)
+*Last updated: 23 November 2026* · [Version française plus bas](#politique-de-confidentialité-de-goblin-ledger)
 
 Goblin Ledger is a free app that shows World of Warcraft Forever auction house prices. It is made by Kevin Caron, an
 independent developer in Québec, Canada.
@@ -21,7 +21,9 @@ To show prices, the app downloads public files over HTTPS:
 
 - price data from `raw.githubusercontent.com` (GitHub), published by Goblin Ledger's collector from Blizzard's public
   auction house data;
-- item icons from `render.worldofwarcraft.com` (Blizzard Entertainment).
+- item icons from `render.worldofwarcraft.com` (Blizzard Entertainment);
+- app update information from `github.com` (GitHub releases): a small file saying whether a newer version exists and, when
+  there is one, the new app code (a web bundle or the app file itself), checked on launch and every few hours.
 
 Like any website, these services receive your IP address and basic request information when the app downloads
 from them; their own privacy policies apply ([GitHub](https://docs.github.com/site-policy/privacy-policies/github-general-privacy-statement),
@@ -70,7 +72,10 @@ Pour afficher les prix, l'application télécharge des fichiers publics en HTTPS
 
 - les données de prix depuis `raw.githubusercontent.com` (GitHub), publiées par le collecteur de Goblin Ledger à partir
   des données publiques de l'hôtel des ventes de Blizzard;
-- les icônes d'objets depuis `render.worldofwarcraft.com` (Blizzard Entertainment).
+- les icônes d'objets depuis `render.worldofwarcraft.com` (Blizzard Entertainment);
+- les informations de mise à jour depuis `github.com` (versions GitHub) : un petit fichier indiquant si une version plus récente
+  existe et, le cas échéant, le nouveau code de l'application (un paquet web ou le fichier de l'application), vérifié au
+  lancement et toutes les quelques heures.
 
 Comme pour tout site Web, ces services reçoivent votre adresse IP et des informations de base sur la requête;
 leurs propres politiques de confidentialité s'appliquent. Goblin Ledger ne leur envoie aucun renseignement personnel.

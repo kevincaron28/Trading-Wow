@@ -1,4 +1,4 @@
-# Goldline on Google Play
+# Goblin Ledger on Google Play
 
 Prepared 18 November 2026. Package `top.kcaron.goldline`, developer account "KCaron".
 
@@ -23,7 +23,7 @@ cd android && JAVA_HOME="D:/GuildedAndroidLab/jdk/jdk-21.0.13+9" ANDROID_HOME="D
 
 ## Store listing
 
-**App name:** Goldline
+**App name:** Goblin Ledger
 
 **Short description (EN, ≤80):** Live auction house price charts, watchlists and alerts for WoW Forever players.
 
@@ -31,7 +31,7 @@ cd android && JAVA_HOME="D:/GuildedAndroidLab/jdk/jdk-21.0.13+9" ANDROID_HOME="D
 
 **Full description (EN):**
 
-Goldline turns the World of Warcraft Forever auction house into live price charts.
+Goblin Ledger turns the World of Warcraft Forever auction house into live price charts.
 
 • Live prices for every Forever auction house (Alliance, Horde and neutral Blackwater), updated every hour from Blizzard's official auction data
 • Nine ready-made watchlists: flipping, alchemy and herbs, mining and smithing, tailoring, leather, enchanting, engineering, cooking and fishing, raid consumables, plus your own lists
@@ -45,11 +45,11 @@ Goldline turns the World of Warcraft Forever auction house into live price chart
 
 No account, no ads, no tracking: your lists and alerts stay on your phone.
 
-Goldline is an independent fan project and is not affiliated with or endorsed by Blizzard Entertainment. World of Warcraft is a trademark of Blizzard Entertainment, Inc.
+Goblin Ledger is an independent fan project and is not affiliated with or endorsed by Blizzard Entertainment. World of Warcraft is a trademark of Blizzard Entertainment, Inc.
 
 **Full description (FR-CA):**
 
-Goldline transforme l'hôtel des ventes de World of Warcraft Forever en graphiques de prix en direct.
+Goblin Ledger transforme l'hôtel des ventes de World of Warcraft Forever en graphiques de prix en direct.
 
 • Prix en direct pour tous les hôtels des ventes de Forever (Alliance, Horde et Bourbe-Noire neutre), mis à jour chaque heure à partir des données officielles de Blizzard
 • Neuf listes de suivi prêtes à l'emploi : revente, alchimie et herbes, minage et forge, couture, cuir, enchantement, ingénierie, cuisine et pêche, consommables de raid, plus vos propres listes
@@ -63,7 +63,7 @@ Goldline transforme l'hôtel des ventes de World of Warcraft Forever en graphiqu
 
 Aucun compte, aucune publicité, aucun pistage : vos listes et alertes restent sur votre téléphone.
 
-Goldline est un projet de fan indépendant, sans affiliation avec Blizzard Entertainment. World of Warcraft est une marque de commerce de Blizzard Entertainment, Inc.
+Goblin Ledger est un projet de fan indépendant, sans affiliation avec Blizzard Entertainment. World of Warcraft est une marque de commerce de Blizzard Entertainment, Inc.
 
 **Category:** Tools. **Tags:** finance-free. **Contact:** the developer account's email; website <https://kcaron.top>.
 
