@@ -1,4 +1,4 @@
-# Goldline on Google Play
+# Goblin Ledger on Google Play
 
 Prepared 18 November 2026. Package `top.kcaron.goldline`, developer account "KCaron".
 
@@ -63,7 +63,7 @@ Goblin Ledger transforme l'hôtel des ventes de World of Warcraft Forever en gra
 
 Aucun compte, aucune publicité, aucun pistage : vos listes et alertes restent sur votre téléphone.
 
-Goldline est un projet de fan indépendant, sans affiliation avec Blizzard Entertainment. World of Warcraft est une marque de commerce de Blizzard Entertainment, Inc.
+Goblin Ledger est un projet de fan indépendant, sans affiliation avec Blizzard Entertainment. World of Warcraft est une marque de commerce de Blizzard Entertainment, Inc.
 
 **Category:** Tools. **Tags:** finance-free. **Contact:** the developer account's email; website <https://kcaron.top>.
 
