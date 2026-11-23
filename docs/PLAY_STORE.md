@@ -12,7 +12,14 @@ Prepared 18 November 2026. Package `top.kcaron.goldline`, developer account "KCa
 | Feature graphic 1024×500 (no text) | `C:\Users\Kev\Desktop\wow-trading-play\feature-1024x500.png` |
 | Phone screenshots 810×1440 | `C:\Users\Kev\Desktop\wow-trading-play\phone-1-watchlist.png` … `phone-4-search.png` |
 
-Build the bundle again on this PC (JDK and SDK from `D:\GuildedAndroidLab`):
+**Since 1.0.1 the bundle is built by CI.** Pushing a `v*` tag runs `.github/workflows/android.yml`, which builds
+`goblin-ledger-<version>.aab` (flavour `play`, version code major*10000 + minor*100 + patch, signed with the upload key
+from the `GOLDLINE_KEYSTORE_BASE64` / `GOLDLINE_KEYSTORE_PASSWORD` secrets) and attaches it to the GitHub release next to
+the APK. Download it from the release (or from the run's "goblin-ledger-play-bundle" artifact after a manual run) and
+upload it in Play Console. The run summary prints the signing certificate's SHA-256: it must match Play Console >
+App integrity > Upload key certificate. Backing up the upload key: [KEY_BACKUP.md](KEY_BACKUP.md).
+
+Fallback, building by hand on this PC (JDK and SDK from `D:\GuildedAndroidLab`):
 
 ```bash
 npm run build && npx cap sync android
