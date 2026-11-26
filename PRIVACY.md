@@ -2,7 +2,7 @@
 
 *Last updated: 26 November 2026* · [Version française plus bas](#politique-de-confidentialité-de-goblin-ledger)
 
-Goblin Ledger is a free app that shows World of Warcraft Forever auction house prices. It is made by Kevin Caron, an
+Goblin Ledger (listed on Google Play as "Goblin Ledger: WoW Forever AH") is a free app that shows World of Warcraft Forever auction house prices. It is made by Kevin Caron, an
 independent developer in Québec, Canada.
 
 ## What Goblin Ledger collects
@@ -56,7 +56,7 @@ World of Warcraft is a trademark of Blizzard Entertainment, Inc.
 
 *Dernière mise à jour : 26 novembre 2026*
 
-Goblin Ledger est une application gratuite qui affiche les prix de l'hôtel des ventes de World of Warcraft Forever.
+Goblin Ledger (sur Google Play : « Goblin Ledger: WoW Forever AH ») est une application gratuite qui affiche les prix de l'hôtel des ventes de World of Warcraft Forever.
 Elle est conçue par Kevin Caron, développeur indépendant au Québec (Canada).
 
 ## Ce que Goblin Ledger recueille

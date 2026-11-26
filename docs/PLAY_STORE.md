@@ -30,7 +30,9 @@ cd android && JAVA_HOME="D:/GuildedAndroidLab/jdk/jdk-21.0.13+9" ANDROID_HOME="D
 
 ## Store listing
 
-**App name:** Goblin Ledger
+**App name (Play title, ≤30, English and French):** Goblin Ledger: WoW Forever AH
+
+The app, the website and the text below use the brand name, Goblin Ledger. The package stays `top.kcaron.goldline`.
 
 **Short description (EN, ≤80):** US WoW Forever auction prices: charts, watchlists, flips, crafts and alerts.
 
@@ -114,7 +116,7 @@ The Play-installed app is signed by Google (Play App Signing), so the GitHub APK
   in-app update prompt (`@capawesome/capacitor-app-update`).
 - **sideload:** the GitHub / kcaron.top APK (`assembleSideloadRelease`, built by the tag workflow). Only this build
   declares REQUEST_INSTALL_PACKAGES (`src/sideload/AndroidManifest.xml`). It downloads a newer APK from the release
-  and opens Android's installer; Android asks once to allow installs from Goldline.
+  and opens Android's installer; Android asks once to allow installs from Goblin Ledger.
 
 Both get JS/CSS updates over the air, which Play allows for WebView code:
 - each tag release publishes `web-bundle.zip` and `update.json` (version, version code, minNativeBuild, SHA-256);
