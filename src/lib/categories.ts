@@ -1,7 +1,7 @@
 import type { CatalogItem } from "../data/live";
 import type { Lang } from "./i18n";
 import type { Quote } from "./quotes";
-import { normalize } from "./text.ts";
+import { nameMatches, normalize } from "./text.ts";
 
 /**
  * Auction house categories, built from Blizzard's item class and subclass (Classic numbering, as WoW Forever uses).
@@ -181,7 +181,7 @@ export function browseItems(
       const [c, s] = categoryOf(item);
       if (c !== opts.cat || (opts.sub && s !== opts.sub)) continue;
     }
-    if (q && !(idQuery === item.id || normalize(item.name[opts.lang]).includes(q) || normalize(item.name[opts.lang === "en" ? "fr" : "en"]).includes(q))) continue;
+    if (q && !(idQuery === item.id || nameMatches(normalize(item.name[opts.lang]), q) || nameMatches(normalize(item.name[opts.lang === "en" ? "fr" : "en"]), q))) continue;
     const quote = quotes?.get(item.id);
     if (opts.onSale && !quote) continue;
     rows.push({ item, quote });
