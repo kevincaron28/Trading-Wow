@@ -37,8 +37,8 @@ describe("background alert runner", () => {
     expect(r.notifications[0]!.body).toBe("Black Lotus fell below 11g (10g 53s)");
     await r.fire("checkAlerts");
     expect(r.notifications).toHaveLength(1);
-    expect(await r.fire("popFired")).toEqual({ fired: ["a1"] });
-    expect(await r.fire("popFired")).toEqual({ fired: [] });
+    expect(await r.fire("popFired")).toEqual({ fired: ["a1"], deals: {} });
+    expect(await r.fire("popFired")).toEqual({ fired: [], deals: {} });
   });
 
   it("uses the lowest buyout for min alerts, French text, and ignores missing houses", async () => {
@@ -46,6 +46,23 @@ describe("background alert runner", () => {
     await r.fire("syncAlerts", { alerts: [alert({ field: "min", price: 100_000 }), alert({ id: "x", house: 999 })], lang: "fr", names: {} });
     await r.fire("checkAlerts");
     expect(r.notifications.map((n) => n.body)).toEqual(["#13468 descend sous 10po (10po)"]);
+  });
+
+  it("reports a watched list's deals once, even with no price alert, and hands them to the app", async () => {
+    // [min, market, listed, auctions, prev24h, avg7d, sold24h, prev1h, soldAvg7d]
+    const r = loadRunner({ "113": { items: { "13468": [60_000, 95_000, 40, 8, 0, 100_000, 3, 0, 4] } } });
+    const deals = [{ id: "w1", listId: "mine", listName: "Herbs", house: 113, pct: 30, reported: {}, createdAt: 0, items: [13468] }];
+    await r.fire("syncAlerts", { alerts: [], deals, lang: "en", names: { 13468: "Black Lotus" } });
+    await r.fire("checkAlerts");
+    await r.fire("checkAlerts");
+    expect(r.notifications.map((n) => n.body)).toEqual(["Herbs: Black Lotus 6g (-40%)"]);
+    // A sync made before the app collects the report keeps the item reported.
+    await r.fire("syncAlerts", { alerts: [], deals: [{ ...deals[0], reported: {} }], lang: "en", names: {} });
+    await r.fire("checkAlerts");
+    expect(r.notifications).toHaveLength(1);
+    const popped = (await r.fire("popFired")) as { deals: Record<string, Record<string, number>> };
+    expect(Object.keys(popped.deals.w1!)).toEqual(["13468"]);
+    expect(await r.fire("popFired")).toEqual({ fired: [], deals: {} });
   });
 
   it("does nothing without active alerts", async () => {

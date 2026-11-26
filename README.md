@@ -14,8 +14,9 @@ in English and French. The Android app is the product; the website is a preview 
   item in the Alliance, Horde and Blackwater (neutral) houses after the house cut.
 - **Explore**: gainers, losers, most listed, below-average deals and a flip finder between your faction house
   and the neutral house.
-- **Alerts**: price above/below, checked while the app is open and on Android about every 30 minutes in the
-  background (Capacitor Background Runner, `public/runners/alerts.js`), with a phone notification.
+- **Alerts**: price above/below, and deal alerts on a whole watchlist (lowest buyout 20, 30 or 50% under the 7-day
+  average). Checked while the app is open and on Android about every 30 minutes in the background (Capacitor
+  Background Runner, `public/runners/alerts.js`), with a phone notification; browser notifications on the website.
 - Realm and faction picker (PvP and three other realm groups × Alliance / Horde / Blackwater), dark and light themes.
 
 Goblin Ledger is an independent fan project, not affiliated with Blizzard Entertainment. Charts use the open-source

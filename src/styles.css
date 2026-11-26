@@ -372,3 +372,13 @@ body.fresh-data .row-price, body.fresh-data .symbol-price .money { animation: fr
 .weekly .index-head h2 { margin: 0; font-size: 18px; }
 .weekly .index-head .muted { margin: 2px 0 0; }
 .weekly .row-main.no-icon { cursor: default; }
+
+/* Deal alerts (Alerts tab). */
+.deals { border-top: 1px solid var(--border); margin-top: 8px; }
+.deals-form { padding: 8px 16px 4px; }
+.deals-form .field { margin-top: 4px; }
+.deals-form .field select { width: 100%; padding: 10px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface-2); color: var(--text); font: inherit; }
+.deals-form .sheet-label { margin-top: 12px; }
+.deals-form .btn { margin-top: 12px; }
+.deal-watch .row-main { grid-template-columns: 1fr; }
+.deal-hits { padding-left: 16px; }

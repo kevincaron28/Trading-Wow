@@ -3,6 +3,7 @@ import type { Candle } from "../lib/candles";
 import { candlesFor } from "../data/series";
 import { t, type Lang } from "../lib/i18n";
 import { newAlertId } from "../lib/alerts";
+import { requestWebNotifications } from "../app/notify";
 import { MAX_LINES, RANGES, addLine, alertOpFor, earliestPoint, removeLine, type ChartRange } from "../lib/ranges";
 import { formatMoneyAxis } from "../lib/money";
 import "./chart-tools.css";
@@ -312,7 +313,7 @@ export function ChartScreen() {
                     <button type="button" disabled={quote?.[s.priceField] == null} onClick={() => {
                       const cur = quote?.[s.priceField];
                       if (cur == null) return;
-                      setState((st) => ({ alerts: [...st.alerts, { id: newAlertId(), itemId: st.chartItem, house: houseId(st), field: st.priceField, op: alertOpFor(price, cur), price, active: true, createdAt: Math.floor(Date.now() / 1000) }] }));
+                      requestWebNotifications(); setState((st) => ({ alerts: [...st.alerts, { id: newAlertId(), itemId: st.chartItem, house: houseId(st), field: st.priceField, op: alertOpFor(price, cur), price, active: true, createdAt: Math.floor(Date.now() / 1000) }] }));
                       setLineMsg(`${lt.alertMade}: ${formatMoneyAxis(price, s.lang)}`);
                     }}>{lt.alertHere}</button>
                     <button type="button" onClick={() => setState((st) => ({ drawings: { ...st.drawings, [itemKey]: removeLine(st.drawings[itemKey] ?? [], price) } }))}>{lt.del}</button>
@@ -383,7 +384,7 @@ function AlertSheet({ itemId, name, current, onClose }: { itemId: number; name: 
       </label>
       {current != null && <p class="muted small">{t(s.lang, "market")}: <Money copper={current} lang={s.lang} /></p>}
       <button type="button" class="btn wide" disabled={!(price > 0)} onClick={() => {
-        setState((st) => ({ alerts: [...st.alerts, { id: newAlertId(), itemId, house: houseId(st), field: st.priceField, op, price, active: true, createdAt: Math.floor(Date.now() / 1000) }] }));
+        requestWebNotifications(); setState((st) => ({ alerts: [...st.alerts, { id: newAlertId(), itemId, house: houseId(st), field: st.priceField, op, price, active: true, createdAt: Math.floor(Date.now() / 1000) }] }));
         onClose();
       }}>{t(s.lang, "alertCreate")}</button>
       <p class="muted small">{t(s.lang, "alertNote")}</p>

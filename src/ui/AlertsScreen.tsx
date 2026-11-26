@@ -1,9 +1,10 @@
 import { t } from "../lib/i18n";
+import { DealAlerts } from "./DealAlerts";
 import { REALM_GROUPS, openChart, setState, useStore } from "../app/store";
 import { useCatalog, useMeta } from "./data";
 import { Icon, ItemIcon, Money, EmptyState } from "./parts";
 
-function houseLabel(house: number, lang: "en" | "fr"): string {
+export function houseLabel(house: number, lang: "en" | "fr"): string {
   for (const g of REALM_GROUPS) {
     for (const [faction, id] of Object.entries(g.houses)) {
       if (id === house) return `${g.label[lang]} · ${t(lang, faction === "blackwater" ? "blackwaterShort" : (faction as "alliance" | "horde"))}`;
@@ -51,6 +52,7 @@ export function AlertsScreen() {
           })}
         </ul>
       )}
+      <DealAlerts />
       <p class="hint">{t(s.lang, "alertNote")}</p>
     </section>
   );
