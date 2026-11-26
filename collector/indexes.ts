@@ -120,8 +120,11 @@ export function lastRebalance(t: number): number | null {
   return all.length ? all.at(-1)! : null;
 }
 
-/** One rebalance as published: what came in, what went out, and how many stayed. */
-export interface BasketChange { at: number; kind: "launch" | "monthly" | "quarterly"; added: [id: number, weight: number][]; removed: [id: number, weight: number][]; kept: number; level: number }
+/**
+ * One rebalance as published: what came in, what went out, and how many stayed. A launch review keeps the kind
+ * "monthly" (the recaps read this field) and is marked with `launch`.
+ */
+export interface BasketChange { at: number; kind: "monthly" | "quarterly"; launch?: true; added: [id: number, weight: number][]; removed: [id: number, weight: number][]; kept: number; level: number }
 
 /** The history of basket changes, oldest first (early, provisional and source-splice periods left out). */
 export function basketChanges(periods: readonly Period[]): BasketChange[] {
@@ -130,9 +133,11 @@ export function basketChanges(periods: readonly Period[]): BasketChange[] {
   for (let i = 1; i < real.length; i++) {
     const prev = new Map(real[i - 1]!.basket.map(([id, w]) => [id, w]));
     const next = new Map(real[i]!.basket.map(([id, w]) => [id, w]));
+    const kind = real[i]!.kind ?? (isQuarterly(real[i]!.start) ? "quarterly" : "monthly");
     out.push({
       at: real[i]!.start,
-      kind: real[i]!.kind ?? (isQuarterly(real[i]!.start) ? "quarterly" : "monthly"),
+      kind: kind === "launch" ? "monthly" : kind,
+      ...(kind === "launch" ? { launch: true as const } : {}),
       added: [...next].filter(([id]) => !prev.has(id)),
       removed: [...prev].filter(([id]) => !next.has(id)),
       kept: [...next.keys()].filter((id) => prev.has(id)).length,

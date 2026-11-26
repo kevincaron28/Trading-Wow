@@ -127,7 +127,7 @@ function ChangeHistory({ changes, lang, name }: { changes: BasketChange[] | unde
     <div>
       {[...changes].reverse().map((c) => (
         <div key={c.at} class="rebalance-change small">
-          <b>{formatDate(c.at, lang)}</b> · {t(lang, c.kind === "quarterly" ? "quarterlyReview" : c.kind === "launch" ? "launchReview" : "monthlyRebalance")} · {c.kept} {t(lang, "kept")}
+          <b>{formatDate(c.at, lang)}</b> · {t(lang, c.launch ? "launchReview" : c.kind === "quarterly" ? "quarterlyReview" : "monthlyRebalance")} · {c.kept} {t(lang, "kept")}
           {c.added.length > 0 && <div><span class="up-text">{t(lang, "added")}:</span> {c.added.map(([id, w]) => `${name(id)} (${(w * 100).toFixed(1)}%)`).join(", ")}</div>}
           {c.removed.length > 0 && <div><span class="down-text">{t(lang, "removed")}:</span> {c.removed.map(([id]) => name(id)).join(", ")}</div>}
         </div>

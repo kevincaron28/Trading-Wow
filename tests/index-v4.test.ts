@@ -123,7 +123,8 @@ describe("method 4 series", () => {
   it("starts at 100 on launch and reviews on 10, 17 and 24 Nov, then the first Tuesday of December", () => {
     expect(full.periods[0]).toMatchObject({ start: day(5) * D, level: 100 });
     expect(full.hourly[0]).toEqual([day(5) * 24 + 23, 100]);
-    expect(basketChanges(full.periods).map((c) => [c.at, c.kind])).toEqual([...LAUNCH_REVIEWS.map((t) => [t, "launch"]), [Date.UTC(2026, 11, 1, 15) / 1000, "monthly"]]);
+    // Launch reviews keep the kind the recaps know ("monthly") and carry their own flag.
+    expect(basketChanges(full.periods).map((c) => [c.at, c.kind, c.launch])).toEqual([...LAUNCH_REVIEWS.map((t) => [t, "monthly", true]), [Date.UTC(2026, 11, 1, 15) / 1000, "monthly", undefined]]);
     expect(full.earlyUntil).toBe(FIRST_HOUR);
     expect(full.method).toBe(4);
   });

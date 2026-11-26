@@ -55,8 +55,8 @@ field of each index in `index/<house>.json` says which one it uses. The series a
   full of joke prices: on PvP Horde, Benedict's Key was listed at 50 g on 5 Nov and 1 s on 8 Nov, and a basket chosen
   from day one alone gave such items the 10% cap. Every later basket uses only data from before its review.
 - **History.** Every past basket stays in `index/<house>.json` (`periods`) and is never edited; `changes` lists what each
-  review added and removed. A review is applied once a snapshot at or after its time exists, so a late collector run
-  gives the same result.
+  review added and removed (a launch review there has `kind` "monthly", which the recaps read, plus `launch: true`).
+  A review is applied once a snapshot at or after its time exists, so a late collector run gives the same result.
 - **Restatement.** Published values are not recomputed once the hourly rows behind them are dropped (14 days). A change
   of method applies going forward and is dated here; the backfill to method 4 is the one restatement, with the old series
   kept.

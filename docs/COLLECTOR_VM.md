@@ -104,6 +104,8 @@ Expected: `wrote 13 files to .../index; 13 old files kept in index/legacy/`, the
 
 - **Undo:** stop the timer, copy `index/legacy/*.json` over `index/` in the data checkout, commit, push the `data`
   branch and run `collector/r2-publish.ts`; then start the timer. The next run continues method 3 from those files.
+- **Recaps already written** (`recap/<house>/`) keep the index values of the day they were made: `recaps.ts` writes only
+  missing periods. Later recaps and the weekly summary read the new series.
 - **Preview without publishing** (any machine with a copy of the `data` branch):
   `node collector/backfill-indexes.ts <data> --out <preview folder>`.
 - If the VM is down and GitHub Actions is collecting, the marker cannot be placed there: run the backfill on the VM once

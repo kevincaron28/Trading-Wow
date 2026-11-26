@@ -252,8 +252,8 @@ export function iconUrl(meta: Meta | null, icon: string): string {
 export interface IndexDefMeta { id: string; name: { en: string; fr: string }; about: { en: string; fr: string }; size: number; cap: number }
 /** index/meta.json: definitions and the rebalance calendar (next, last; since 26 Nov 2026). */
 export interface IndexMeta { baseEnd: number; indexes: IndexDefMeta[]; next?: number; nextQuarterly?: boolean; last?: number | null }
-/** One rebalance: items added and removed with their weights (index/<house>.json `changes`). */
-export interface BasketChange { at: number; kind: "launch" | "monthly" | "quarterly"; added: [number, number][]; removed: [number, number][]; kept: number; level: number }
+/** One rebalance: items added and removed with their weights (index/<house>.json `changes`). `launch`: a weekly review of the launch weeks. */
+export interface BasketChange { at: number; kind: "monthly" | "quarterly"; launch?: boolean; added: [number, number][]; removed: [number, number][]; kept: number; level: number }
 export interface IndexPeriod { start: number; level: number; provisional?: boolean; basket: [number, number, number][] }
 export interface IndexSeries { id: string; periods: IndexPeriod[]; hourly: [number, number][]; link?: number; earlyUntil?: number; method?: number; changes?: BasketChange[] }
 
