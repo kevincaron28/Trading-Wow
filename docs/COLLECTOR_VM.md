@@ -131,7 +131,46 @@ and make a new one. It is never printed in the logs, and the collector only send
 posts, remove the line from `collector.env`, or delete the webhook.
 
 To preview a post without sending it, run `node collector/discord-recap.ts <dataDir> --dry-run` on a copy of the
-data. It writes the message and the chart to `<dataDir>/state/`.
+data. It writes the message, the cards and the summary to `<dataDir>/state/`.
+
+## Recap summaries (AI)
+
+Each recap posted to Discord opens with a 3 to 5 sentence market-close summary: in the embed, and as the "Market
+wire" panel on card 1. The code is in `collector/recap-ai.ts`.
+
+- **Without settings** (the default), the summary is the template one, built from the numbers by the same rules as
+  the app's notes.
+- **With an AI model**, the model sees only the recap's facts (as JSON) and the reviewed notes in
+  `docs/WOW_FOREVER_CONTEXT.md`. It runs at temperature 0.2 and is told to use nothing else.
+- **Accuracy guard.** Before anything is posted, the code checks the text:
+  - every amount of gold, percentage and number must be in the data;
+  - a percentage next to an item or index must be that one's own figure;
+  - "rose" and "fell" must match the sign of the move;
+  - every item named must be one the recap lists;
+  - the text must be 2 to 6 sentences, with no links or markup.
+
+  A text that fails is asked for once more. If that also fails, or if the model is down, slow (30 s timeout) or out
+  of quota, the template summary is posted instead. An unchecked text is never posted.
+- **The log** says which path was used: `summary from ai`, `ai-retry` or `template`, with the reasons.
+- **Free tier.** Each recap makes one request, two at most when the guard rejects the first text. A 429 or 5xx is
+  retried once after a pause. Posting one house uses about 1 to 3 requests a day, which fits the free tier of
+  Google's Gemini API.
+
+Settings in `/etc/goblin-ledger/collector.env` (all three, or none):
+
+```
+RECAP_AI_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai
+RECAP_AI_MODEL=gemini-flash-latest
+RECAP_AI_API_KEY=<the Google AI Studio key>
+```
+
+`gemini-flash-latest` is Google's alias for its newest Flash model. To pin a model, put its ID instead: the free
+models are listed in Google AI Studio under the key's project, under Rate limits. Guilded's old setting
+`gemini-2.0-flash` may be retired by now: check it in AI Studio before using it. When the model ID is wrong, the log
+shows `model answered HTTP 404` and the template is posted.
+
+Keep `docs/WOW_FOREVER_CONTEXT.md` current: it says when the facts were last checked and how to update them. The
+model may only use what it lists.
 
 ## Troubleshooting
 

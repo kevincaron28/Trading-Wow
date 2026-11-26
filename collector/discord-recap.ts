@@ -22,6 +22,7 @@ import { pctText, recapSummary, type RecapFile, type RecapKind, type RecapList }
 import type { Lang } from "../src/lib/i18n.ts";
 import { lineChartPng } from "./png-chart.ts";
 import { renderCards, type CardChange } from "./recap-card.ts";
+import { aiConfigFromEnv, summarize } from "./recap-ai.ts";
 
 const HOUR = 3_600;
 export const BRAND = "Goblin Ledger";
@@ -88,7 +89,7 @@ export function periodLabel(r: Pick<RecapFile, "kind" | "start" | "end">, lang: 
  * (card-1.png, card-2.png...: the first embed carries the title, the notes and card 1, then one embed per card), or
  * the plain chart.png when the cards cannot be drawn, with the text fields instead.
  */
-export function buildMessage(r: RecapFile, lang: Lang, names: Names, images: readonly string[], now: number = Date.now() / 1000): Record<string, unknown> {
+export function buildMessage(r: RecapFile, lang: Lang, names: Names, images: readonly string[], now: number = Date.now() / 1000, summary?: { text: string; source: string }): Record<string, unknown> {
   const cards = images.length > 0 && images[0] !== "chart.png";
   const T = TEXT[lang];
   const num = (n: number) => n.toLocaleString(lang === "fr" ? "fr-CA" : "en-US").replace(/ | /g, " ");
@@ -117,7 +118,8 @@ export function buildMessage(r: RecapFile, lang: Lang, names: Names, images: rea
   const embed: Record<string, unknown> = {
     author: { name: BRAND, icon_url: AVATAR_URL },
     title: trim(`${T[r.kind]} · ${periodLabel(r, lang)} · ${names.house}`, 256),
-    description: trim(notes.join("\n"), 4000),
+    // A checked AI summary first, then the notes; the template summary is the notes themselves.
+    description: trim(summary && summary.source !== "template" ? `${summary.text}\n\n${notes.map((l) => `• ${l}`).join("\n")}` : notes.join("\n"), 4000),
     color,
     fields: cards ? [] : fields,
     footer: { text: T.footer },
@@ -182,6 +184,7 @@ async function main(): Promise<void> {
   const statePath = join(dataDir, "state", "discord-posted.json");
   const posted: Record<string, string> = existsSync(statePath) ? (JSON.parse(readFileSync(statePath, "utf8")) as Record<string, string>) : {};
   const now = Date.now() / 1000;
+  const ai = aiConfigFromEnv();
   let failed = 0;
   for (const house of houses) {
     const listPath = join(dataDir, "recap", String(house), "list.json");
@@ -201,9 +204,13 @@ async function main(): Promise<void> {
       const indexes = existsSync(indexFile) ? (JSON.parse(readFileSync(indexFile, "utf8")) as { indexes: Record<string, IndexJson> }).indexes : {};
       const series = Object.fromEntries(Object.entries(indexes).map(([id, x]) => [id, x.hourly]));
       const changes: CardChange[] = Object.entries(indexes).flatMap(([id, x]) => (x.changes ?? []).map((c) => ({ index: id, at: c.at, kind: c.kind, added: c.added.map(([i]) => i), removed: c.removed.map(([i]) => i) })));
+      // The market summary: the model's text when it passes the accuracy guard, else the template (never unchecked).
+      const catalog = Object.values(items).map((r) => (lang === "fr" ? r[1] || r[0] : r[0]));
+      const summary = await summarize(recap, { ...names, catalog }, lang, changes, ai, { now: dry ? recap.end + 1_800 : now });
+      console.log(`discord: ${house} ${kind} ${key} summary from ${summary.source}${summary.problems.length ? ` (${summary.problems.slice(0, 4).join("; ")})` : ""}`);
       let files: { name: string; png: Buffer }[] = [];
       try {
-        files = (renderCards({ recap, lang, names, series, changes, now }) ?? []).map((png, i) => ({ name: `card-${i + 1}.png`, png }));
+        files = (renderCards({ recap, lang, names, series, changes, now, summary: summary.text }) ?? []).map((png, i) => ({ name: `card-${i + 1}.png`, png }));
       } catch (error) {
         console.error(`discord: cards not drawn (${error instanceof Error ? error.message : "error"}); posting the plain chart`);
       }
@@ -212,10 +219,11 @@ async function main(): Promise<void> {
         const png = lineChartPng(inPeriod, 800, 260, inPeriod[0]);
         if (png) files = [{ name: "chart.png", png }];
       }
-      const payload = buildMessage(recap, lang, names, files.map((f) => f.name), now);
+      const payload = buildMessage(recap, lang, names, files.map((f) => f.name), now, summary);
       if (dry) {
         mkdirSync(join(dataDir, "state"), { recursive: true });
         writeFileSync(join(dataDir, "state", `discord-${house}-${kind}.json`), JSON.stringify(payload, null, 2));
+        writeFileSync(join(dataDir, "state", `discord-${house}-${kind}-summary.json`), JSON.stringify(summary, null, 2));
         for (const f of files) writeFileSync(join(dataDir, "state", `discord-${house}-${kind}-${f.name}`), f.png);
         console.log(`discord (dry run): ${house} ${kind} ${key} written to state/`);
         continue;

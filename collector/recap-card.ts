@@ -62,6 +62,23 @@ export interface CardInput {
   /** Basket changes of the house's indexes made during the period. */
   changes: CardChange[];
   now?: number;
+  /** The market summary (collector/recap-ai.ts, checked against the data), shown under the header of card 1. */
+  summary?: string;
+}
+
+/** Split a text into lines of at most `width` px. */
+export function wrap(s: string, size: number, width: number): string[] {
+  const lines: string[] = [];
+  let line = "";
+  for (const word of s.split(/\s+/)) {
+    const next = line ? `${line} ${word}` : word;
+    if (line && textWidth(next, size) > width) {
+      lines.push(line);
+      line = word;
+    } else line = next;
+  }
+  if (line) lines.push(line);
+  return lines;
 }
 
 const TEXT = {
@@ -69,7 +86,7 @@ const TEXT = {
     daily: "DAILY MARKET CLOSE", weekly: "WEEKLY MARKET WRAP", monthly: "MONTHLY MARKET REVIEW",
     sub: "WOW FOREVER · AUCTION HOUSE", open: "OPEN", high: "HIGH", low: "LOW", close: "CLOSE",
     launchHigh: "HIGH SINCE LAUNCH", launchLow: "LOW SINCE LAUNCH",
-    sectors: "SECTORS", gainers: "TOP GAINERS", losers: "TOP LOSERS", traded: "MOST TRADED · GOLD A DAY",
+    wire: "MARKET WIRE", sectors: "SECTORS", gainers: "TOP GAINERS", losers: "TOP LOSERS", traded: "MOST TRADED · GOLD A DAY",
     raid: "RAID CONSUMABLES", raidSub: "flasks, elixirs, potions sold a day", before: "period before",
     raidsIn: (d: number) => `RAIDS OPEN 9 DEC · ${d} DAYS`, raidsOpen: "RAIDS ARE OPEN",
     flips: "BEST FLIPS · 5+ SOLD A DAY", crafts: "CRAFTING MARGINS", buy: "buy", sell: "sell", profit: "profit", then: "then", now: "now",
@@ -83,7 +100,7 @@ const TEXT = {
     daily: "CLÔTURE DU JOUR", weekly: "BILAN DE LA SEMAINE", monthly: "BILAN DU MOIS",
     sub: "WOW FOREVER · HÔTEL DES VENTES", open: "OUV.", high: "HAUT", low: "BAS", close: "CLÔT.",
     launchHigh: "SOMMET DEPUIS LE LANCEMENT", launchLow: "CREUX DEPUIS LE LANCEMENT",
-    sectors: "SECTEURS", gainers: "PLUS FORTES HAUSSES", losers: "PLUS FORTES BAISSES", traded: "LES PLUS ÉCHANGÉS · OR PAR JOUR",
+    wire: "FIL DU MARCHÉ", sectors: "SECTEURS", gainers: "PLUS FORTES HAUSSES", losers: "PLUS FORTES BAISSES", traded: "LES PLUS ÉCHANGÉS · OR PAR JOUR",
     raid: "CONSOMMABLES DE RAID", raidSub: "flacons, élixirs, potions vendus par jour", before: "période précédente",
     raidsIn: (d: number) => `RAIDS LE 9 DÉC. · DANS ${d} J`, raidsOpen: "LES RAIDS SONT OUVERTS",
     flips: "MEILLEURES REVENTES · 5+ VENTES/JOUR", crafts: "MARGES D'ARTISANAT", buy: "achat", sell: "revente", profit: "profit", then: "alors", now: "maint.",
@@ -214,6 +231,15 @@ export function cardSvgs(input: CardInput): { svg: string; width: number; height
   out.push(text(30, 98, fit(`${names.house.toUpperCase()} · ${T.sub}`, 21, W - 28 - textWidth(periodLine, 22, "mono") - 60, "mono"), { size: 21, fill: C.muted, font: "mono" }));
   y = 150;
 
+  };
+  const wireSec = () => {
+    if (!input.summary) return;
+    const lines = wrap(input.summary, 25, W - 96).slice(0, 9);
+    out.push(panelTitle(y, T.wire));
+    y += 40;
+    out.push(`<rect x="16" y="${y}" width="${W - 32}" height="${lines.length * 36 + 28}" rx="8" fill="${C.panel}" stroke="${C.goldDim}"/>`);
+    lines.forEach((l, i) => out.push(text(40, y + 44 + i * 36, l, { size: 25 })));
+    y += lines.length * 36 + 50;
   };
   const hero = () => {
   // Hero: the Ledger 100.
@@ -478,10 +504,10 @@ export function cardSvgs(input: CardInput): { svg: string; width: number; height
   };
 
   const pages: (() => void)[][] = [
-    [hero, sectorsSec, ...(big ? [rangesSec] : [])],
+    [wireSec, hero, sectorsSec],
     [movers, tradedSec],
     [raidSec, desk],
-    [recordsSec, rebalanceSec],
+    [recordsSec, ...(big ? [rangesSec] : []), rebalanceSec],
   ];
   // Render each page's sections; a page with nothing to show (no raid data or flips yet) is left out.
   const bodies: { out: string[]; y: number }[] = [];
