@@ -8,7 +8,7 @@
  * cost is then incomplete and is never shown as a full cost.
  */
 import type { Candle } from "./candles";
-import type { Quote } from "./quotes";
+import { sellsAtLeast, type Quote } from "./quotes.ts";
 
 /** [recipeId, professionId, craftedItemId, craftedMin, craftedMax, [[reagentId, quantity]...]] */
 export type RecipeRow = [number, number, number, number, number, [number, number][]];
@@ -157,13 +157,13 @@ export function profitableCrafts(
   quotes: ReadonlyMap<number, Quote>,
   field: "market" | "min",
   cut: number,
-  opts: { profession?: number | null; minAuctions?: number; maxPct?: number; limit?: number } = {},
+  opts: { profession?: number | null; minAuctions?: number; maxPct?: number; limit?: number; minSales?: number } = {},
 ): CraftRow[] {
   const price = (id: number) => quotes.get(id)?.[field];
   const rows: CraftRow[] = [];
   for (const [item, recipes] of book.byItem) {
     const q = quotes.get(item);
-    if (!q || q.auctions < (opts.minAuctions ?? 2) || !(q[field] > 0)) continue;
+    if (!q || q.auctions < (opts.minAuctions ?? 2) || !(q[field] > 0) || !sellsAtLeast(q, opts.minSales ?? 0)) continue;
     const forProf = opts.profession ? recipes.filter((r) => r.profession === opts.profession) : recipes;
     const cost = bestCost(forProf, price, book.vendor);
     if (!cost || cost.perItem == null || cost.perItem <= 0) continue;
