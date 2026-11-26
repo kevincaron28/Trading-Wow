@@ -8,8 +8,8 @@ Prepared 18 November 2026. Package `top.kcaron.goldline`, developer account "KCa
 | --- | --- |
 | Upload key (PKCS12, alias `goldline`, password in README.txt) | `C:\Users\Kev\Desktop\wow-trading-signing\goldline-release.p12`: private, back it up; use **Play App Signing** so Google holds the app signing key and this is only the upload key |
 | Signed App Bundle 0.2.0 (version code 200) | `C:\Users\Kev\Desktop\wow-trading-play\goldline-0.2.0.aab` |
-| Icon 512×512 | `C:\Users\Kev\Desktop\wow-trading-play\icon-512.png` |
-| Feature graphic 1024×500 (no text) | `C:\Users\Kev\Desktop\wow-trading-play\feature-1024x500.png` |
+| Icon 512×512 (in the repo, painted 26 November 2026) | `assets/play/icon-512.png` |
+| Feature graphic 1024×500, no text (in the repo, painted 26 November 2026) | `assets/play/feature-1024x500.png` |
 | Phone screenshots 810×1440 | `C:\Users\Kev\Desktop\wow-trading-play\phone-1-watchlist.png` … `phone-4-search.png` |
 
 **Since 1.0.1 the bundle is built by CI.** Pushing a `v*` tag runs `.github/workflows/android.yml`, which builds
