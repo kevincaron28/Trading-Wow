@@ -139,7 +139,7 @@ export function ChartScreen() {
     setSharing(true);
     const realm = REALM_GROUPS.find((r) => r.id === s.realm) ?? REALM_GROUPS[0]!;
     const faction = s.faction === "blackwater" ? t(s.lang, "blackwaterShort") : t(s.lang, s.faction);
-    void shareChart({ itemId: s.chartItem, name, price: quote?.[s.priceField], houseLabel: `${realm.label[s.lang]} · ${faction}`, lang: s.lang, chart }).catch(() => {}).finally(() => setSharing(false));
+    void shareChart({ itemId: s.chartItem, name, price: quote?.[s.priceField], houseLabel: `US · ${realm.label[s.lang]} · ${faction}`, lang: s.lang, chart }).catch(() => {}).finally(() => setSharing(false));
   };
 
   return (
