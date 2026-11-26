@@ -378,7 +378,7 @@ body.fresh-data .row-price, body.fresh-data .symbol-price .money { animation: fr
 .deals-form { padding: 8px 16px 4px; }
 .deals-form .field { margin-top: 4px; }
 .deals-form .field select { width: 100%; padding: 10px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface-2); color: var(--text); font: inherit; }
-.deals-form .sheet-label { margin-top: 12px; }
+.deals-form .sheet-label { margin: 12px 0 6px; padding: 0; }
 .deals-form .btn { margin-top: 12px; }
-.deal-watch .row-main { grid-template-columns: 1fr; }
+.deal-watch > .row .row-main { grid-template-columns: 1fr; padding-left: 16px; }
 .deal-hits { padding-left: 16px; }

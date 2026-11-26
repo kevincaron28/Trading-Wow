@@ -22,7 +22,7 @@ export function AlertsScreen() {
     <section class="screen">
       <header class="topbar"><h1 class="title">{t(s.lang, "alerts")}</h1></header>
       {alerts.length === 0 ? (
-        <EmptyState art="bell" text={t(s.lang, "alertsEmpty")} />
+        s.dealWatches.length === 0 && <EmptyState art="bell" text={t(s.lang, "alertsEmpty")} />
       ) : (
         <ul class="rows">
           {alerts.map((a) => {
