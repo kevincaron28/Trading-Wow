@@ -23,7 +23,7 @@ fi
 # Market indexes: an extra that must never stop the price collection.
 node "$ROOT/collector/indexes.ts" "$DATA_DIR" || echo "indexes failed (prices still published)"
 # Weekly recap (after the indexes, which it reads): an extra too.
-node "$ROOT/collector/weekly.ts" "$DATA_DIR" || echo "weekly recap failed (prices still published)"
+node "$ROOT/collector/recaps.ts" "$DATA_DIR" || echo "recaps failed (prices still published)"
 
 cd "$DATA_DIR"
 cat > README.md <<'EOF'
@@ -47,4 +47,10 @@ echo "published $(date -u +%H:%M) UTC"
 # fail the run (the GitHub copy above is published either way).
 if [ -n "${R2_ACCOUNT_ID:-}" ] || grep -qs '^R2_ACCOUNT_ID=.' "$ROOT/.env"; then
   node --env-file-if-exists="$ROOT/.env" "$ROOT/collector/r2-publish.ts" "$DATA_DIR" || echo "R2 publish failed (GitHub copy published)"
+fi
+
+# Daily, weekly and monthly recaps to Discord (collector/discord-recap.ts), after the R2 publish so the data is out
+# first. Only when DISCORD_RECAP_WEBHOOK is set; never a reason to fail the run.
+if [ -n "${DISCORD_RECAP_WEBHOOK:-}" ]; then
+  node "$ROOT/collector/discord-recap.ts" "$DATA_DIR" || echo "Discord recap post failed (retried next run)"
 fi

@@ -44,10 +44,34 @@ category in WoW Forever).
   - The hourly series is chain-linked to the last early day, so the level does not jump.
   - Everything is recomputed on each backfill publish (`link` and `earlyUntil` in index/<house>.json).
 - **Blackwater:** no early prices exist, so the base stays at the close of 19 Nov.
-- **Rebalancing.** On the first weekly reset (Tuesday 15:00 UTC) of each month, the new basket is chosen from the
-  previous 7 days. It is chain-linked, so the level does not jump. A basket, once set, is never changed.
+- **Rebalancing.** See "Rebalancing" below.
 - **Candles.** Hourly values build 1H, 4H and daily candles. Each item's contribution to the last 24 hours is
   `level × weight × (price now − price 24 h ago) / price at the period start`.
+
+**Rebalancing** (like a stock index; rules since 26 Nov 2026, `RULES` in `collector/indexes.ts`)
+
+| | Monthly reconstitution | Quarterly review |
+|---|---|---|
+| When | First weekly reset of each month, Tuesday 15:00 UTC (1 Dec 2026, then 2 Feb, 2 Mar 2027…) | The January, April, July and October rebalance (first: 5 Jan 2027) |
+| Selection window | The last 7 days | The last 14 days (our hourly rows are kept 14 days) |
+| Who can enter | Liquid items only: at least 5 sold in the window and 1 sold a day, listed in at least half of its hours, and at least 1 gold traded a day (estimated sold × median price) | Same |
+| Ranking | Gold traded over the window, highest first | Same |
+| Buffer | A constituent stays while it ranks within 1.2 × the basket size (top 120 for the Ledger 100); newcomers fill the remaining places by rank. Items hovering at the edge do not swap in and out every month | None: the basket is rebuilt from the ranking |
+| Weights | Gold volume, capped per item (10% for the Ledger 100, 15–25% for the category indexes), renormalised to 1 | Same |
+
+- **No jump: the divisor.** A stock index keeps its level continuous across a change by adjusting its divisor. Here,
+  the new basket starts at the old basket's level, measured the hour before the rebalance:
+  `level(new period) = value(old basket, t − 1 h)`. Then `value(t) = level × Σ weight × price(t) / price at the
+  rebalance`. This is the same as a divisor `D = Σ units × base price / level` that is recomputed at each change.
+- **History of changes.** Every past basket stays in `index/<house>.json` (`periods`, with `kind` monthly or quarterly)
+  and is never edited. Each index also lists its `changes`: the date, the type, the items added and removed with their
+  weights, the number kept and the level. The app shows them under an index ("Basket changes").
+- **Calendar.** `index/meta.json` gives `next` (the next rebalance, unix seconds), `nextQuarterly`, `last` and the `rules`.
+  The app shows the next date on the Indexes screen and under each index, and the recaps mention it in the week before.
+- **Review.** At each quarterly review the owner also checks the thresholds, caps and basket sizes. A change to those
+  applies from the next rebalance and is written here with its date. Past values are never recomputed.
+- **Missed rebalance.** If the collector is down at 15:00 UTC, the next run does the rebalance with the prices up to
+  15:00 (it is dated 15:00), so a late run gives the same result.
 
 **Backtest** (PvP Horde, 18 Nov 02:00 to 19 Nov, provisional baskets)
 
@@ -69,7 +93,7 @@ Goblin Ledger publie des indices du marché pour chaque hôtel des ventes, à la
 calculés à partir des prix horaires de Goblin Ledger par `collector/indexes.ts` et publiés dans `index/<maison>.json` sur la
 branche de données.
 
-- **Paniers.** Ledger 100 regroupe les 100 objets les plus échangés, sans armes, armures ni recettes. Il y a aussi
+- **Paniers.** Le Ledger 100 regroupe les 100 objets les plus échangés, sans armes, armures ni recettes. Il y a aussi
   des indices sectoriels : herbes, minerais et lingots, tissu, cuir, composants d'enchantement, éléments, consommables
   et préparation de raid (voir le tableau ci-dessus).
 - **Poids.** Ils suivent le volume quotidien en or (ventes estimées × valeur marchande médiane) et sont plafonnés par
@@ -80,5 +104,12 @@ branche de données.
 - **Base.** 100 = lancement de WoW Forever (4 nov. 2026) : valeurs quotidiennes depuis le lancement, puis horaires,
   avec chaînage. Un objet sans prix un jour donné est exclu et les autres sont repondérés; un objet sans prix au
   lancement part de son premier prix. Bourbe-Noire n'a pas de prix antérieurs : sa base reste le 19 nov.
-- **Rééquilibrage.** À la première réinitialisation hebdomadaire de chaque mois (mardi 15 h UTC), avec chaînage :
-  le niveau ne saute pas, et un panier fixé ne change plus.
+- **Rééquilibrage.** À la première réinitialisation hebdomadaire de chaque mois (mardi 15 h UTC). Le panier est choisi
+  sur les 7 derniers jours. Seuls les objets liquides peuvent entrer : au moins 1 vente et 1 po échangée par jour.
+  Un objet déjà dans le panier y reste tant qu'il est classé dans 1,2 × la taille du panier.
+- **Révision trimestrielle.** En janvier, avril, juillet et octobre, le panier est reconstruit selon le classement
+  des 14 derniers jours, sans cette marge. Le propriétaire revoit alors les seuils et les plafonds.
+- **Continuité (diviseur).** Le nouveau panier part du niveau de l'ancien, mesuré l'heure d'avant : l'indice ne saute
+  pas, comme quand un indice boursier ajuste son diviseur.
+- **Historique.** Les paniers passés ne sont jamais modifiés. Les entrées et sorties de chaque rééquilibrage sont
+  publiées (`changes`) et affichées dans l'application. La prochaine date est dans `index/meta.json` (`next`).

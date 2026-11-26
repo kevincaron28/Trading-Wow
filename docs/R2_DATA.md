@@ -11,7 +11,7 @@ only changed files, gzipped (`Content-Encoding: gzip`), with `Cache-Control`.
 
 | Path | Content | Cache |
 | --- | --- | --- |
-| `meta.json`, `items.json`, `latest/`, `index/`, `weekly/` | As on the data branch (docs/DATA.md). `meta.json` is uploaded last | 5 min |
+| `meta.json`, `items.json`, `latest/`, `index/`, `weekly/`, `recap/` | As on the data branch (docs/DATA.md). `meta.json` is uploaded last | 5 min |
 | `h64/{house}/{itemId % 64}.json` | Item histories: the four `h2/` files `s`, `s+64`, `s+128`, `s+192` merged into one. That's 768 files instead of 3,072, all rewritten hourly | 5 min |
 | `early/` | Daily prices before our own collection | 1 day |
 | `early-h/` | Hourly prices before our own collection, **compacted**: hours older than 30 days are dropped, and their days stay in `early/` | 1 day |

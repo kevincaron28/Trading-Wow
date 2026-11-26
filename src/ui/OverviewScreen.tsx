@@ -8,7 +8,8 @@ import { houseCut, type Quote } from "../lib/quotes";
 import { breadth, investments, movers, overviewClass, quickFlips, salesVolume, seriesChange, topCrafts, type ClassOf } from "../lib/overview";
 import { formatPoints } from "../lib/money";
 import { bumpRefresh, useCatalog, useIndexes, useMeta, useQuotes, useRecipes, useWeekly } from "./data";
-import { WeeklyCard, WeeklyFull } from "./WeeklyRecap";
+import { RecapsView, WeeklyCard, WeeklyFull } from "./WeeklyRecap";
+import type { RecapKind } from "../lib/weekly";
 import { openExplore } from "./ExploreScreen";
 import { ErrorMsg, ItemIcon, Loading, Money, formatPct, relativeTime } from "./parts";
 import { PullToRefresh } from "./PullToRefresh";
@@ -66,8 +67,10 @@ export function OverviewScreen() {
   const [moveWindow, setMoveWindow] = useState<"1d" | "7d">("1d");
   const weekly = useWeekly(house);
   const [weekOpen, setWeekOpen] = useState(false);
+  const [recapOpen, setRecapOpen] = useState<RecapKind | null>(null);
   useEffect(() => (weekOpen ? onBack(() => setWeekOpen(false)) : undefined), [weekOpen]);
-  useEffect(() => { document.querySelector(".content")?.scrollTo({ top: 0 }); }, [weekOpen]);
+  useEffect(() => (recapOpen ? onBack(() => setRecapOpen(null)) : undefined), [recapOpen]);
+  useEffect(() => { document.querySelector(".content")?.scrollTo({ top: 0 }); }, [weekOpen, recapOpen]);
   const cut = houseCut(s.faction);
   const classOf: ClassOf = (id) => overviewClass(catalog.data?.get(id));
 
@@ -130,10 +133,18 @@ export function OverviewScreen() {
           <Loading text={t(s.lang, "loading")} />
         ) : weekOpen ? (
           <WeeklyFull recap={weekly.data ?? null} onClose={() => setWeekOpen(false)} />
+        ) : recapOpen ? (
+          <RecapsView initial={recapOpen} onClose={() => setRecapOpen(null)} />
         ) : (
           <div class="overview">
             <Section title={t(s.lang, "thisWeek")} lang={s.lang}>
               {weekly.loading && !weekly.data ? <span class="ov-empty muted small">{t(s.lang, "loading")}</span> : <WeeklyCard recap={weekly.data ?? null} onOpen={() => setWeekOpen(true)} />}
+              <div class="recap-links" role="group" aria-label={t(s.lang, "recaps")}>
+                <span class="muted small">{t(s.lang, "recaps")}</span>
+                {(["daily", "weekly", "monthly"] as RecapKind[]).map((k) => (
+                  <button type="button" class="chip" onClick={() => setRecapOpen(k)}>{t(s.lang, k === "daily" ? "recapDaily" : k === "weekly" ? "recapWeekly" : "recapMonthly")}</button>
+                ))}
+              </div>
             </Section>
             <Section title={t(s.lang, "marketRecap")} lang={s.lang}>
               <button type="button" class="ov-card ov-index" onClick={() => openExplore("indexes")}>

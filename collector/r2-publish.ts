@@ -6,7 +6,7 @@
  *   node collector/r2-publish.ts <dataDir> [--full] [--dry-run]
  *
  * What goes to R2 (gzip, Content-Encoding: gzip, with Cache-Control):
- * - meta.json, items.json, latest/, index/, weekly/, early/: as on the data branch;
+ * - meta.json, items.json, latest/, index/, weekly/, recap/, early/: as on the data branch;
  * - early-h/ (hourly prices before our own collection): compacted, hours older than COMPACT_AFTER_DAYS are dropped
  *   (the daily values in early/ keep those days); our own hourly prices are already kept 14 days, then daily;
  * - h64/{house}/{itemId % 64}.json: the item histories in 64 files per house instead of 256 (h2/), to keep uploads
@@ -57,6 +57,8 @@ export function listFiles(dataDir: string, now: number = Date.now() / 1000): R2F
   const asIs = (rel: string, cache: string) => out.push({ key: rel, text: () => readText(join(dataDir, rel)), cache });
   if (existsSync(join(dataDir, "items.json"))) asIs("items.json", SHORT_CACHE);
   for (const dir of ["latest", "index", "weekly"]) for (const f of jsonFiles(join(dataDir, dir))) asIs(`${dir}/${f}`, SHORT_CACHE);
+  // Daily, weekly and monthly recaps (collector/recaps.ts): recap/<house>/list.json and one file per period.
+  for (const house of readdirSafe(join(dataDir, "recap"))) for (const f of jsonFiles(join(dataDir, "recap", house))) asIs(`recap/${house}/${f}`, SHORT_CACHE);
   for (const house of readdirSafe(join(dataDir, "early"))) {
     for (const f of jsonFiles(join(dataDir, "early", house))) asIs(`early/${house}/${f}`, LONG_CACHE);
   }

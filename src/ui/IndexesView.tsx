@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import { onBack } from "../app/back";
 import { houseId, openChart, setState, useStore } from "../app/store";
 import { activeZone, formatDate, formatDateTime, toWall } from "../lib/time";
-import type { IndexDefMeta, IndexPeriod, IndexSeries } from "../data/live";
+import type { BasketChange, IndexDefMeta, IndexMeta, IndexPeriod, IndexSeries } from "../data/live";
 import { toCandles, type Timeframe } from "../lib/candles";
 import { t } from "../lib/i18n";
 import { ChartEngine } from "./chartEngine";
@@ -69,7 +69,7 @@ export function IndexesView() {
   if ((meta.error && !meta.data) || (data.error && !data.data)) return <ErrorMsg text={t(s.lang, "indexesUnavailable")} retry={() => location.reload()} retryLabel={t(s.lang, "retry")} />;
   if (!meta.data || !data.data) return <Loading text={t(s.lang, "loading")} />;
   const def = meta.data.indexes.find((d) => d.id === open);
-  if (def) return <IndexDetail def={def} series={data.data[def.id]} baseEnd={meta.data.baseEnd} onClose={() => setOpen(null)} />;
+  if (def) return <IndexDetail def={def} series={data.data[def.id]} baseEnd={meta.data.baseEnd} calendar={meta.data} onClose={() => setOpen(null)} />;
 
   const rows = meta.data.indexes.map((d) => ({ d, sum: summarize(data.data![d.id]) })).filter((r) => r.sum);
   const fromLaunch = Object.values(data.data).some((x) => x.link);
@@ -98,12 +98,36 @@ export function IndexesView() {
           ))}
         </ul>
       )}
+      {meta.data.next != null && <p class="hint">{nextRebalanceText(meta.data, s.lang)}</p>}
       <p class="muted small method-note">{t(s.lang, "indexMethod")}</p>
     </div>
   );
 }
 
-function IndexDetail({ def, series, baseEnd, onClose }: { def: IndexDefMeta; series: IndexSeries | undefined; baseEnd: number; onClose: () => void }) {
+/** "Next rebalance: 1 Dec 2026, 15:00 UTC (monthly)". */
+export function nextRebalanceText(m: Pick<IndexMeta, "next" | "nextQuarterly">, lang: "en" | "fr"): string {
+  if (m.next == null) return "";
+  const date = new Date(m.next * 1000).toLocaleDateString(lang === "fr" ? "fr-CA" : "en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
+  return `${t(lang, "nextRebalance")}${lang === "fr" ? " : " : ": "}${date}, ${lang === "fr" ? "15 h" : "15:00"} UTC (${t(lang, m.nextQuarterly ? "quarterlyReview" : "monthlyRebalance")})`;
+}
+
+/** Basket changes, newest first. */
+function ChangeHistory({ changes, lang, name }: { changes: BasketChange[] | undefined; lang: "en" | "fr"; name: (id: number) => string }) {
+  if (!changes?.length) return <p class="muted small">{t(lang, "noRebalanceYet")}</p>;
+  return (
+    <div>
+      {[...changes].reverse().map((c) => (
+        <div key={c.at} class="rebalance-change small">
+          <b>{formatDate(c.at, lang)}</b> · {t(lang, c.kind === "quarterly" ? "quarterlyReview" : "monthlyRebalance")} · {c.kept} {t(lang, "kept")}
+          {c.added.length > 0 && <div><span class="up-text">{t(lang, "added")}:</span> {c.added.map(([id, w]) => `${name(id)} (${(w * 100).toFixed(1)}%)`).join(", ")}</div>}
+          {c.removed.length > 0 && <div><span class="down-text">{t(lang, "removed")}:</span> {c.removed.map(([id]) => name(id)).join(", ")}</div>}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function IndexDetail({ def, series, baseEnd, calendar, onClose }: { def: IndexDefMeta; series: IndexSeries | undefined; baseEnd: number; calendar: IndexMeta; onClose: () => void }) {
   const s = useStore();
   const catalog = useCatalog();
   const meta = useMeta();
@@ -174,6 +198,7 @@ function IndexDetail({ def, series, baseEnd, onClose }: { def: IndexDefMeta; ser
           {series && series.periods.length > 1 ? ` · ${t(s.lang, "indexRebalanced")} ${fmtDate(period!.start)}` : ""}
           {lastHour ? ` · ${t(s.lang, "updated")} ${formatDateTime(lastHour * HOUR, s.lang)}` : ""}
         </p>
+        {calendar.next != null && <p class="muted small">{nextRebalanceText(calendar, s.lang)}</p>}
         <p class="sheet-label">{t(s.lang, "constituents")}</p>
         <div class="table-head constituents-head">
           <span>{t(s.lang, "sortName")}</span>
@@ -198,6 +223,8 @@ function IndexDetail({ def, series, baseEnd, onClose }: { def: IndexDefMeta; ser
             );
           })}
         </ul>
+        <p class="sheet-label">{t(s.lang, "rebalanceHistory")}</p>
+        <ChangeHistory changes={series?.changes} lang={s.lang} name={(id) => catalog.data?.get(id)?.name[s.lang] ?? `#${id}`} />
         <p class="muted small method-note">{t(s.lang, "indexMethod")}</p>
       </div>
     </div>

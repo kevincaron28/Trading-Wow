@@ -81,8 +81,49 @@ Settings > Secrets and variables > Actions > **Variables** > New repository vari
 The collector code updates itself: each run uses the latest `main`. Re-run step 2 only when
 `deploy/collector/*.service`, `*.timer` or `install.sh` change.
 
+## Discord recaps
+
+The collector posts the daily, weekly and monthly recaps (`collector/discord-recap.ts`) to one Discord channel, as
+**Goblin Ledger** (name, icon and footer; nothing else is named). It posts after the hourly run that first covers 13:00 UTC:
+- the daily recap every day at about 13:30 UTC (8:30 in Québec in winter, 9:30 in summer);
+- the weekly recap on Mondays;
+- the monthly recap on the 1st.
+
+Each post is an embed with these sections, and a chart of the Ledger 100 over the period:
+- market notes, indexes, top risers and fallers;
+- the most traded items, the best flips (items selling 5+ a day), crafting margins, raid consumables;
+- new highs and lows.
+
+Each recap is posted once. A recap that is more than 12 hours old is not posted (24 hours for weekly, 48 for
+monthly), so the channel gets no burst after an outage.
+
+**Owner's steps (once, about 5 minutes):**
+1. In the Québec Gold Discord server, open the gold-making recap channel > **Edit Channel** (gear) > **Integrations** >
+   **Webhooks** > **New Webhook**. Name it `Goblin Ledger`. Optionally upload `public/icon-512.png` as its picture (the
+   collector also sends that icon with each post). Click **Copy Webhook URL**.
+2. On the VM, open the settings: `sudo nano /etc/goblin-ledger/collector.env`. Add this line and paste your URL after the `=`:
+   ```
+   DISCORD_RECAP_WEBHOOK=https://discord.com/api/webhooks/...
+   ```
+   Optional lines:
+   - `DISCORD_RECAP_HOUSES=113`: the auction houses to post, comma separated. 113 is PvP Horde; the IDs are in
+     `src/app/store.ts`, `REALM_GROUPS`.
+   - `DISCORD_RECAP_LANG=fr`: `fr` (the default) or `en`.
+
+   Save (Ctrl+O, Enter, Ctrl+X). No restart is needed: the next hourly run reads the file.
+3. The next day after 13:30 UTC, the channel has its first daily recap. To check, read the log:
+   `sudo journalctl -u goblin-collector --since today --no-pager | grep discord`.
+
+The webhook URL is a secret: anyone who has it can post in the channel. If it leaks, delete the webhook in Discord
+and make a new one. It is never printed in the logs, and the collector only sends it to `discord.com`. To stop the
+posts, remove the line from `collector.env`, or delete the webhook.
+
+To preview a post without sending it, run `node collector/discord-recap.ts <dataDir> --dry-run` on a copy of the
+data. It writes the message and the chart to `<dataDir>/state/`.
+
 ## Troubleshooting
 
+- **No Discord recap:** `sudo journalctl -u goblin-collector --since today --no-pager | grep -E 'recaps|discord'`. `HTTP 401`/`404` means the webhook was deleted: make a new one (Discord recaps, step 1).
 - **Prices are old (watchdog email):** read the log (table above).
   - `HTTP 401` from Battle.net: the client secret changed; update `collector.env`.
   - `Authentication failed` on push: the GitHub token expired; make a new one (step 3).

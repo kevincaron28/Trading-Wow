@@ -9,8 +9,9 @@
  * - Value = level at the period start x sum(weight x price now / price at the period start). A price older than
  *   72 hours is left out for that hour and the remaining weights are renormalised. Nothing is interpolated.
  * - The basket is chosen from the first full day of our own hourly data (19 Nov 2026, fixed at 20 Nov 00:00 UTC;
- *   provisional before). Rebalanced on the first weekly reset (Tuesday 15:00 UTC) of each month, chain-linked so the
- *   level does not jump; baskets once set are never changed afterwards.
+ *   provisional before). Rebalanced on the first weekly reset (Tuesday 15:00 UTC) of each month (RULES: liquidity and
+ *   value thresholds, a buffer for constituents, a full review each quarter), chain-linked so the level does not
+ *   jump; baskets once set are never changed afterwards. Each index file lists its basket changes (`changes`).
  * - Base 100 = WoW Forever's launch: the first UTC day on or after 4 Nov 2026 where the merged early history
  *   (early/, collector/merge-history.ts) prices at least 10 basket items (or the whole basket when smaller). Launch
  *   week markets were thin (on 5 Nov only about a fifth of today's busiest items were listed), so the early days are
@@ -72,7 +73,68 @@ export const INDEXES: readonly IndexDef[] = [
 /** Per item: market value by hour index and estimated sold by hour index. */
 export interface Series { price: Map<number, number>; sold: Map<number, number> }
 
-export interface Period { start: number; level: number; provisional?: boolean; basket: [id: number, weight: number, p0: number][] }
+export interface Period {
+  start: number;
+  level: number;
+  provisional?: boolean;
+  /** "monthly" reconstitution or "quarterly" review (since 26 Nov 2026); absent on the base period. */
+  kind?: "monthly" | "quarterly";
+  basket: [id: number, weight: number, p0: number][];
+}
+
+/**
+ * Rebalancing rules (docs/INDEXES.md, "Rebalancing"), for every rebalance after the base period:
+ * - liquidity and value: at least `minSoldPerDay` sold a day over the window, listed in half its hours, and at least
+ *   `minDailyValue` copper traded a day;
+ * - monthly reconstitution: the last 7 days; a constituent stays while it ranks within `buffer` x the basket size
+ *   (fewer swaps for items hovering at the edge), newcomers fill the remaining places by rank;
+ * - quarterly review (January, April, July, October): the last 14 days, no buffer: the basket is rebuilt by rank.
+ */
+export const RULES = {
+  monthlyWindowHours: 24 * 7,
+  quarterlyWindowHours: 24 * 14,
+  minSoldPerDay: 1,
+  minDailyValue: 10_000,
+  buffer: 1.2,
+  quarterlyMonths: [0, 3, 6, 9] as readonly number[],
+} as const;
+
+/** True when a rebalance at t is a quarterly review. */
+export const isQuarterly = (t: number) => RULES.quarterlyMonths.includes(new Date(t * 1000).getUTCMonth());
+
+/** The next rebalance after t (unix seconds). */
+export function nextRebalance(t: number): { at: number; quarterly: boolean } {
+  const at = rebalanceTimes(t, t + 62 * 86_400)[0]!;
+  return { at, quarterly: isQuarterly(at) };
+}
+
+/** The last rebalance at or before t, or null before the first one (December 2026). */
+export function lastRebalance(t: number): number | null {
+  const all = rebalanceTimes(BASE_END, t);
+  return all.length ? all.at(-1)! : null;
+}
+
+/** One rebalance as published: what came in, what went out, and how many stayed. */
+export interface BasketChange { at: number; kind: "monthly" | "quarterly"; added: [id: number, weight: number][]; removed: [id: number, weight: number][]; kept: number; level: number }
+
+/** The history of basket changes, oldest first (early and provisional periods left out). */
+export function basketChanges(periods: readonly Period[]): BasketChange[] {
+  const real = periods.filter((p) => !p.provisional && !(p as Period & { early?: boolean }).early);
+  const out: BasketChange[] = [];
+  for (let i = 1; i < real.length; i++) {
+    const prev = new Map(real[i - 1]!.basket.map(([id, w]) => [id, w]));
+    const next = new Map(real[i]!.basket.map(([id, w]) => [id, w]));
+    out.push({
+      at: real[i]!.start,
+      kind: real[i]!.kind ?? (isQuarterly(real[i]!.start) ? "quarterly" : "monthly"),
+      added: [...next].filter(([id]) => !prev.has(id)),
+      removed: [...prev].filter(([id]) => !next.has(id)),
+      kept: [...next.keys()].filter((id) => prev.has(id)).length,
+      level: real[i]!.level,
+    });
+  }
+  return out;
+}
 
 /** Rebalance times after the base: the first Tuesday of each month, 15:00 UTC. */
 export function rebalanceTimes(after: number, until: number): number[] {
@@ -128,7 +190,14 @@ export function capWeights(raw: number[], cap: number): number[] {
 }
 
 /** Choose a basket at time t from the gold volume over the `windowHours` before it. */
-export function chooseBasket(def: IndexDef, items: Map<number, Series>, catalog: Map<number, { itemClass: number; subclass: number }>, t: number, windowHours: number): Period["basket"] {
+export function chooseBasket(
+  def: IndexDef,
+  items: Map<number, Series>,
+  catalog: Map<number, { itemClass: number; subclass: number }>,
+  t: number,
+  windowHours: number,
+  rules?: { incumbents?: readonly number[]; buffer?: number; minSoldPerDay?: number; minDailyValue?: number },
+): Period["basket"] {
   const h = Math.floor(t / HOUR);
   const scored: { id: number; volume: number; p0: number }[] = [];
   for (const [id, s] of items) {
@@ -145,14 +214,26 @@ export function chooseBasket(def: IndexDef, items: Map<number, Series>, catalog:
     // Liquid items only: at least 5 units sold in the window and listed in at least half of its hours, so one rare,
     // expensive listing cannot dominate an index.
     if (sold < MIN_SOLD || prices.length < Math.max(1, Math.floor(windowHours / 2))) continue;
+    const days = windowHours / 24;
+    if (rules?.minSoldPerDay != null && sold / days < rules.minSoldPerDay) continue;
     prices.sort((a, b) => a - b);
     // Base price: the window's median, never one hour's price (a single cheap or overpriced listing set it before).
     const p0 = prices[Math.floor(prices.length / 2)]!;
     if (!(p0 > 0)) continue;
+    if (rules?.minDailyValue != null && (sold * p0) / days < rules.minDailyValue) continue;
     scored.push({ id, volume: sold * p0, p0 });
   }
   scored.sort((a, b) => b.volume - a.volume || a.id - b.id);
-  const top = scored.slice(0, def.size);
+  let top = scored.slice(0, def.size);
+  if (rules?.incumbents?.length && rules.buffer && rules.buffer > 1) {
+    // Buffer: constituents ranked within buffer x size stay; newcomers take the remaining places by rank.
+    const inc = new Set(rules.incumbents);
+    const zone = Math.ceil(def.size * rules.buffer);
+    const stay = scored.slice(0, zone).filter((x) => inc.has(x.id));
+    const room = Math.max(0, def.size - stay.length);
+    const join = scored.filter((x) => !inc.has(x.id)).slice(0, room);
+    top = [...stay, ...join].sort((a, b) => b.volume - a.volume || a.id - b.id).slice(0, def.size);
+  }
   if (top.length < MIN_BASKET) return [];
   const weights = capWeights(top.map((x) => x.volume), def.cap);
   return top.map((x, i) => [x.id, Math.round(weights[i]! * 1e6) / 1e6, x.p0]);
@@ -181,6 +262,8 @@ export interface IndexFile {
   earlyUntil?: number;
   /** METHOD the file was built with; a file from another version is rebuilt. */
   method?: number;
+  /** Basket changes at each rebalance, oldest first (basketChanges). */
+  changes?: BasketChange[];
 }
 
 const DAY_H = 24;
@@ -292,10 +375,18 @@ export function updateIndex(def: IndexDef, stored: IndexFile | null, items: Map<
   if (!periods[0]!.provisional) {
     for (const t of rebalanceTimes(periods.at(-1)!.start, now)) {
       const prev = periods.at(-1)!;
+      // Chain link: the new basket starts at the old basket's level the hour before, so the index does not jump
+      // (what a stock index does by adjusting its divisor).
       const level = valueAt(prev, items, Math.floor(t / HOUR) - 1);
-      const basket = chooseBasket(def, items, catalog, t - HOUR, 24 * 7);
+      const quarterly = isQuarterly(t);
+      const basket = chooseBasket(def, items, catalog, t - HOUR, quarterly ? RULES.quarterlyWindowHours : RULES.monthlyWindowHours, {
+        incumbents: quarterly ? undefined : prev.basket.map(([id]) => id),
+        buffer: RULES.buffer,
+        minSoldPerDay: RULES.minSoldPerDay,
+        minDailyValue: RULES.minDailyValue,
+      });
       if (level == null || !basket.length) continue;
-      periods.push({ start: t, level: Math.round(level * 1e4) / 1e4, basket });
+      periods.push({ start: t, level: Math.round(level * 1e4) / 1e4, kind: quarterly ? "quarterly" : "monthly", basket });
     }
   }
   const periodFor = (h: number) => {
@@ -360,15 +451,20 @@ function main(): void {
     for (const def of INDEXES) {
       const old = stored.indexes[def.id];
       const next = updateIndex(def, rawIndex(old?.method === METHOD ? old : null), items, catalog, now);
-      if (next) indexes[def.id] = { ...withEarly(next, early), method: METHOD };
+      if (next) indexes[def.id] = { ...withEarly(next, early), method: METHOD, changes: basketChanges(next.periods) };
     }
     writeFileSync(file, JSON.stringify({ house, updated: now, indexes }));
     const g = indexes.gl100;
     console.log(`index ${house}: ${Object.keys(indexes).length} indexes; Ledger 100 ${g ? `${g.periods.at(-1)!.basket.length} items, ${g.hourly.length} hours, last ${g.hourly.at(-1)?.[1]}${g.link ? ` (from ${new Date(g.periods[0]!.start * 1000).toISOString().slice(0, 10)})` : " (no early history yet)"}` : "n/a"}`);
   }
+  const next = nextRebalance(now);
   writeFileSync(join(dataDir, "index", "meta.json"), JSON.stringify({
     baseEnd: BASE_END,
     launchDay: LAUNCH_DAY * 86_400,
+    next: next.at,
+    nextQuarterly: next.quarterly,
+    last: lastRebalance(now),
+    rules: RULES,
     indexes: INDEXES.map(({ id, name, about, size, cap }) => ({ id, name, about, size, cap })),
   }));
 }
