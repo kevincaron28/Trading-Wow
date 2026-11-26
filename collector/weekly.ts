@@ -69,6 +69,26 @@ export interface WeeklyFile {
   /** Raid consumables, flasks, elixirs and potions (since 1.2): units sold per day, the period before, change %, and the
    * busiest ones [item, sold per day, market now, price change % | null]. */
   raid?: { soldPerDay: number; prevSoldPerDay: number | null; change: number | null; rows: [number, number, number, number | null][] } | null;
+  /** Price paths for the recap card's sparklines (since 1.3): item -> SPARK_POINTS prices across the period, null
+   * where no price is known. Only the items the recap lists. */
+  sparks?: Record<string, (number | null)[]>;
+}
+
+/** Points per sparkline. */
+export const SPARK_POINTS = 24;
+
+/**
+ * An item's price at SPARK_POINTS evenly spaced hours of a period: the 7-hour median, or that day's close when our
+ * hourly rows no longer reach back (hourly rows are kept 14 days).
+ */
+export function sparkline(history: ItemHistory, early: Map<number, number> | undefined, startH: number, endH: number, n: number = SPARK_POINTS): (number | null)[] {
+  const closes = dailyCloses({ h: [], d: history.d }, early);
+  const out: (number | null)[] = [];
+  for (let i = 0; i < n; i++) {
+    const h = Math.round(startH + ((endH - startH) * i) / (n - 1));
+    out.push(smoothAt(history, h) ?? closes.get(Math.floor((h * HOUR) / DAY)) ?? null);
+  }
+  return out;
 }
 
 export interface WeeklyInput {
@@ -189,7 +209,8 @@ export function buildRecap(input: WeeklyInput, startH: number, endH: number): We
   for (const [id, s] of Object.entries(input.indexes)) {
     const last = [...s.hourly].reverse().find(([x]) => x <= endH);
     if (!last || last[0] < endH - 3) continue;
-    const before = [...s.hourly].reverse().find(([x]) => x <= startH);
+    // At or before the start; a series that starts later (November 2026 starts before launch) from its first value.
+    const before = [...s.hourly].reverse().find(([x]) => x <= startH) ?? s.hourly.find(([x]) => x > startH && x < endH);
     if (!before || before[1] <= 0) continue;
     indexes.push([id, before[1], last[1], ((last[1] - before[1]) / before[1]) * 100]);
   }
@@ -364,6 +385,14 @@ export function buildRecap(input: WeeklyInput, startH: number, endH: number): We
     crafts = { found: rows.length, stillProfitable: rows.filter((r) => r[4] != null && r[4] > 0).length, rows: rows.slice(0, LIMIT) };
   }
 
+  const sparkIds = new Set<number>();
+  for (const rows of [risers, fallers, tradedRows, raid?.rows, recordHighs, recordLows, flips?.rows, crafts?.rows]) for (const r of rows ?? []) sparkIds.add(r[0]);
+  const sparks: Record<string, (number | null)[]> = {};
+  for (const id of sparkIds) {
+    const h = input.histories.get(id);
+    if (h) sparks[id] = sparkline(h, input.early.get(id), startH, endH);
+  }
+
   return {
     v: 1,
     house: input.house,
@@ -378,6 +407,7 @@ export function buildRecap(input: WeeklyInput, startH: number, endH: number): We
     flips,
     crafts,
     traded: tradedRows,
+    sparks,
     raid,
   };
 }

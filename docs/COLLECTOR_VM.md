@@ -89,10 +89,22 @@ The collector posts the daily, weekly and monthly recaps (`collector/discord-rec
 - the weekly recap on Mondays;
 - the monthly recap on the 1st.
 
-Each post is an embed with these sections, and a chart of the Ledger 100 over the period:
-- market notes, indexes, top risers and fallers;
-- the most traded items, the best flips (items selling 5+ a day), crafting margins, raid consumables;
-- new highs and lows.
+Each post is an embed with the market notes, followed by up to four **recap cards** (`collector/recap-card.ts`,
+samples in `docs/recap-cards/`). The cards are 1000 px wide, in a dark market-close style with gold accents:
+1. The Ledger 100: its change, open/high/low/close and a line chart. Then the category heatmap with sparklines and,
+   for a week or a month, each index's range against its range since launch.
+2. Top gainers and losers with sparklines, and the most traded items as gold-a-day volume bars.
+3. Raid consumables, the best flips (items selling 5+ a day) and crafting margins.
+4. New highs and lows, the next index rebalance, and the basket changes made during the period.
+
+Prices are shown in gold, silver and copper (po/pa/pc in French), and item names in their quality colours. A page
+with nothing to show yet is left out. All cards together stay under 8 MB, Discord's file limit being 10 MB; each
+card is usually 50 to 200 KB.
+
+The cards are drawn on the VM by resvg (`@resvg/resvg-js`, about 5 MB), using the DejaVu fonts in `assets/fonts`.
+`run.sh` installs resvg once into `/opt/goblin-ledger/render`, at the version pinned in `package.json`. Drawing a
+recap takes about a second, and the whole posting step peaks at about 110 MB of memory (the collector itself peaks at about 400 MB). If resvg is missing, the post falls back to text fields and a
+plain chart.
 
 Each recap is posted once. A recap that is more than 12 hours old is not posted (24 hours for weekly, 48 for
 monthly), so the channel gets no burst after an outage.
