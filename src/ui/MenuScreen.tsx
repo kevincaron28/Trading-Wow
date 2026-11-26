@@ -6,6 +6,7 @@ import { bumpRefresh, useMeta } from "./data";
 import { HouseBadge } from "./WatchlistScreen";
 import { relativeTime } from "./parts";
 import { DEVICE_TZ, TIME_ZONES, deviceZone, zoneLabel } from "../lib/time";
+import { ISSUES_URL, privacyUrl } from "../lib/links";
 
 import { UpdateSection } from "./UpdateBanner";
 
@@ -87,6 +88,10 @@ export function MenuScreen() {
       <div class="menu-section">
         <p class="sheet-label">{t(s.lang, "about")}</p>
         <p class="small">{t(s.lang, "aboutText")}</p>
+        <p class="about-links">
+          <a href={privacyUrl(s.lang)} target="_blank" rel="noopener">{t(s.lang, "privacyPolicy")}</a>
+          <a href={ISSUES_URL} target="_blank" rel="noopener">{t(s.lang, "reportProblem")}</a>
+        </p>
         {!Capacitor.isNativePlatform() && <p class="small muted">{t(s.lang, "webPreview")}</p>}
         <p class="small muted">{t(s.lang, "chartsBy")} <a href="https://www.tradingview.com/" target="_blank" rel="noopener">tradingview.com</a></p>
       </div>

@@ -99,6 +99,8 @@ button { cursor: pointer; }
 .list-switch span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .subbar { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 16px 6px; flex-wrap: wrap; }
 
+.about-links { display: flex; flex-wrap: wrap; column-gap: 20px; margin: 4px 0; }
+.about-links a { color: var(--text); font-weight: 600; text-decoration: underline; padding: 12px 0; }
 .house-badge { display: inline-flex; align-items: center; gap: 4px; border: 1px solid var(--border); background: var(--surface); border-radius: 999px; padding: 4px 8px 4px 12px; font-size: 13px; font-weight: 600; }
 .house-badge::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
 .house-badge.alliance::before, .dot.alliance { background: var(--alliance); }
