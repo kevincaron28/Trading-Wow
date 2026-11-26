@@ -45,6 +45,7 @@ describe("auction house categories", () => {
     expect(names(browseItems(items, quotes, { ...base, cat: "trade", sub: "cloth" }))).toEqual([2589, 4306]);
     expect(names(browseItems(items, quotes, { ...base, query: "etoffe" }))).toEqual([2589, 4306]);
     expect(names(browseItems(items, quotes, { ...base, query: "13510" }))).toEqual([13510]);
+    expect(names(browseItems(items, quotes, { ...base, query: "titans flask" }))).toEqual([13510]);
     expect(names(browseItems(items, quotes, { ...base, onSale: true }))).toEqual([13468, 2589, 4306]);
   });
 
