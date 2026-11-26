@@ -155,10 +155,10 @@ async function downloadAndInstallApk(m: UpdateManifest): Promise<void> {
   setUpdateState({ status: "downloading", version: m.version });
   try {
     const { Filesystem, Directory } = await import("@capacitor/filesystem");
-    const file = await Filesystem.downloadFile({ url: m.apkUrl, path: `goldline-${m.version}.apk`, directory: Directory.Cache });
+    const file = await Filesystem.downloadFile({ url: m.apkUrl, path: `goblin-ledger-${m.version}.apk`, directory: Directory.Cache });
     if (!file.path) throw new Error("download failed");
     const result = await Distribution.installApk({ path: file.path });
-    // Android asked to allow installs from Goldline first: keep the button so the user can tap Install again.
+    // Android asked to allow installs from Goblin Ledger first: keep the button so the user can tap Install again.
     setUpdateState({ status: "apkAvailable", version: m.version, install: () => downloadAndInstallApk(m) });
     if (!result.needsPermission) return;
   } catch (error) {

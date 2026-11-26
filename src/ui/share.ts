@@ -64,7 +64,7 @@ function toBlob(c: HTMLCanvasElement): Promise<Blob> {
 export async function shareChart(o: ShareChartOpts): Promise<void> {
   const canvas = buildChartImage(o);
   const title = `${o.name} - Goblin Ledger`;
-  const fileName = `goldline-${o.itemId}.png`;
+  const fileName = `goblin-ledger-${o.itemId}.png`;
   if (Capacitor.isNativePlatform()) {
     const data = canvas.toDataURL("image/png").split(",")[1]!;
     const { Filesystem, Directory } = await import("@capacitor/filesystem");
