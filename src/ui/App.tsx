@@ -5,6 +5,8 @@ import { nextUpdate } from "../lib/live";
 import { checkForUpdates, markAppReady } from "../app/updates";
 import { UpdateBanner } from "./UpdateBanner";
 import { evaluateAlerts, type PriceAlert } from "../lib/alerts";
+import { evaluateDealWatch, mergeReported, type DealHit, type DealWatch } from "../lib/dealAlerts";
+import { systemNotify } from "../app/notify";
 import { t, type MessageKey } from "../lib/i18n";
 import { formatMoney } from "../lib/money";
 import type { Quote } from "../lib/quotes";
@@ -31,55 +33,85 @@ const TABS: { id: Tab; icon: string; label: MessageKey }[] = [
   { id: "menu", icon: "menu", label: "tabMenu" },
 ];
 
-/** Check active alerts against fresh quotes; notify for each one that fired. */
+/** Check active alerts and deal watches against fresh quotes; notify for what fired. */
 async function checkAlerts(): Promise<void> {
-  const active = getState().alerts.filter((a) => a.active);
-  if (active.length === 0) return;
-  const houses = [...new Set(active.map((a) => a.house))];
+  const before = getState();
+  const watched = (st: typeof before) => st.dealWatches.filter((w) => st.watchlists.some((l) => l.id === w.listId));
+  const wanted = [...before.alerts.filter((a) => a.active), ...watched(before)];
+  if (wanted.length === 0) return;
+  const houses = [...new Set(wanted.map((a) => a.house))];
   const quoteMaps = new Map<number, Map<number, Quote>>();
   await Promise.all(houses.map(async (h) => quoteMaps.set(h, await loadQuotes(h, true).catch(() => new Map<number, Quote>()))));
-  const { alerts, fired } = evaluateAlerts(getState().alerts, (h) => quoteMaps.get(h), Math.floor(Date.now() / 1000));
-  if (fired.length === 0) return;
-  setState({ alerts });
-  await notify(fired);
-}
-
-/** Alerts the background runner fired while the app was closed: mark them triggered here too. */
-async function collectBackgroundFired(): Promise<void> {
-  const ids = await popBackgroundFired();
-  if (ids.length === 0) return;
+  // From here to setState nothing waits, so two checks running at once cannot report the same thing twice.
+  const state = getState();
   const now = Math.floor(Date.now() / 1000);
-  setState((st) => ({ alerts: st.alerts.map((a) => (ids.includes(a.id) && a.active ? { ...a, active: false, triggeredAt: now } : a)) }));
+  const { alerts, fired } = evaluateAlerts(state.alerts, (h) => quoteMaps.get(h), now);
+  const found: { watch: DealWatch; hits: DealHit[] }[] = [];
+  let dealsChanged = false;
+  const dealWatches = state.dealWatches.map((watch) => {
+    const list = state.watchlists.find((l) => l.id === watch.listId);
+    const quotes = quoteMaps.get(watch.house);
+    if (!list || !quotes?.size) return watch;
+    const result = evaluateDealWatch(watch, list.items, quotes, now);
+    if (result.watch !== watch) dealsChanged = true;
+    if (result.hits.length) found.push(result);
+    return result.watch;
+  });
+  if (fired.length || dealsChanged) setState({ alerts, dealWatches });
+  if (fired.length) await notify("alertFired", await alertLines(fired));
+  if (found.length) await notify("dealFired", await dealLines(found));
 }
 
-async function notify(fired: PriceAlert[]): Promise<void> {
+/** What the background runner fired while the app was closed: mark it here too. */
+async function collectBackgroundFired(): Promise<void> {
+  const { fired, deals } = await popBackgroundFired();
+  if (fired.length === 0 && Object.keys(deals).length === 0) return;
+  const now = Math.floor(Date.now() / 1000);
+  setState((st) => ({
+    alerts: st.alerts.map((a) => (fired.includes(a.id) && a.active ? { ...a, active: false, triggeredAt: now } : a)),
+    dealWatches: mergeReported(st.dealWatches, deals),
+  }));
+}
+
+/** Checks run one after another, each collecting the runner's results first, so nothing is reported twice. */
+let lastCheck: Promise<void> = Promise.resolve();
+function runAlertCheck(): void {
+  lastCheck = lastCheck.then(collectBackgroundFired).then(checkAlerts).catch(() => {});
+}
+
+async function alertLines(fired: PriceAlert[]): Promise<string[]> {
   const { lang } = getState();
   const catalog = await loadCatalog().catch(() => null);
-  const lines = fired.map((a) => {
+  return fired.map((a) => {
     const name = catalog?.get(a.itemId)?.name[lang] ?? `#${a.itemId}`;
     return `${name} ${t(lang, a.op === "above" ? "alertAbove" : "alertBelow")} ${formatMoney(a.price, lang)}`;
   });
-  if (Capacitor.isNativePlatform()) {
-    try {
-      const { LocalNotifications } = await import("@capacitor/local-notifications");
-      const perm = await LocalNotifications.requestPermissions();
-      if (perm.display === "granted") {
-        await LocalNotifications.schedule({
-          notifications: lines.map((body, i) => ({ id: (Date.now() % 1_000_000) + i, title: t(lang, "alertFired"), body })),
-        });
-        return;
-      }
-    } catch {
-      // Fall through to the in-app banner.
-    }
-  }
-  window.dispatchEvent(new CustomEvent("goldline:toast", { detail: lines.join("\n") }));
+}
+
+/** One line per watch: its list, then the three best deals and how many more. */
+async function dealLines(found: { watch: DealWatch; hits: DealHit[] }[]): Promise<string[]> {
+  const { lang, watchlists } = getState();
+  const catalog = await loadCatalog().catch(() => null);
+  return found.map(({ watch, hits }) => {
+    const list = watchlists.find((l) => l.id === watch.listId)?.name[lang] ?? "";
+    const best = hits.slice(0, 3).map((h) => `${catalog?.get(h.itemId)?.name[lang] ?? `#${h.itemId}`} ${formatMoney(h.price, lang)} (-${Math.floor(h.discount)}${lang === "fr" ? " %" : "%"})`);
+    const more = hits.length > 3 ? ` ${t(lang, "andMore").replace("{n}", String(hits.length - 3))}` : "";
+    return `${list}${lang === "fr" ? " : " : ": "}${best.join(", ")}${more}`;
+  });
+}
+
+async function notify(title: "alertFired" | "dealFired", lines: string[]): Promise<void> {
+  const { lang } = getState();
+  const shown = await systemNotify(t(lang, title), lines);
+  // On the website the banner shows too: the browser may hide its notification (do not disturb).
+  if (shown && Capacitor.isNativePlatform()) return;
+  window.dispatchEvent(new CustomEvent("goldline:toast", { detail: { title: t(lang, title), text: lines.join("\n") } }));
 }
 
 export function App() {
   const s = useStore();
   const [searching, setSearching] = useState(false);
-  const [toast, setToast] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ title: string; text: string } | null>(null);
   const [offline, setOfflineState] = useState(isOffline());
   useEffect(() => onOfflineChange(setOfflineState), []);
 
@@ -99,12 +131,22 @@ export function App() {
 
   // Keep the background runner (alerts while the app is closed) in step with the app's alerts.
   useEffect(() => {
-    if (s.alerts.some((a) => a.active)) void ensureNotificationPermission();
+    if (s.alerts.some((a) => a.active) || s.dealWatches.length > 0) void ensureNotificationPermission();
+    const deals = s.dealWatches.flatMap((w) => {
+      const list = s.watchlists.find((l) => l.id === w.listId);
+      return list ? [{ ...w, listName: list.name[s.lang], items: list.items }] : [];
+    });
+    const ids = [...s.alerts.map((a) => a.itemId), ...deals.flatMap((d) => d.items)];
     void loadCatalog()
-      .then((catalog) => Object.fromEntries(s.alerts.map((a) => [a.itemId, catalog.get(a.itemId)?.name[s.lang] ?? `#${a.itemId}`])))
+      .then((catalog) => Object.fromEntries(ids.map((id) => [id, catalog.get(id)?.name[s.lang] ?? `#${id}`])))
       .catch(() => ({}))
-      .then((names) => syncBackgroundAlerts(s.alerts, s.lang, names));
-  }, [s.alerts, s.lang]);
+      .then((names) => syncBackgroundAlerts(s.alerts, s.lang, names, deals));
+  }, [s.alerts, s.dealWatches, s.watchlists, s.lang]);
+
+  // A new or changed deal watch is checked right away.
+  useEffect(() => {
+    if (s.dealWatches.length > 0) runAlertCheck();
+  }, [s.dealWatches.map((w) => `${w.id}:${w.pct}`).join()]);
 
   useEffect(() => {
     document.documentElement.lang = s.lang;
@@ -116,21 +158,19 @@ export function App() {
 
   useEffect(() => {
     const onToast = (e: Event) => {
-      setToast((e as CustomEvent<string>).detail);
+      setToast((e as CustomEvent<{ title: string; text: string }>).detail);
       setTimeout(() => setToast(null), 8000);
     };
     window.addEventListener("goldline:toast", onToast);
     // New snapshots arrive about hourly: refresh every 10 minutes while open, and when the app comes back.
     const tick = () => {
       bumpRefresh();
-      void collectBackgroundFired();
-      void checkAlerts();
+      runAlertCheck();
     };
     const timer = setInterval(tick, 10 * 60_000);
     const onVisible = () => document.visibilityState === "visible" && tick();
     document.addEventListener("visibilitychange", onVisible);
-    void collectBackgroundFired();
-    void checkAlerts();
+    runAlertCheck();
     return () => {
       clearInterval(timer);
       document.removeEventListener("visibilitychange", onVisible);
@@ -157,6 +197,7 @@ export function App() {
         const meta = await loadMeta(true);
         if (lastSeen != null && meta.updated > lastSeen) {
           bumpRefresh();
+          runAlertCheck();
           document.body.classList.remove("fresh-data");
           void document.body.offsetWidth;
           document.body.classList.add("fresh-data");
@@ -202,7 +243,7 @@ export function App() {
           <button type="button" class={tab.id === s.tab ? "on" : ""} aria-current={tab.id === s.tab ? "page" : undefined} onClick={() => setState({ tab: tab.id })}>
             <Icon name={tab.icon} />
             <span>{t(s.lang, tab.label)}</span>
-            {tab.id === "alerts" && s.alerts.some((a) => !a.active && a.triggeredAt && a.triggeredAt > Date.now() / 1000 - 86_400) && <i class="badge" />}
+            {tab.id === "alerts" && (s.alerts.some((a) => !a.active && a.triggeredAt && a.triggeredAt > Date.now() / 1000 - 86_400) || s.dealWatches.some((w) => Object.values(w.reported).some((at) => at > Date.now() / 1000 - 86_400))) && <i class="badge" />}
           </button>
         ))}
       </nav>
@@ -210,8 +251,8 @@ export function App() {
       {!s.onboarded && <Onboarding />}
       {toast && (
         <div class="toast" role="status" onClick={() => setToast(null)}>
-          <b>{t(s.lang, "alertFired")}</b>
-          <span>{toast}</span>
+          <b>{toast.title}</b>
+          <span>{toast.text}</span>
         </div>
       )}
     </div>
