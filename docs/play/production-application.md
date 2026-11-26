@@ -41,8 +41,8 @@ Edit these to match what really happened. Do not claim feedback you did not rece
 **Expected installs in the first year** [OWNER: choose a range.]
 
 **Changes made from the closed test**
-> Added a weekly market recap, a new icon and start screen, a second price server with a backup source, and an
-> in-app privacy policy link. [OWNER: say which came from tester feedback, if any.]
+> Added a weekly recap, a new icon, sales filters, search by several words, watchlist deal alerts, a clear US
+> region label, a privacy link and a backup price source. [OWNER: say which came from testers, if any.]
 
 **How you decided it is ready**
 > Automated checks pass and the app has run in closed testing since November. [OWNER: confirm you tested the
