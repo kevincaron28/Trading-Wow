@@ -20,6 +20,17 @@ fi
 # New data comes only from the Blizzard API: nothing here fetches TradeSkillMaster, AHledger or any other service.
 # The history before 18 Nov 2026 (early/, early-h/) is a finished, static part of Goblin Ledger's own series.
 
+# One-time index backfill (docs/COLLECTOR_VM.md, "Publish an index backfill"), only when asked for with a marker file.
+# state/ is never published and survives the reset above. The marker goes away once the result has been pushed.
+BACKFILL_REQUEST="$DATA_DIR/state/run-index-backfill"
+BACKFILLED=""
+if [ -f "$BACKFILL_REQUEST" ]; then
+  if node "$ROOT/collector/backfill-indexes.ts" "$DATA_DIR"; then
+    BACKFILLED=1
+  else
+    echo "index backfill failed (nothing replaced; tried again next run)"
+  fi
+fi
 # Market indexes: an extra that must never stop the price collection.
 node "$ROOT/collector/indexes.ts" "$DATA_DIR" || echo "indexes failed (prices still published)"
 # Weekly recap (after the indexes, which it reads): an extra too.
@@ -42,6 +53,7 @@ else
 fi
 git push -q -f origin HEAD:data
 echo "published $(date -u +%H:%M) UTC"
+if [ -n "$BACKFILLED" ]; then rm -f "$BACKFILL_REQUEST"; fi
 
 # Cloudflare R2 copy (what the app reads first, docs/R2_DATA.md): only when R2 is configured, and never a reason to
 # fail the run (the GitHub copy above is published either way).

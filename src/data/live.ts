@@ -253,9 +253,9 @@ export interface IndexDefMeta { id: string; name: { en: string; fr: string }; ab
 /** index/meta.json: definitions and the rebalance calendar (next, last; since 26 Nov 2026). */
 export interface IndexMeta { baseEnd: number; indexes: IndexDefMeta[]; next?: number; nextQuarterly?: boolean; last?: number | null }
 /** One rebalance: items added and removed with their weights (index/<house>.json `changes`). */
-export interface BasketChange { at: number; kind: "monthly" | "quarterly"; added: [number, number][]; removed: [number, number][]; kept: number; level: number }
+export interface BasketChange { at: number; kind: "launch" | "monthly" | "quarterly"; added: [number, number][]; removed: [number, number][]; kept: number; level: number }
 export interface IndexPeriod { start: number; level: number; provisional?: boolean; basket: [number, number, number][] }
-export interface IndexSeries { id: string; periods: IndexPeriod[]; hourly: [number, number][]; link?: number; earlyUntil?: number; changes?: BasketChange[] }
+export interface IndexSeries { id: string; periods: IndexPeriod[]; hourly: [number, number][]; link?: number; earlyUntil?: number; method?: number; changes?: BasketChange[] }
 
 /** Weekly recap of one house (weekly/<house>.json, collector/weekly.ts); null before the collector first writes it. */
 export async function loadWeekly(house: number): Promise<WeeklyRecap | null> {

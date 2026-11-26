@@ -81,6 +81,34 @@ Settings > Secrets and variables > Actions > **Variables** > New repository vari
 The collector code updates itself: each run uses the latest `main`. Re-run step 2 only when
 `deploy/collector/*.service`, `*.timer` or `install.sh` change.
 
+## Publish an index backfill
+
+The index series rebuilt with method 4 ([INDEXES.md](INDEXES.md)) is published only when asked for: merging the code
+publishes nothing. **Run it before 2 December 2026, 02:00 UTC** (21:00 Eastern on 1 December): after that the 14 days of
+hourly prices no longer reach our first day, and the script refuses.
+
+On the server, ask for it once:
+
+```bash
+sudo -u goblin touch /opt/goblin-ledger/data/state/run-index-backfill
+```
+
+The next hourly run (about :30) rebuilds every index, copies the old files to `index/legacy/`, publishes both to the
+data branch and R2, and removes the marker. From then on the hourly runs stay on method 4. Check it:
+
+```bash
+journalctl -u goblin-collector --since "1 hour ago" | grep -E "index|published|r2"
+```
+
+Expected: `wrote 13 files to .../index; 13 old files kept in index/legacy/`, then `index 113: ... method 4`.
+
+- **Undo:** stop the timer, copy `index/legacy/*.json` over `index/` in the data checkout, commit, push the `data`
+  branch and run `collector/r2-publish.ts`; then start the timer. The next run continues method 3 from those files.
+- **Preview without publishing** (any machine with a copy of the `data` branch):
+  `node collector/backfill-indexes.ts <data> --out <preview folder>`.
+- If the VM is down and GitHub Actions is collecting, the marker cannot be placed there: run the backfill on the VM once
+  it is back, or ask for a manual run.
+
 ## Discord recaps
 
 The collector posts the daily, weekly and monthly recaps (`collector/discord-recap.ts`) to one Discord channel, as
