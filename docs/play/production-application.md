@@ -11,6 +11,12 @@ Prepared 26 November 2026. The owner submits the application; nothing here was s
 - Testers: Google Group `testers-community@googlegroups.com` (a testing provider). 6 device acquisitions,
   5 first opens. Ask testers to install and open the app.
 
+## Release and listing on 26 November
+
+- 1.1.0 (10100) is available to testers. 1.1.1 (10101), built from `main` at 93214e04e, is in review.
+- The store listing (new title, text and screenshots, in en-US, fr-CA and fr-FR) is saved as a **draft**. The owner
+  must answer the AI asset declaration for the new icon and feature graphic, then save and send it for review.
+
 ## Questions (300 characters each) and draft answers
 
 Edit these to match what really happened. Do not claim feedback you did not receive.
