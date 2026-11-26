@@ -89,10 +89,22 @@ The collector posts the daily, weekly and monthly recaps (`collector/discord-rec
 - the weekly recap on Mondays;
 - the monthly recap on the 1st.
 
-Each post is an embed with these sections, and a chart of the Ledger 100 over the period:
-- market notes, indexes, top risers and fallers;
-- the most traded items, the best flips (items selling 5+ a day), crafting margins, raid consumables;
-- new highs and lows.
+Each post is an embed with the market notes, followed by up to four **recap cards** (`collector/recap-card.ts`,
+samples in `docs/recap-cards/`). The cards are 1000 px wide, in a dark market-close style with gold accents:
+1. The Ledger 100: its change, open/high/low/close and a line chart. Then the category heatmap with sparklines and,
+   for a week or a month, each index's range against its range since launch.
+2. Top gainers and losers with sparklines, and the most traded items as gold-a-day volume bars.
+3. Raid consumables, the best flips (items selling 5+ a day) and crafting margins.
+4. New highs and lows, the next index rebalance, and the basket changes made during the period.
+
+Prices are shown in gold, silver and copper (po/pa/pc in French), and item names in their quality colours. A page
+with nothing to show yet is left out. All cards together stay under 8 MB, Discord's file limit being 10 MB; each
+card is usually 50 to 200 KB.
+
+The cards are drawn on the VM by resvg (`@resvg/resvg-js`, about 5 MB), using the DejaVu fonts in `assets/fonts`.
+`run.sh` installs resvg once into `/opt/goblin-ledger/render`, at the version pinned in `package.json`. Drawing a
+recap takes about a second, and the whole posting step peaks at about 110 MB of memory (the collector itself peaks at about 400 MB). If resvg is missing, the post falls back to text fields and a
+plain chart.
 
 Each recap is posted once. A recap that is more than 12 hours old is not posted (24 hours for weekly, 48 for
 monthly), so the channel gets no burst after an outage.
@@ -119,7 +131,46 @@ and make a new one. It is never printed in the logs, and the collector only send
 posts, remove the line from `collector.env`, or delete the webhook.
 
 To preview a post without sending it, run `node collector/discord-recap.ts <dataDir> --dry-run` on a copy of the
-data. It writes the message and the chart to `<dataDir>/state/`.
+data. It writes the message, the cards and the summary to `<dataDir>/state/`.
+
+## Recap summaries (AI)
+
+Each recap posted to Discord opens with a 3 to 5 sentence market-close summary: in the embed, and as the "Market
+wire" panel on card 1. The code is in `collector/recap-ai.ts`.
+
+- **Without settings** (the default), the summary is the template one, built from the numbers by the same rules as
+  the app's notes.
+- **With an AI model**, the model sees only the recap's facts (as JSON) and the reviewed notes in
+  `docs/WOW_FOREVER_CONTEXT.md`. It runs at temperature 0.2 and is told to use nothing else.
+- **Accuracy guard.** Before anything is posted, the code checks the text:
+  - every amount of gold, percentage and number must be in the data;
+  - a percentage next to an item or index must be that one's own figure;
+  - "rose" and "fell" must match the sign of the move;
+  - every item named must be one the recap lists;
+  - the text must be 2 to 6 sentences, with no links or markup.
+
+  A text that fails is asked for once more. If that also fails, or if the model is down, slow (30 s timeout) or out
+  of quota, the template summary is posted instead. An unchecked text is never posted.
+- **The log** says which path was used: `summary from ai`, `ai-retry` or `template`, with the reasons.
+- **Free tier.** Each recap makes one request, two at most when the guard rejects the first text. A 429 or 5xx is
+  retried once after a pause. Posting one house uses about 1 to 3 requests a day, which fits the free tier of
+  Google's Gemini API.
+
+Settings in `/etc/goblin-ledger/collector.env` (all three, or none):
+
+```
+RECAP_AI_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai
+RECAP_AI_MODEL=gemini-flash-latest
+RECAP_AI_API_KEY=<the Google AI Studio key>
+```
+
+`gemini-flash-latest` is Google's alias for its newest Flash model. To pin a model, put its ID instead: the free
+models are listed in Google AI Studio under the key's project, under Rate limits. Guilded's old setting
+`gemini-2.0-flash` may be retired by now: check it in AI Studio before using it. When the model ID is wrong, the log
+shows `model answered HTTP 404` and the template is posted.
+
+Keep `docs/WOW_FOREVER_CONTEXT.md` current: it says when the facts were last checked and how to update them. The
+model may only use what it lists.
 
 ## Troubleshooting
 
