@@ -37,7 +37,7 @@ field of each index in `index/<house>.json` says which one it uses. The series a
 | **Weights** | The item's **median daily gold traded** over the selection window (estimated units sold × that day's median price), capped per item and renormalised to 1. Before 18 Nov, when sales are unknown: the median daily gold **listed** (quantity × market value). |
 | **Who can enter** | Hourly data: at least 5 sold in the window and 1 a day, listed in at least half of its hours, at least 1 gold traded a day. Daily data: listed on at least half of the days, at least 1 gold listed on a typical day. |
 | **Missing prices** | A price older than 72 hours (3 days) is left out and the other weights are renormalised; nothing is interpolated. An item that stops trading fails the entry rules at the next review and leaves. An index needs 5 priced items. |
-| **Base** | 100 on the first day of data, 5 Nov 2026 (WoW Forever's launch evening, 4 Nov in America); a house starts later when too little was listed. Houses with no earlier prices (Blackwater) start at 100 at the close of their first day of hourly data (18 Nov). |
+| **Base** | 100 on the first day of data, 5 Nov 2026 (WoW Forever's launch evening, 4 Nov in America); a house starts later when too little was listed. Houses with no earlier prices (Blackwater) start at 100 at the close of their first day of hourly data (18 Nov). A thin index with too few active items then starts on a later day up to 22 Nov (five formation days, as at launch), and after that only at a monthly review. |
 | **Continuity** | At a review the new basket starts at the old basket's level, both measured at the same prices, so a review never moves the index (what a stock index does by changing its divisor). Where our hourly prices take over from the daily ones (18 Nov), no price relative crosses the two sources: the level carries over and the base prices are our first hourly ones. |
 
 **Reviews** (`reviewTimes` in `collector/index-v4.ts`, `RULES` in `collector/indexes.ts`)
@@ -90,7 +90,7 @@ should be exactly 1.
 | Geometric | 0.00% | 0.0% |
 | Arithmetic | +19.2% | +224% |
 
-**Spikes.** All 105 series, hourly values from 18 Nov. "Undone moves" are hourly moves over 10% mostly reversed within
+**Spikes.** All 104 series, hourly values from 18 Nov. Moves are log changes (34% is a 41% rise or a 29% fall). "Undone moves" are hourly moves over 10% mostly reversed within
 48 hours: noise or manipulation rather than news.
 
 | Variant | 99th percentile hourly move | Largest | Undone moves |
@@ -100,7 +100,7 @@ should be exactly 1.
 | Guard ×1.5, cap ×3 | 6.9% | 28% | 39 |
 | Guard ×3, cap ×3 | 9.2% | 46% | 116 |
 | Guard ×2, no cap | 8.7% | 49% | 92 |
-| Neither | 12.1% | 142% | 192 |
+| Neither | 12.0% | 142% | 192 |
 | Arithmetic, guard ×2, cap ×3 | 9.3% | 40% | 116 |
 
 A guard of ×1.5 is quieter still but holds back real moves longer; ×2 was kept. Review it at the January review, when
@@ -111,7 +111,7 @@ the top 100 by gold listed shares 64–80 items with the top 100 by gold traded 
 Counting auctions instead shares only 10–23.
 
 **Checks** (`tests/index-v4.test.ts` and a run on the real data): a rebuild gives the same files every time; hourly runs
-after the backfill give the same values as one rebuild (21,395 points, 12 houses); none of 317 basket changes moves a
+after the backfill give the same values as one rebuild (21,377 points, 12 houses); none of 317 basket changes moves a
 level.
 
 **Limits.** The days before 18 Nov come from the merged early history, a rougher measure than our hourly prices, with no
@@ -155,7 +155,9 @@ anciennes séries sont conservées dans `index/legacy/`.
   chiffres de ventes : l'or mis en vente un jour typique. Seuls les objets liquides entrent (au moins 5 ventes dans la
   fenêtre, 1 par jour, 1 po échangée par jour).
 - **Base.** 100 le premier jour de données (5 nov. 2026, lancement de WoW Forever). Les hôtels sans prix antérieurs
-  (Bourbe-Noire) partent de 100 à la fin de leur première journée de prix horaires.
+  (Bourbe-Noire) partent de 100 à la fin de leur première journée de prix horaires. Un indice qui manque alors d'objets
+  actifs part un jour suivant, jusqu'au 22 nov. (cinq journées de formation, comme au lancement), puis seulement à une
+  révision mensuelle.
 - **Révisions.** Les mardis 10, 17 et 24 nov. à 15 h UTC (semaines de lancement), puis à la première réinitialisation de
   chaque mois, sur les 7 derniers jours; un objet déjà présent reste tant qu'il est classé dans 1,2 × la taille du
   panier. En janvier, avril, juillet et octobre, le panier est reconstruit sur 14 jours. Une révision ne fait jamais
