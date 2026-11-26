@@ -273,11 +273,13 @@ export function buildRecap(input: WeeklyInput, startH: number, endH: number): We
     const rows: [number, number, number, number | null][] = [];
     for (const [id, h] of input.histories) {
       if (!input.raidItem(id)) continue;
+      // Liquid items only (a few auctions, a sale a day, 1 silver+): estimated sales of junk listings are noise.
+      const q = now.get(id);
+      if (!q || !isLiquid(q, input.classOf(id))) continue;
       const s = rowsIn(h, replayFrom, endH).reduce((x, r) => x + Math.max(0, r[5] ?? 0), 0) / days;
       sold += s;
       if (prevCovered) prevSold += rowsIn(h, prevFrom, replayFrom).reduce((x, r) => x + Math.max(0, r[5] ?? 0), 0) / days;
-      const q = now.get(id);
-      if (!q || !isLiquid(q, input.classOf(id)) || s < 1) continue;
+      if (s < 1) continue;
       const a = startPrices.get(id);
       rows.push([id, Math.round(s), q.market, a != null && a > 0 && q.market / a <= MAX_RATIO && q.market / a >= 1 / MAX_RATIO ? (q.market / a - 1) * 100 : null]);
     }

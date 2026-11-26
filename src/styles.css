@@ -364,6 +364,10 @@ body.fresh-data .row-price, body.fresh-data .symbol-price .money { animation: fr
 /* Weekly recap (This week on the Market tab, and the full recap) */
 .ov-week { display: flex; flex-direction: column; gap: 6px; }
 .ov-week.static { margin-top: 4px; }
+.recap-links { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+.recap-history { display: flex; flex-wrap: wrap; gap: 8px; padding: 4px 0 8px; }
+.rebalance-change { padding: 8px 0; border-bottom: 1px solid var(--border); }
+.rebalance-change:last-child { border-bottom: 0; }
 .ov-week-range { font-size: 13px; font-weight: 600; color: var(--accent); }
 .ov-week-line { line-height: 1.4; }
 .ov-week .link-btn { align-self: flex-start; padding-top: 2px; }

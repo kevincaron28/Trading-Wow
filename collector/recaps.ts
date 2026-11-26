@@ -28,6 +28,8 @@ export const POST_HOUR_UTC = 13;
 export const KEEP: Record<RecapKind, number> = { daily: 60, weekly: 52, monthly: 36 };
 /** How many past periods a run may look back for a missing one (hourly rows are kept 14 days). */
 const LOOKBACK: Record<RecapKind, number> = { daily: 7, weekly: 2, monthly: 1 };
+/** No recap ends before WoW Forever's first full week of prices (the first monthly one is November 2026). */
+const FIRST_END = Date.UTC(2026, 10, 12) / 1000;
 
 export interface RecapFile extends WeeklyFile {
   kind: RecapKind;
@@ -106,7 +108,7 @@ function main(): void {
     const made: string[] = [];
     for (const kind of KINDS) {
       // Newest missing period first; one a run.
-      const missing = periods(kind, latestH, LOOKBACK[kind]).find(([, , key]) => !existsSync(join(dir, `${kind}-${key}.json`)));
+      const missing = periods(kind, latestH, LOOKBACK[kind]).find(([, endH, key]) => endH * HOUR > FIRST_END && !existsSync(join(dir, `${kind}-${key}.json`)));
       if (!missing) continue;
       const [startH, endH, key] = missing;
       const file = buildRecap(input, startH, endH);

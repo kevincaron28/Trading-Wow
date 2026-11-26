@@ -48,3 +48,9 @@ echo "published $(date -u +%H:%M) UTC"
 if [ -n "${R2_ACCOUNT_ID:-}" ] || grep -qs '^R2_ACCOUNT_ID=.' "$ROOT/.env"; then
   node --env-file-if-exists="$ROOT/.env" "$ROOT/collector/r2-publish.ts" "$DATA_DIR" || echo "R2 publish failed (GitHub copy published)"
 fi
+
+# Daily, weekly and monthly recaps to Discord (collector/discord-recap.ts), after the R2 publish so the data is out
+# first. Only when DISCORD_RECAP_WEBHOOK is set; never a reason to fail the run.
+if [ -n "${DISCORD_RECAP_WEBHOOK:-}" ]; then
+  node "$ROOT/collector/discord-recap.ts" "$DATA_DIR" || echo "Discord recap post failed (retried next run)"
+fi

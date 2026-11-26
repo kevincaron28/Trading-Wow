@@ -6,7 +6,7 @@
 import type { Candle, PricePoint } from "../lib/candles";
 import { toQuote, type LatestRow, type Quote } from "../lib/quotes";
 import type { Lang } from "../lib/i18n";
-import type { WeeklyRecap } from "../lib/weekly";
+import type { RecapFile, RecapKind, RecapList, WeeklyRecap } from "../lib/weekly";
 
 /** The `data` branch on GitHub: the fallback (and a copy of everything). */
 export const DATA_BASE = (import.meta.env.VITE_DATA_BASE as string | undefined) ?? "https://raw.githubusercontent.com/kevincaron28/Trading-Wow/data/";
@@ -73,7 +73,7 @@ const fetchedAt = new Map<string, number>();
 
 /** Files kept on the device so the app still shows the last prices offline. */
 const OFFLINE_PREFIX = "goldline:file:";
-const offlineWorthy = (path: string) => path === "meta.json" || path === "items.json" || path.startsWith("latest/") || path.startsWith("h2/") || path.startsWith("early/") || path.startsWith("early-h/") || path.startsWith("weekly/");
+const offlineWorthy = (path: string) => path === "meta.json" || path === "items.json" || path.startsWith("latest/") || path.startsWith("h2/") || path.startsWith("early/") || path.startsWith("early-h/") || path.startsWith("weekly/") || path.startsWith("recap/");
 let offline = false;
 const offlineListeners = new Set<(offline: boolean) => void>();
 export function isOffline(): boolean {
@@ -250,16 +250,29 @@ export function iconUrl(meta: Meta | null, icon: string): string {
 }
 
 export interface IndexDefMeta { id: string; name: { en: string; fr: string }; about: { en: string; fr: string }; size: number; cap: number }
+/** index/meta.json: definitions and the rebalance calendar (next, last; since 26 Nov 2026). */
+export interface IndexMeta { baseEnd: number; indexes: IndexDefMeta[]; next?: number; nextQuarterly?: boolean; last?: number | null }
+/** One rebalance: items added and removed with their weights (index/<house>.json `changes`). */
+export interface BasketChange { at: number; kind: "monthly" | "quarterly"; added: [number, number][]; removed: [number, number][]; kept: number; level: number }
 export interface IndexPeriod { start: number; level: number; provisional?: boolean; basket: [number, number, number][] }
-export interface IndexSeries { id: string; periods: IndexPeriod[]; hourly: [number, number][]; link?: number; earlyUntil?: number }
+export interface IndexSeries { id: string; periods: IndexPeriod[]; hourly: [number, number][]; link?: number; earlyUntil?: number; changes?: BasketChange[] }
 
 /** Weekly recap of one house (weekly/<house>.json, collector/weekly.ts); null before the collector first writes it. */
 export async function loadWeekly(house: number): Promise<WeeklyRecap | null> {
   return getJson<WeeklyRecap>(`weekly/${house}.json`).catch(() => null);
 }
 
+/** The list of a house's daily, weekly and monthly recaps (recap/<house>/list.json); null before the first one. */
+export async function loadRecapList(house: number): Promise<RecapList | null> {
+  return getJson<RecapList>(`recap/${house}/list.json`).catch(() => null);
+}
+/** One recap of a house. */
+export function loadRecap(house: number, kind: RecapKind, key: string): Promise<RecapFile> {
+  return getJson<RecapFile>(`recap/${house}/${kind}-${key}.json`);
+}
+
 /** Goldline indexes: definitions (index/meta.json) and one house's series (index/<house>.json). */
-export function loadIndexMeta(): Promise<{ baseEnd: number; indexes: IndexDefMeta[] }> {
+export function loadIndexMeta(): Promise<IndexMeta> {
   return getJson("index/meta.json");
 }
 export async function loadIndexes(house: number): Promise<Record<string, IndexSeries>> {

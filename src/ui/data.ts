@@ -1,7 +1,7 @@
 import { useEffect, useState } from "preact/hooks";
-import { loadCatalog, loadHistory, loadIndexes, loadIndexMeta, loadMeta, loadQuotes, loadWeekly, type IndexDefMeta, type IndexSeries, type CatalogItem, type ItemHistory, type Meta } from "../data/live";
+import { loadCatalog, loadHistory, loadIndexes, loadIndexMeta, loadMeta, loadQuotes, loadRecap, loadRecapList, loadWeekly, type IndexMeta, type IndexSeries, type CatalogItem, type ItemHistory, type Meta } from "../data/live";
 import type { Quote } from "../lib/quotes";
-import type { WeeklyRecap } from "../lib/weekly";
+import type { RecapFile, RecapKind, RecapList, WeeklyRecap } from "../lib/weekly";
 import { parseRecipes, type RecipeBook, type RecipeRow } from "../lib/crafting";
 
 export interface Async<T> {
@@ -68,7 +68,7 @@ export function useHistory(house: number, itemId: number | null): Async<ItemHist
   return useAsync(() => (itemId == null ? Promise.resolve({ hourly: [], daily: [] }) : loadHistory(house, itemId)), `history:${house}:${itemId}:${v}`);
 }
 
-export function useIndexMeta(): Async<{ baseEnd: number; indexes: IndexDefMeta[] }> {
+export function useIndexMeta(): Async<IndexMeta> {
   return useAsync(() => loadIndexMeta(), "indexmeta:0");
 }
 export function useIndexes(house: number): Async<Record<string, IndexSeries>> {
@@ -79,6 +79,15 @@ export function useIndexes(house: number): Async<Record<string, IndexSeries>> {
 export function useWeekly(house: number): Async<WeeklyRecap | null> {
   const v = useRefreshVersion();
   return useAsync(() => loadWeekly(house), `weekly:${house}:${v}`);
+}
+
+export function useRecapList(house: number): Async<RecapList | null> {
+  const v = useRefreshVersion();
+  return useAsync(() => loadRecapList(house), `recaplist:${house}:${v}`);
+}
+
+export function useRecap(house: number, kind: RecapKind, key: string | null): Async<RecapFile | null> {
+  return useAsync(() => (key ? loadRecap(house, kind, key) : Promise.resolve(null)), `recap:${house}:${kind}:${key}`);
 }
 
 let recipesPromise: Promise<RecipeBook> | null = null;
