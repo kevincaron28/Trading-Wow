@@ -23,7 +23,7 @@ fi
 # Market indexes: an extra that must never stop the price collection.
 node "$ROOT/collector/indexes.ts" "$DATA_DIR" || echo "indexes failed (prices still published)"
 # Weekly recap (after the indexes, which it reads): an extra too.
-node "$ROOT/collector/weekly.ts" "$DATA_DIR" || echo "weekly recap failed (prices still published)"
+node "$ROOT/collector/recaps.ts" "$DATA_DIR" || echo "recaps failed (prices still published)"
 
 cd "$DATA_DIR"
 cat > README.md <<'EOF'
