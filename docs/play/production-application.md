@@ -48,7 +48,7 @@ Edit these to match what really happened. Do not claim feedback you did not rece
 > Automated checks pass and the app has run in closed testing since November. [OWNER: confirm you tested the
 > latest build on a phone.]
 
-## Owner decision before production
+## Name (owner decision, 26 November)
 
-Another app named "Goblin Ledger - WoW AH Tracker" is on Play (`com.utilia.wow_ah`). Consider a more
-distinctive title.
+The app and website stay "Goblin Ledger". The Google Play title is **Goblin Ledger: WoW Forever AH**, because another
+Play app is already named "Goblin Ledger". The package stays `top.kcaron.goldline`.
