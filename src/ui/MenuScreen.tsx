@@ -88,6 +88,7 @@ export function MenuScreen() {
         <p class="sheet-label">{t(s.lang, "about")}</p>
         <p class="small">{t(s.lang, "aboutText")}</p>
         {!Capacitor.isNativePlatform() && <p class="small muted">{t(s.lang, "webPreview")}</p>}
+        <p class="small"><a href={`https://kcaron.top/${s.lang === "fr" ? "fr/" : ""}goldline/privacy/`} target="_blank" rel="noopener">{t(s.lang, "privacyPolicy")}</a></p>
         <p class="small muted">{t(s.lang, "chartsBy")} <a href="https://www.tradingview.com/" target="_blank" rel="noopener">tradingview.com</a></p>
       </div>
     </section>
