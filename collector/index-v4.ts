@@ -48,6 +48,8 @@ export const LAUNCH_DAY4 = Date.UTC(2026, 10, 4) / (DAY * 1000);
 export const LAUNCH_REVIEWS: readonly number[] = [10, 17, 24].map((d) => Date.UTC(2026, 10, d, 15) / 1000);
 /** Base of the houses without earlier history: the close of our first day of hourly data (18 Nov). */
 export const HOURLY_BASE = Date.UTC(2026, 10, 19) / 1000;
+/** Our hourly collection started on 18 Nov at 02:00 UTC; a history that starts after this has lost its first rows. */
+export const FIRST_OWN_HOUR = Date.UTC(2026, 10, 18, 6) / 1000;
 /**
  * Last day close on which such a series can start between reviews (19 to 23 Nov): five formation days, as at launch.
  * A series that has not formed by then starts at a monthly review.
@@ -355,7 +357,7 @@ function splice(daily: Daily, data: Prepared, p: Params): Period4 | null {
  */
 function hourlyBase(def: IndexDef, data: Prepared, catalog: Catalog, p: Params): Period4 | null {
   const closes: number[] = [];
-  if (data.firstHour * HOUR < HOURLY_BASE) for (let t = HOURLY_BASE; t <= HOURLY_FORMATION_END; t += DAY) closes.push(t);
+  if (data.firstHour * HOUR <= FIRST_OWN_HOUR) for (let t = HOURLY_BASE; t <= HOURLY_FORMATION_END; t += DAY) closes.push(t);
   // A review counts only while its whole selection window is still there, so a later run cannot start it differently.
   const reviews = rebalanceTimes(HOURLY_FORMATION_END, data.lastHour * HOUR).filter((t) => t / HOUR - RULES.monthlyWindowHours >= data.firstHour);
   for (const t of [...closes, ...reviews]) {
