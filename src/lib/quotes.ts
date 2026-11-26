@@ -31,6 +31,16 @@ export function toQuote(id: number, row: LatestRow): Quote {
   return { id, min: row[0], market: row[1], listed: row[2], auctions: row[3], prev24h: row[4] > 0 ? row[4] : null, avg7d: row[5], soldPerDay: row[6] != null && row[6] >= 0 ? row[6] : null, prev1h: row[7] != null && row[7] > 0 ? row[7] : null, soldAvg7d: row[8] != null && row[8] >= 0 ? row[8] : null };
 }
 
+/** Estimated units sold per day: the 7-day average when counted, else the last 24 hours; null when unknown. */
+export function salesPerDay(q: Quote): number | null {
+  return q.soldAvg7d ?? q.soldPerDay;
+}
+
+/** Whether an item sells at least `min` units a day. 0 keeps everything, including items with unknown sales. */
+export function sellsAtLeast(q: Quote, min: number): boolean {
+  return min <= 0 || (salesPerDay(q) ?? 0) >= min;
+}
+
 /** 24h change of the market price in percent, or null. */
 export function change24h(q: Quote): number | null {
   return q.prev24h ? ((q.market - q.prev24h) / q.prev24h) * 100 : null;
