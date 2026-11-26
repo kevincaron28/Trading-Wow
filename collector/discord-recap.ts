@@ -10,7 +10,8 @@
  * - DISCORD_RECAP_LANG: fr (default) or en.
  *
  * Each recap is posted once, by the first run after its period ends (about 13:30 UTC; the weekly one on Mondays, the
- * monthly one on the 1st), as a rich embed with a chart of the Ledger 100 over the period. What was posted is kept in
+ * monthly one on the 1st): an embed with the notes and the recap cards (collector/recap-card.ts, one image per page,
+ * each in its own embed); without the card renderer, text fields and a chart of the Ledger 100. What was posted is kept in
  * state/discord-posted.json (on the VM, never published). A recap more than FRESH_HOURS old is not posted: after a
  * long outage the channel does not get a burst of old recaps. Branding: Goblin Ledger only.
  */
@@ -20,6 +21,8 @@ import { formatMoneyShort } from "../src/lib/money.ts";
 import { pctText, recapSummary, type RecapFile, type RecapKind, type RecapList } from "../src/lib/weekly.ts";
 import type { Lang } from "../src/lib/i18n.ts";
 import { lineChartPng } from "./png-chart.ts";
+import { renderCards, type CardChange } from "./recap-card.ts";
+import { aiConfigFromEnv, summarize } from "./recap-ai.ts";
 
 const HOUR = 3_600;
 export const BRAND = "Goblin Ledger";
@@ -81,8 +84,13 @@ export function periodLabel(r: Pick<RecapFile, "kind" | "start" | "end">, lang: 
   return `${d(r.start, { day: "numeric", month: "short" })} – ${d(r.end, { day: "numeric", month: "short", year: "numeric" })}`;
 }
 
-/** The Discord message for one recap (webhook payload_json). The chart, when there is one, is attachment://chart.png. */
-export function buildMessage(r: RecapFile, lang: Lang, names: Names, withChart: boolean, now: number = Date.now() / 1000): Record<string, unknown> {
+/**
+ * The Discord message for one recap (webhook payload_json). `images` are the attached files: the recap cards
+ * (card-1.png, card-2.png...: the first embed carries the title, the notes and card 1, then one embed per card), or
+ * the plain chart.png when the cards cannot be drawn, with the text fields instead.
+ */
+export function buildMessage(r: RecapFile, lang: Lang, names: Names, images: readonly string[], now: number = Date.now() / 1000, summary?: { text: string; source: string }): Record<string, unknown> {
+  const cards = images.length > 0 && images[0] !== "chart.png";
   const T = TEXT[lang];
   const num = (n: number) => n.toLocaleString(lang === "fr" ? "fr-CA" : "en-US").replace(/ | /g, " ");
   // 1,000 gold and up: whole gold with separators ("21,220g"), else the app's short form ("2.15g", "56.3s").
@@ -110,17 +118,20 @@ export function buildMessage(r: RecapFile, lang: Lang, names: Names, withChart: 
   const embed: Record<string, unknown> = {
     author: { name: BRAND, icon_url: AVATAR_URL },
     title: trim(`${T[r.kind]} · ${periodLabel(r, lang)} · ${names.house}`, 256),
-    description: trim(notes.join("\n"), 4000),
+    // A checked AI summary first, then the notes; the template summary is the notes themselves.
+    description: trim(summary && summary.source !== "template" ? `${summary.text}\n\n${notes.map((l) => `• ${l}`).join("\n")}` : notes.join("\n"), 4000),
     color,
-    fields,
+    fields: cards ? [] : fields,
     footer: { text: T.footer },
     timestamp: new Date(r.end * 1000).toISOString(),
   };
-  if (withChart) embed.image = { url: "attachment://chart.png" };
+  if (images[0]) embed.image = { url: `attachment://${images[0]}` };
   // Discord's limit is 6000 characters for all embeds of a message: drop the last fields until it fits.
   const size = () => JSON.stringify([embed.title, embed.description, (embed.fields as unknown[]), embed.footer]).length;
   while (size() > 5800 && (embed.fields as unknown[]).length) (embed.fields as unknown[]).pop();
-  return { username: BRAND, avatar_url: AVATAR_URL, embeds: [embed], allowed_mentions: { parse: [] } };
+  // Discord takes up to 10 embeds a message: each further card is its own embed, so it shows full width.
+  const more = cards ? images.slice(1, 10).map((f) => ({ color, image: { url: `attachment://${f}` } })) : [];
+  return { username: BRAND, avatar_url: AVATAR_URL, embeds: [embed, ...more], allowed_mentions: { parse: [] } };
 }
 
 /** The webhook URL is only ever a Discord webhook: anything else is refused (and never printed). */
@@ -142,11 +153,11 @@ export function due(list: RecapList, house: number, posted: Record<string, strin
   return out;
 }
 
-async function post(url: string, payload: Record<string, unknown>, png: Buffer | null): Promise<void> {
+async function post(url: string, payload: Record<string, unknown>, files: { name: string; png: Buffer }[]): Promise<void> {
   for (let attempt = 0; attempt < 2; attempt++) {
     const form = new FormData();
-    form.append("payload_json", JSON.stringify(png ? { ...payload, attachments: [{ id: 0, filename: "chart.png" }] } : payload));
-    if (png) form.append("files[0]", new Blob([new Uint8Array(png)], { type: "image/png" }), "chart.png");
+    form.append("payload_json", JSON.stringify(files.length ? { ...payload, attachments: files.map((f, i) => ({ id: i, filename: f.name })) } : payload));
+    files.forEach((f, i) => form.append(`files[${i}]`, new Blob([new Uint8Array(f.png)], { type: "image/png" }), f.name));
     const res = await fetch(`${url.trim()}?wait=true`, { method: "POST", body: form, signal: AbortSignal.timeout(20_000) });
     if (res.ok) return;
     if (res.status === 429 && attempt === 0) {
@@ -168,18 +179,20 @@ async function main(): Promise<void> {
   const lang: Lang = process.env.DISCORD_RECAP_LANG === "en" ? "en" : "fr";
   const houses = (process.env.DISCORD_RECAP_HOUSES ?? "113").split(",").map((x) => Number(x.trim())).filter(Number.isInteger);
   const meta = JSON.parse(readFileSync(join(dataDir, "meta.json"), "utf8")) as { houses: { id: number; realm: string; faction: string }[] };
-  const items = JSON.parse(readFileSync(join(dataDir, "items.json"), "utf8")) as Record<string, [string, string]>;
+  const items = JSON.parse(readFileSync(join(dataDir, "items.json"), "utf8")) as Record<string, [string, string, number]>;
   const indexMeta = existsSync(join(dataDir, "index", "meta.json")) ? (JSON.parse(readFileSync(join(dataDir, "index", "meta.json"), "utf8")) as { indexes: { id: string; name: Record<Lang, string> }[] }) : { indexes: [] };
   const statePath = join(dataDir, "state", "discord-posted.json");
   const posted: Record<string, string> = existsSync(statePath) ? (JSON.parse(readFileSync(statePath, "utf8")) as Record<string, string>) : {};
   const now = Date.now() / 1000;
+  const ai = aiConfigFromEnv();
   let failed = 0;
   for (const house of houses) {
     const listPath = join(dataDir, "recap", String(house), "list.json");
     if (!existsSync(listPath)) continue;
     const info = meta.houses.find((h) => h.id === house);
-    const names: Names = {
+    const names: Names & { quality: (id: number) => number } = {
       item: (id) => (lang === "fr" ? items[id]?.[1] || items[id]?.[0] : items[id]?.[0]) ?? `#${id}`,
+      quality: (id) => Number(items[id]?.[2] ?? 1),
       index: (id) => indexMeta.indexes.find((d) => d.id === id)?.name[lang] ?? id,
       house: info ? `${REALMS[info.realm]?.[lang] ?? info.realm} ${FACTIONS[info.faction]?.[lang] ?? info.faction}` : `#${house}`,
     };
@@ -187,19 +200,36 @@ async function main(): Promise<void> {
     for (const { kind, key } of due(list, house, posted, dry ? list[KINDS[0]!][0]?.[2] ?? now : now)) {
       const recap = JSON.parse(readFileSync(join(dataDir, "recap", String(house), `${kind}-${key}.json`), "utf8")) as RecapFile;
       const indexFile = join(dataDir, "index", `${house}.json`);
-      const hourly = existsSync(indexFile) ? ((JSON.parse(readFileSync(indexFile, "utf8")) as { indexes: Record<string, { hourly: [number, number][] }> }).indexes.gl100?.hourly ?? []) : [];
-      const inPeriod = hourly.filter(([h]) => h >= recap.start / HOUR && h <= recap.end / HOUR).map(([, v]) => v);
-      const png = lineChartPng(inPeriod, 800, 260, inPeriod[0]);
-      const payload = buildMessage(recap, lang, names, png != null, now);
+      type IndexJson = { hourly: [number, number][]; changes?: { at: number; kind: "monthly" | "quarterly"; added: [number, number][]; removed: [number, number][] }[] };
+      const indexes = existsSync(indexFile) ? (JSON.parse(readFileSync(indexFile, "utf8")) as { indexes: Record<string, IndexJson> }).indexes : {};
+      const series = Object.fromEntries(Object.entries(indexes).map(([id, x]) => [id, x.hourly]));
+      const changes: CardChange[] = Object.entries(indexes).flatMap(([id, x]) => (x.changes ?? []).map((c) => ({ index: id, at: c.at, kind: c.kind, added: c.added.map(([i]) => i), removed: c.removed.map(([i]) => i) })));
+      // The market summary: the model's text when it passes the accuracy guard, else the template (never unchecked).
+      const catalog = Object.values(items).map((r) => (lang === "fr" ? r[1] || r[0] : r[0]));
+      const summary = await summarize(recap, { ...names, catalog }, lang, changes, ai, { now: dry ? recap.end + 1_800 : now });
+      console.log(`discord: ${house} ${kind} ${key} summary from ${summary.source}${summary.problems.length ? ` (${summary.problems.slice(0, 4).join("; ")})` : ""}`);
+      let files: { name: string; png: Buffer }[] = [];
+      try {
+        files = (renderCards({ recap, lang, names, series, changes, now, summary: summary.text }) ?? []).map((png, i) => ({ name: `card-${i + 1}.png`, png }));
+      } catch (error) {
+        console.error(`discord: cards not drawn (${error instanceof Error ? error.message : "error"}); posting the plain chart`);
+      }
+      if (!files.length) {
+        const inPeriod = (series.gl100 ?? []).filter(([h]) => h >= recap.start / HOUR && h <= recap.end / HOUR).map(([, v]) => v);
+        const png = lineChartPng(inPeriod, 800, 260, inPeriod[0]);
+        if (png) files = [{ name: "chart.png", png }];
+      }
+      const payload = buildMessage(recap, lang, names, files.map((f) => f.name), now, summary);
       if (dry) {
         mkdirSync(join(dataDir, "state"), { recursive: true });
         writeFileSync(join(dataDir, "state", `discord-${house}-${kind}.json`), JSON.stringify(payload, null, 2));
-        if (png) writeFileSync(join(dataDir, "state", `discord-${house}-${kind}.png`), png);
+        writeFileSync(join(dataDir, "state", `discord-${house}-${kind}-summary.json`), JSON.stringify(summary, null, 2));
+        for (const f of files) writeFileSync(join(dataDir, "state", `discord-${house}-${kind}-${f.name}`), f.png);
         console.log(`discord (dry run): ${house} ${kind} ${key} written to state/`);
         continue;
       }
       try {
-        await post(url!, payload, png);
+        await post(url!, payload, files);
         posted[`${house}:${kind}`] = key;
         console.log(`discord: posted ${house} ${kind} ${key}`);
       } catch (error) {

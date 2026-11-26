@@ -13,7 +13,8 @@ Prepared 26 November 2026. The owner submits the application; nothing here was s
 
 ## Release and listing on 26 November
 
-- 1.1.0 (10100) is available to testers. 1.1.1 (10101), built from `main` at 93214e04e, is in review.
+- 1.1.0 (10100) is available to testers. 1.1.2 (10102), built from commit f38f87155, was sent for review and replaced
+  1.1.1 (10101) in the review queue.
 - The store listing (new title, text and screenshots, in en-US, fr-CA and fr-FR) is saved as a **draft**. The owner
   must answer the AI asset declaration for the new icon and feature graphic, then save and send it for review.
 
@@ -47,8 +48,8 @@ Edit these to match what really happened. Do not claim feedback you did not rece
 **Expected installs in the first year** [OWNER: choose a range.]
 
 **Changes made from the closed test**
-> Added a weekly recap, a new icon, sales filters, search by several words, watchlist deal alerts, a clear US
-> region label, a privacy link and a backup price source. [OWNER: say which came from testers, if any.]
+> Added daily, weekly and monthly recaps, a new icon, sales filters, search by several words, watchlist deal
+> alerts, a clear US region label, a privacy link and a backup price source. [OWNER: say which came from testers.]
 
 **How you decided it is ready**
 > Automated checks pass and the app has run in closed testing since November. [OWNER: confirm you tested the

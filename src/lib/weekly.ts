@@ -21,6 +21,8 @@ export interface WeeklyRecap {
   traded?: [number, number, number, number, number | null][] | null;
   /** Raid consumables (since 1.2): sold per day, the period before, change %, rows [item, sold per day, market, change % | null]. */
   raid?: { soldPerDay: number; prevSoldPerDay: number | null; change: number | null; rows: [number, number, number, number | null][] } | null;
+  /** Price paths for sparklines (since 1.3): item -> prices across the period, null where unknown. */
+  sparks?: Record<string, (number | null)[]>;
 }
 
 export type RecapKind = "daily" | "weekly" | "monthly";

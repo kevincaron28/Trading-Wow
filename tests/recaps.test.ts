@@ -140,7 +140,7 @@ describe("Discord recap post", () => {
   const names = { item: (id: number) => (id === 7 ? "Black Lotus" : `Item ${id}`), index: (id: string) => (id === "gl100" ? "Ledger 100" : "Herbs"), house: "PvP Horde" };
 
   it("posts as Goblin Ledger only, with the sections and the chart", () => {
-    const msg = buildMessage(recap, "en", names, true, recap.end + 1800) as { username: string; embeds: { title: string; image?: { url: string }; fields: { name: string; value: string }[]; description: string }[] };
+    const msg = buildMessage(recap, "en", names, ["chart.png"], recap.end + 1800) as { username: string; embeds: { title: string; image?: { url: string }; fields: { name: string; value: string }[]; description: string }[] };
     expect(msg.username).toBe("Goblin Ledger");
     const embed = msg.embeds[0]!;
     expect(embed.title).toBe("Weekly recap · 23 Nov – 30 Nov 2026 · PvP Horde");
@@ -149,7 +149,7 @@ describe("Discord recap post", () => {
     expect(embed.description).toContain("Raid consumables: sales up 25% on the period before.");
     const text = JSON.stringify(msg);
     expect(text).not.toMatch(/guilded|goldline/i);
-    expect(JSON.stringify(buildMessage(recap, "fr", names, false, recap.end))).not.toMatch(/guilded|goldline/i);
+    expect(JSON.stringify(buildMessage(recap, "fr", names, [], recap.end))).not.toMatch(/guilded|goldline/i);
   });
 
   it("labels the month by name", () => {
