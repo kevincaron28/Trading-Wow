@@ -14,10 +14,7 @@
 import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { buildHouse4, describeHouse, indexMeta, readCatalog, readDaily, readSeries } from "./indexes.ts";
-import { prepare } from "./index-v4.ts";
-
-/** Our hourly collection started on 18 Nov at 02:00 UTC; a history that starts after this has lost its first rows. */
-export const FIRST_OWN_HOUR = Date.UTC(2026, 10, 18, 6) / 1000;
+import { FIRST_OWN_HOUR, prepare } from "./index-v4.ts";
 
 export interface BackfillResult { files: Map<string, string>; log: string[] }
 

@@ -48,6 +48,13 @@ export const LAUNCH_DAY4 = Date.UTC(2026, 10, 4) / (DAY * 1000);
 export const LAUNCH_REVIEWS: readonly number[] = [10, 17, 24].map((d) => Date.UTC(2026, 10, d, 15) / 1000);
 /** Base of the houses without earlier history: the close of our first day of hourly data (18 Nov). */
 export const HOURLY_BASE = Date.UTC(2026, 10, 19) / 1000;
+/** Our hourly collection started on 18 Nov at 02:00 UTC; a history that starts after this has lost its first rows. */
+export const FIRST_OWN_HOUR = Date.UTC(2026, 10, 18, 6) / 1000;
+/**
+ * Last day close on which such a series can start between reviews (19 to 23 Nov): five formation days, as at launch.
+ * A series that has not formed by then starts at a monthly review.
+ */
+export const HOURLY_FORMATION_END = Date.UTC(2026, 10, 23) / 1000;
 
 /** Early daily rows per item: day index -> [market value, quantity listed]. */
 export type DailySeries = Map<number, Map<number, [price: number, qty: number]>>;
@@ -344,11 +351,17 @@ function splice(daily: Daily, data: Prepared, p: Params): Period4 | null {
   return { start: h0 * HOUR, level, splice: true, basket };
 }
 
-/** The first period of a house without usable earlier history: base 100 at the close of the first day of hourly data. */
+/**
+ * The first period of a series without usable earlier history: base 100 at the close of the first of the formation days
+ * (while our hourly data still reaches back to them) or, failing those, at a monthly review.
+ */
 function hourlyBase(def: IndexDef, data: Prepared, catalog: Catalog, p: Params): Period4 | null {
-  const first = Math.max(HOURLY_BASE, (Math.floor(data.firstHour / 24) + 1) * DAY);
-  // Thin markets may need a few days before enough items trade: try each day's close.
-  for (let t = first; t / HOUR <= data.lastHour; t += DAY) {
+  const closes: number[] = [];
+  if (data.firstHour * HOUR <= FIRST_OWN_HOUR) for (let t = HOURLY_BASE; t <= HOURLY_FORMATION_END; t += DAY) closes.push(t);
+  // A review counts only while its whole selection window is still there, so a later run cannot start it differently.
+  const reviews = rebalanceTimes(HOURLY_FORMATION_END, data.lastHour * HOUR).filter((t) => t / HOUR - RULES.monthlyWindowHours >= data.firstHour);
+  for (const t of [...closes, ...reviews]) {
+    if (t / HOUR > data.lastHour) break;
     const basket = selectHourly(def, data.hourly, catalog, t, RULES.monthlyWindowHours, data.hours, undefined, p);
     if (basket.length) return { start: t - HOUR, level: 100, basket };
   }
@@ -395,7 +408,7 @@ export function buildIndex(def: IndexDef, stored: IndexFile4 | null, data: Prepa
   }
   const priceAtHour = (h: number) => (id: number) => priceHour(data.hourly.get(id), h, p);
   // Reviews: due once a snapshot at or after the review time exists, so a late run gives the same result.
-  for (const { at, kind } of reviewTimes(periods.at(-1)!.start, Math.min(now, data.lastHour * HOUR))) {
+  for (const { at, kind } of reviewTimes(periods.at(-1)!.start + HOUR, Math.min(now, data.lastHour * HOUR))) {
     const h = at / HOUR;
     const prev = periods.at(-1)!;
     const level = value(prev, priceAtHour(h - 1), p);

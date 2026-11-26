@@ -180,6 +180,23 @@ describe("method 4 series", () => {
     expect(after.periods.find((p) => p.start === review)).toEqual(full.periods.find((p) => p.start === review));
   });
 
+  it("lets a thin series start on one of the first five days of hourly data, else only at a monthly review", () => {
+    // Items that trade only from a given day on: the first day close with a day of sales behind it forms the basket.
+    const from = (start: number, end: number) => prepare({ daily: new Map(), hourly: new Map(IDS.map((id) => {
+      const s = flat(1_000, FIRST_HOUR, end, 0);
+      for (let h = start; h <= end; h++) s.sold.set(h, 20);
+      return [id, s] as [number, Series];
+    })) });
+    const early = buildIndex(herbs, null, from(day(20) * 24, day(26) * 24), catalog, day(26) * D)!;
+    expect(early.periods[0]!.start).toBeLessThan(day(23) * D);
+    // Trading from 25 Nov: nothing until the December review, then 100 there.
+    expect(buildIndex(herbs, null, from(day(25) * 24, day(30) * 24), catalog, day(30) * D)).toBeNull();
+    const review = Date.UTC(2026, 11, 1, 15) / 1000;
+    const late = buildIndex(herbs, null, from(day(25) * 24, review / H + 3), catalog, review + 4 * H)!;
+    expect(late.periods.map((p) => p.start)).toEqual([review - H]);
+    expect(late.hourly[0]).toEqual([review / H - 1, 100]);
+  });
+
   it("starts a house without earlier prices at the close of its first day, with no look-ahead", () => {
     const only = prepare({ hourly: market(day(22) * 24).hourly, daily: new Map() });
     const f = buildIndex(herbs, null, only, catalog, day(22) * D + 60)!;
