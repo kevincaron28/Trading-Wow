@@ -23,6 +23,7 @@ export function Onboarding() {
         </div>
 
         <p class="sheet-label">{t(s.lang, "welcomeHouse")}</p>
+        <p class="small muted">{t(s.lang, "usOnly")}</p>
         <p class="small muted">{t(s.lang, "realm")}</p>
         <div class="seg">
           {REALM_GROUPS.map((r) => (

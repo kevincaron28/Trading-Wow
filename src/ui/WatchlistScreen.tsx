@@ -22,10 +22,11 @@ export function HouseBadge() {
   return (
     <>
       <button type="button" class={`house-badge ${s.faction}`} onClick={() => setOpen(true)}>
-        {realm.label[s.lang]} · {factionLabel} <Icon name="chevron" size={16} />
+        US · {realm.label[s.lang]} · {factionLabel} <Icon name="chevron" size={16} />
       </button>
       {open && (
         <Sheet title={t(s.lang, "house")} onClose={() => setOpen(false)}>
+          <p class="small muted">{t(s.lang, "usOnly")}</p>
           <p class="sheet-label">{t(s.lang, "realm")}</p>
           <div class="seg">
             {REALM_GROUPS.map((r) => (
