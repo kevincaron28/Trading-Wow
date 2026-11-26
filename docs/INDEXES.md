@@ -2,13 +2,13 @@
 
 ## English
 
-Goldline publishes market indexes for every auction house, in the spirit of stock market indexes. They are computed
-from Goldline's own hourly prices by `collector/indexes.ts` and published as `index/<house>.json` on the data branch;
+Goblin Ledger publishes market indexes for every auction house, in the spirit of stock market indexes. They are computed
+from Goblin Ledger's own hourly prices by `collector/indexes.ts` and published as `index/<house>.json` on the data branch;
 the definitions are in `index/meta.json`.
 
 | Index | Basket | Cap per item |
 |---|---|---|
-| Goldline 100 | The 100 most traded items by daily gold volume. Weapons and armour are left out (random suffixes share one item ID), and so are recipes (rare one-off purchases whose estimated sales are too noisy). | 10% |
+| Ledger 100 | The 100 most traded items by daily gold volume. Weapons and armour are left out (random suffixes share one item ID), and so are recipes (rare one-off purchases whose estimated sales are too noisy). | 10% |
 | Herbs | Up to 30 herbs | 25% |
 | Ores & Bars | Up to 30 ores, bars and stones | 25% |
 | Cloth | Up to 30 cloth items | 25% |
@@ -53,7 +53,7 @@ category in WoW Forever).
 
 | Index | Range | Median hourly move | Largest hourly move |
 |---|---|---|---|
-| Goldline 100 | 99.4–106.5 | 0.62% | 4.5% |
+| Ledger 100 | 99.4–106.5 | 0.62% | 4.5% |
 | Herbs | 98.4–131.5 | 1.6% | 19.9% |
 | Ores & Bars | 93.5–108.3 | 1.7% | 7.6% |
 | Cloth | 90.5–131.7 | 0.8% | 45% (Mooncloth, 18 Nov) |
@@ -65,11 +65,11 @@ lowest buyout, so they are a slightly rougher measure than the hourly robust mar
 
 ## Français
 
-Goldline publie des indices du marché pour chaque hôtel des ventes, à la manière des indices boursiers. Ils sont
-calculés à partir des prix horaires de Goldline par `collector/indexes.ts` et publiés dans `index/<maison>.json` sur la
+Goblin Ledger publie des indices du marché pour chaque hôtel des ventes, à la manière des indices boursiers. Ils sont
+calculés à partir des prix horaires de Goblin Ledger par `collector/indexes.ts` et publiés dans `index/<maison>.json` sur la
 branche de données.
 
-- **Paniers.** Goldline 100 regroupe les 100 objets les plus échangés, sans armes, armures ni recettes. Il y a aussi
+- **Paniers.** Ledger 100 regroupe les 100 objets les plus échangés, sans armes, armures ni recettes. Il y a aussi
   des indices sectoriels : herbes, minerais et lingots, tissu, cuir, composants d'enchantement, éléments, consommables
   et préparation de raid (voir le tableau ci-dessus).
 - **Poids.** Ils suivent le volume quotidien en or (ventes estimées × valeur marchande médiane) et sont plafonnés par
