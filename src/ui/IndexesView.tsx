@@ -15,12 +15,20 @@ const HOUR = 3_600;
 /** The first UTC day of prices (5 Nov 00:00 UTC) is WoW Forever's launch evening (4 Nov, 15:00 PST). */
 const LAUNCH_BUCKET_END = Date.UTC(2026, 10, 5) / 1000;
 
-/** "Base 100 = ..." date: launch when the series starts there, else its base day (the close of 19 Nov without early prices). */
+/** "Base 100 = ..." date: launch when the series starts there, else its base day (without early prices). */
 export function baseLabel(series: IndexSeries | undefined, baseEnd: number, lang: "en" | "fr"): string {
   const fmt = (sec: number) => new Date(sec * 1000).toLocaleDateString(lang === "fr" ? "fr-CA" : "en-US", { dateStyle: "medium", timeZone: "UTC" });
-  const start = series?.link ? series.periods[0]?.start : undefined;
+  const start = series?.link || (series?.method ?? 0) >= 4 ? series?.periods[0]?.start : undefined;
   if (start == null) return fmt(baseEnd - 1);
   return start <= LAUNCH_BUCKET_END ? t(lang, "launchLabel") : fmt(start);
+}
+
+/**
+ * The points one item added to the index over the last 24 hours. Method 4 is a geometric mean, so an item's share is
+ * its weight times its log price change, applied to the index's value; earlier methods add price changes directly.
+ */
+export function contribution(method: number | undefined, level: number, value: number, w: number, p0: number, now: number, before: number): number {
+  return (method ?? 0) >= 4 ? value * w * Math.log(now / before) : (level * w * (now - before)) / p0;
 }
 
 /** Index points with two decimals in the reader's language (100.00 / 100,00). */
@@ -73,10 +81,11 @@ export function IndexesView() {
 
   const rows = meta.data.indexes.map((d) => ({ d, sum: summarize(data.data![d.id]) })).filter((r) => r.sum);
   const fromLaunch = Object.values(data.data).some((x) => x.link);
+  const method4 = Object.values(data.data).some((x) => (x.method ?? 0) >= 4);
   return (
     <div class="indexes">
       <div class="index-hint-row">
-        <p class="hint">{fromLaunch ? `${t(s.lang, "indexBase")} ${baseLabel(data.data.gl100, meta.data.baseEnd, s.lang)}` : t(s.lang, "indexProvisional")}</p>
+        <p class="hint">{fromLaunch || method4 ? `${t(s.lang, "indexBase")} ${baseLabel(data.data.gl100, meta.data.baseEnd, s.lang)}` : t(s.lang, "indexProvisional")}</p>
         <WindowToggle lang={s.lang} value={s.changeWindow} onChange={(w) => setState({ changeWindow: w })} />
       </div>
       {rows.length === 0 ? (
@@ -99,7 +108,7 @@ export function IndexesView() {
         </ul>
       )}
       {meta.data.next != null && <p class="hint">{nextRebalanceText(meta.data, s.lang)}</p>}
-      <p class="muted small method-note">{t(s.lang, "indexMethod")}</p>
+      <p class="muted small method-note">{t(s.lang, method4 ? "indexMethod4" : "indexMethod")}</p>
     </div>
   );
 }
@@ -118,7 +127,7 @@ function ChangeHistory({ changes, lang, name }: { changes: BasketChange[] | unde
     <div>
       {[...changes].reverse().map((c) => (
         <div key={c.at} class="rebalance-change small">
-          <b>{formatDate(c.at, lang)}</b> · {t(lang, c.kind === "quarterly" ? "quarterlyReview" : "monthlyRebalance")} · {c.kept} {t(lang, "kept")}
+          <b>{formatDate(c.at, lang)}</b> · {t(lang, c.launch ? "launchReview" : c.kind === "quarterly" ? "quarterlyReview" : "monthlyRebalance")} · {c.kept} {t(lang, "kept")}
           {c.added.length > 0 && <div><span class="up-text">{t(lang, "added")}:</span> {c.added.map(([id, w]) => `${name(id)} (${(w * 100).toFixed(1)}%)`).join(", ")}</div>}
           {c.removed.length > 0 && <div><span class="down-text">{t(lang, "removed")}:</span> {c.removed.map(([id]) => name(id)).join(", ")}</div>}
         </div>
@@ -152,8 +161,9 @@ function IndexDetail({ def, series, baseEnd, calendar, onClose }: { def: IndexDe
   const sum = summarize(series);
   const period: IndexPeriod | undefined = series?.periods.at(-1);
   const lastHour = series?.hourly.at(-1)?.[0] ?? 0;
-  // Each item's contribution: points it adds to the level now, and to the change over the last 24 hours (from hourly
-  // market values in our quotes: market now vs the item's 24h-ago market).
+  const lastChange = series?.changes?.at(-1)?.at ?? (series && series.periods.length > 1 ? period?.start : undefined);
+  // Each item's contribution to the change over the last 24 hours, in points (from the market values in our quotes:
+  // market now vs the item's 24h-ago market).
   const rows = (period?.basket ?? []).map(([id, w, p0]) => {
     const q = quotes.data?.get(id);
     const now = q?.market ?? null;
@@ -161,8 +171,7 @@ function IndexDetail({ def, series, baseEnd, calendar, onClose }: { def: IndexDe
     return {
       id,
       w,
-      level: now != null ? (period!.level * w * now) / p0 : null,
-      dayPoints: now != null && before != null ? (period!.level * w * (now - before)) / p0 : null,
+      dayPoints: now != null && before != null ? contribution(series?.method, period!.level, sum?.value ?? period!.level, w, p0, now, before) : null,
       sinceStart: now != null ? ((now - p0) / p0) * 100 : null,
     };
   });
@@ -195,7 +204,7 @@ function IndexDetail({ def, series, baseEnd, calendar, onClose }: { def: IndexDe
         <p class="small">{def.about[s.lang]}</p>
         <p class="muted small">
           {`${t(s.lang, "indexBase")} ${baseLabel(series, baseEnd, s.lang)}`}
-          {series && series.periods.length > 1 ? ` · ${t(s.lang, "indexRebalanced")} ${fmtDate(period!.start)}` : ""}
+          {lastChange != null ? ` · ${t(s.lang, "indexRebalanced")} ${fmtDate(lastChange)}` : ""}
           {lastHour ? ` · ${t(s.lang, "updated")} ${formatDateTime(lastHour * HOUR, s.lang)}` : ""}
         </p>
         {calendar.next != null && <p class="muted small">{nextRebalanceText(calendar, s.lang)}</p>}
@@ -225,7 +234,7 @@ function IndexDetail({ def, series, baseEnd, calendar, onClose }: { def: IndexDe
         </ul>
         <p class="sheet-label">{t(s.lang, "rebalanceHistory")}</p>
         <ChangeHistory changes={series?.changes} lang={s.lang} name={(id) => catalog.data?.get(id)?.name[s.lang] ?? `#${id}`} />
-        <p class="muted small method-note">{t(s.lang, "indexMethod")}</p>
+        <p class="muted small method-note">{t(s.lang, (series?.method ?? 0) >= 4 ? "indexMethod4" : "indexMethod")}</p>
       </div>
     </div>
   );

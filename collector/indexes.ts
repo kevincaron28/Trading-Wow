@@ -1,9 +1,12 @@
 /**
- * Goldline market indexes, computed from our own hourly data for every house.
+ * Goblin Ledger market indexes, computed from our own hourly data for every house.
  *
  *   node collector/indexes.ts <dataDir>        writes index/<house>.json and index/meta.json
  *
- * Method (docs/INDEXES.md):
+ * A house whose stored indexes are method 4 (collector/index-v4.ts, written by collector/backfill-indexes.ts) is kept on
+ * method 4. Any other house stays on method 3, below.
+ *
+ * Method 3 (docs/INDEXES.md):
  * - Each index has a fixed basket and fixed weights per period. Weights follow each item's daily gold volume
  *   (estimated quantity sold x market value over the selection window), capped per item, renormalised to 1.
  * - Value = level at the period start x sum(weight x price now / price at the period start). A price older than
@@ -22,8 +25,10 @@
  *   backfill fills in.
  */
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import { categoryOf } from "../src/lib/categories.ts";
+import { HOURLY_KEEP_SECONDS } from "./store.ts";
+import { HOURLY_BASE, LAUNCH_REVIEWS, METHOD4, buildIndex, prepare, type DailySeries, type IndexFile4 } from "./index-v4.ts";
 
 const HOUR = 3_600;
 export const BASE_END = Date.UTC(2026, 10, 20) / 1000; // close of 19 Nov 2026 (first full day)
@@ -77,8 +82,9 @@ export interface Period {
   start: number;
   level: number;
   provisional?: boolean;
-  /** "monthly" reconstitution or "quarterly" review (since 26 Nov 2026); absent on the base period. */
-  kind?: "monthly" | "quarterly";
+  /** "monthly" reconstitution or "quarterly" review ("launch": a method-4 weekly review before the first monthly one);
+   * absent on the base period. */
+  kind?: "launch" | "monthly" | "quarterly";
   basket: [id: number, weight: number, p0: number][];
 }
 
@@ -114,19 +120,24 @@ export function lastRebalance(t: number): number | null {
   return all.length ? all.at(-1)! : null;
 }
 
-/** One rebalance as published: what came in, what went out, and how many stayed. */
-export interface BasketChange { at: number; kind: "monthly" | "quarterly"; added: [id: number, weight: number][]; removed: [id: number, weight: number][]; kept: number; level: number }
+/**
+ * One rebalance as published: what came in, what went out, and how many stayed. A launch review keeps the kind
+ * "monthly" (the recaps read this field) and is marked with `launch`.
+ */
+export interface BasketChange { at: number; kind: "monthly" | "quarterly"; launch?: true; added: [id: number, weight: number][]; removed: [id: number, weight: number][]; kept: number; level: number }
 
-/** The history of basket changes, oldest first (early and provisional periods left out). */
+/** The history of basket changes, oldest first (early, provisional and source-splice periods left out). */
 export function basketChanges(periods: readonly Period[]): BasketChange[] {
-  const real = periods.filter((p) => !p.provisional && !(p as Period & { early?: boolean }).early);
+  const real = periods.filter((p) => !p.provisional && !(p as Period & { early?: boolean }).early && !(p as Period & { splice?: boolean }).splice);
   const out: BasketChange[] = [];
   for (let i = 1; i < real.length; i++) {
     const prev = new Map(real[i - 1]!.basket.map(([id, w]) => [id, w]));
     const next = new Map(real[i]!.basket.map(([id, w]) => [id, w]));
+    const kind = real[i]!.kind ?? (isQuarterly(real[i]!.start) ? "quarterly" : "monthly");
     out.push({
       at: real[i]!.start,
-      kind: real[i]!.kind ?? (isQuarterly(real[i]!.start) ? "quarterly" : "monthly"),
+      kind: kind === "launch" ? "monthly" : kind,
+      ...(kind === "launch" ? { launch: true as const } : {}),
       added: [...next].filter(([id]) => !prev.has(id)),
       removed: [...prev].filter(([id]) => !next.has(id)),
       kept: [...next.keys()].filter((id) => prev.has(id)).length,
@@ -386,6 +397,9 @@ export function updateIndex(def: IndexDef, stored: IndexFile | null, items: Map<
         minDailyValue: RULES.minDailyValue,
       });
       if (level == null || !basket.length) continue;
+      // Base prices are the prices at the changeover (not the window median), so the new basket starts exactly at the
+      // old one's level: with the median, every rebalance would have moved the index by "now / last week's median".
+      for (const row of basket) row[2] = smoothPriceAt(items.get(row[0]), Math.floor(t / HOUR) - 1) ?? row[2];
       periods.push({ start: t, level: Math.round(level * 1e4) / 1e4, kind: quarterly ? "quarterly" : "monthly", basket });
     }
   }
@@ -394,7 +408,9 @@ export function updateIndex(def: IndexDef, stored: IndexFile | null, items: Map<
     for (const x of periods) if (x.start <= h * HOUR) p = x;
     return p;
   };
-  const first = allHours[0]!;
+  // The collector drops hourly rows after 14 days, but only for items still listed: an item that vanished keeps old
+  // ones. Hours near or past that limit are no longer priced by the whole basket, so they stay as stored.
+  const first = Math.max(allHours[0]!, lastHour - HOURLY_KEEP_SECONDS / HOUR + STALE_HOURS);
   const keep = (stored?.hourly ?? []).filter(([h]) => h < first);
   const fresh: [number, number][] = [];
   for (let h = first; h <= lastHour; h++) {
@@ -404,7 +420,7 @@ export function updateIndex(def: IndexDef, stored: IndexFile | null, items: Map<
   return { id: def.id, periods, hourly: [...keep, ...fresh] };
 }
 
-function readSeries(dataDir: string, house: number): Map<number, Series> {
+export function readSeries(dataDir: string, house: number): Map<number, Series> {
   const out = new Map<number, Series>();
   const dir = join(dataDir, "h2", String(house));
   if (!existsSync(dir)) return out;
@@ -423,6 +439,24 @@ function readSeries(dataDir: string, house: number): Map<number, Series> {
   return out;
 }
 
+/** Early daily rows with the quantity listed (method 4 ranks by listed value before sales are known). */
+export function readDaily(dataDir: string, house: number): DailySeries {
+  const out: DailySeries = new Map();
+  const dir = join(dataDir, "early", String(house));
+  if (!existsSync(dir)) return out;
+  for (const f of readdirSync(dir)) {
+    if (!f.endsWith(".json")) continue;
+    const shard = JSON.parse(readFileSync(join(dir, f), "utf8")) as { items: Record<string, number[][]> };
+    for (const [id, rows] of Object.entries(shard.items)) out.set(Number(id), new Map(rows.map((r) => [r[0]!, [r[1]!, r[3] ?? 0] as [number, number]])));
+  }
+  return out;
+}
+
+export function readCatalog(dataDir: string): Map<number, { itemClass: number; subclass: number }> {
+  const rows = JSON.parse(readFileSync(join(dataDir, "items.json"), "utf8")) as Record<string, [string, string, number, number, number, string]>;
+  return new Map(Object.entries(rows).map(([id, r]) => [Number(id), { itemClass: r[3], subclass: r[4] }]));
+}
+
 function readEarly(dataDir: string, house: number): EarlySeries {
   const out: EarlySeries = new Map();
   const dir = join(dataDir, "early", String(house));
@@ -438,35 +472,66 @@ function readEarly(dataDir: string, house: number): EarlySeries {
 function main(): void {
   const dataDir = process.argv[2]!;
   const meta = JSON.parse(readFileSync(join(dataDir, "meta.json"), "utf8")) as { houses: { id: number }[] };
-  const rows = JSON.parse(readFileSync(join(dataDir, "items.json"), "utf8")) as Record<string, [string, string, number, number, number, string]>;
-  const catalog = new Map(Object.entries(rows).map(([id, r]) => [Number(id), { itemClass: r[3], subclass: r[4] }]));
+  const catalog = readCatalog(dataDir);
   const now = Math.floor(Date.now() / 1000);
   mkdirSync(join(dataDir, "index"), { recursive: true });
+  let method4 = false;
   for (const { id: house } of meta.houses) {
     const items = readSeries(dataDir, house);
-    const early = readEarly(dataDir, house);
     const file = join(dataDir, "index", `${house}.json`);
     const stored = existsSync(file) ? (JSON.parse(readFileSync(file, "utf8")) as { indexes: Record<string, IndexFile> }) : { indexes: {} };
-    const indexes: Record<string, IndexFile> = {};
-    for (const def of INDEXES) {
-      const old = stored.indexes[def.id];
-      const next = updateIndex(def, rawIndex(old?.method === METHOD ? old : null), items, catalog, now);
-      if (next) indexes[def.id] = { ...withEarly(next, early), method: METHOD, changes: basketChanges(next.periods) };
+    let indexes: Record<string, IndexFile> = {};
+    if (Object.values(stored.indexes).some((x) => x.method === METHOD4)) {
+      method4 = true;
+      indexes = buildHouse4(stored.indexes as unknown as Record<string, IndexFile4>, prepare({ hourly: items, daily: readDaily(dataDir, house) }), catalog, now);
+    } else {
+      const early = readEarly(dataDir, house);
+      for (const def of INDEXES) {
+        const old = stored.indexes[def.id];
+        const next = updateIndex(def, rawIndex(old?.method === METHOD ? old : null), items, catalog, now);
+        if (next) indexes[def.id] = { ...withEarly(next, early), method: METHOD, changes: basketChanges(next.periods) };
+      }
     }
     writeFileSync(file, JSON.stringify({ house, updated: now, indexes }));
-    const g = indexes.gl100;
-    console.log(`index ${house}: ${Object.keys(indexes).length} indexes; Ledger 100 ${g ? `${g.periods.at(-1)!.basket.length} items, ${g.hourly.length} hours, last ${g.hourly.at(-1)?.[1]}${g.link ? ` (from ${new Date(g.periods[0]!.start * 1000).toISOString().slice(0, 10)})` : " (no early history yet)"}` : "n/a"}`);
+    console.log(describeHouse(house, indexes));
   }
+  writeFileSync(join(dataDir, "index", "meta.json"), JSON.stringify(indexMeta(now, method4)));
+}
+
+/**
+ * Every index of a method-4 house, brought up to date (or built from the first day when `stored` has none). An index
+ * that gives nothing this run keeps its stored series.
+ */
+export function buildHouse4(stored: Record<string, IndexFile4>, data: ReturnType<typeof prepare>, catalog: Map<number, { itemClass: number; subclass: number }>, now: number): Record<string, IndexFile> {
+  const out: Record<string, IndexFile> = {};
+  for (const def of INDEXES) {
+    const old = stored[def.id]?.method === METHOD4 ? stored[def.id]! : null;
+    const next = buildIndex(def, old, data, catalog, now);
+    if (next) out[def.id] = { ...next, changes: basketChanges(next.periods) };
+  }
+  return out;
+}
+
+export function describeHouse(house: number, indexes: Record<string, IndexFile>): string {
+  const g = indexes.gl100;
+  return `index ${house}: ${Object.keys(indexes).length} indexes; Ledger 100 ${g ? `method ${g.method}, ${g.periods.at(-1)!.basket.length} items, ${g.hourly.length} points, last ${g.hourly.at(-1)?.[1]}${g.link ? ` (from ${new Date(g.periods[0]!.start * 1000).toISOString().slice(0, 10)})` : " (our hourly prices only)"}` : "n/a"}`;
+}
+
+/** index/meta.json: definitions and the rebalance calendar. */
+export function indexMeta(now: number, method4: boolean) {
   const next = nextRebalance(now);
-  writeFileSync(join(dataDir, "index", "meta.json"), JSON.stringify({
-    baseEnd: BASE_END,
+  return {
+    // The base day shown for houses without earlier history.
+    baseEnd: method4 ? HOURLY_BASE : BASE_END,
     launchDay: LAUNCH_DAY * 86_400,
     next: next.at,
     nextQuarterly: next.quarterly,
     last: lastRebalance(now),
     rules: RULES,
+    ...(method4 ? { method: METHOD4, launchReviews: LAUNCH_REVIEWS } : {}),
     indexes: INDEXES.map(({ id, name, about, size, cap }) => ({ id, name, about, size, cap })),
-  }));
+  };
 }
 
-if (process.argv[1]?.endsWith("indexes.ts")) main();
+// Only when this file is the one being run (backfill-indexes.ts also ends in "indexes.ts").
+if (basename(process.argv[1] ?? "") === "indexes.ts") main();
