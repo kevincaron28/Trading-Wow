@@ -1,6 +1,7 @@
 import { useEffect, useState } from "preact/hooks";
 import { BUILT_IN_WATCHLISTS, LISTS_VERSION, addNewListItems, type WatchlistDef } from "../data/watchlists";
 import type { PriceAlert } from "../lib/alerts";
+import type { DealWatch } from "../lib/dealAlerts";
 import { LANGS, detectLang, type Lang } from "../lib/i18n";
 import { readJson, writeJson } from "../lib/storage";
 import { DEVICE_TZ, setActiveZone } from "../lib/time";
@@ -40,6 +41,8 @@ export interface State {
   watchlists: WatchlistDef[];
   activeList: string;
   alerts: PriceAlert[];
+  /** Watchlists watched for deals. */
+  dealWatches: DealWatch[];
   recent: number[];
   /** Horizontal price lines drawn on charts, per item ID (copper). */
   drawings: Record<string, number[]>;
@@ -56,7 +59,7 @@ export interface State {
 
 const KEY = "goldline:v2";
 const PERSISTED: (keyof State)[] = [
-  "lang", "realm", "faction", "theme", "chartItem", "timeframe", "chartType", "indicators", "priceField", "changeMode", "changeWindow", "timeZone", "watchlists", "activeList", "alerts", "recent", "drawings", "logScale", "onboarded", "listsVersion", "showMaterials",
+  "lang", "realm", "faction", "theme", "chartItem", "timeframe", "chartType", "indicators", "priceField", "changeMode", "changeWindow", "timeZone", "watchlists", "activeList", "alerts", "dealWatches", "recent", "drawings", "logScale", "onboarded", "listsVersion", "showMaterials",
 ];
 
 function initial(): State {
@@ -79,6 +82,7 @@ function initial(): State {
     watchlists: BUILT_IN_WATCHLISTS.map((w) => ({ ...w, items: [...w.items] })),
     activeList: "flipping",
     alerts: [],
+    dealWatches: [],
     recent: [],
     drawings: {},
     range: "all",
@@ -99,6 +103,7 @@ function initial(): State {
     merged.watchlists = addNewListItems(merged.watchlists, saved.listsVersion ?? 1);
   }
   merged.listsVersion = LISTS_VERSION;
+  if (!Array.isArray(merged.dealWatches)) merged.dealWatches = [];
   if (!merged.watchlists.some((w) => w.id === merged.activeList)) merged.activeList = merged.watchlists[0]!.id;
   if (merged.changeWindow !== "1h") merged.changeWindow = "1d";
   setActiveZone(merged.timeZone);

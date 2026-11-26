@@ -1,7 +1,7 @@
 {
   "name": "Goblin Ledger",
   "short_name": "Goblin Ledger",
-  "description": "Live auction house price charts for World of Warcraft Forever.",
+  "description": "Live auction house price charts for World of Warcraft Forever, US (Americas) auction houses.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

@@ -128,6 +128,21 @@ describe("search", () => {
     expect(searchCatalog(catalog.values(), "12360", "en", listed, null)[0]!.id).toBe(12360);
     expect(normalize(" Étoffe ")).toBe("etoffe");
   });
+  it("matches several words in any order, in either language", () => {
+    const items = parseCatalog({
+      "13510": ["Flask of the Titans", "Flacon des Titans", 3, 0, 3, ""],
+      "13452": ["Elixir of the Mongoose", "Élixir de la mangouste", 1, 0, 2, ""],
+      "9187": ["Elixir of Greater Agility", "Élixir d’Agilité supérieure", 1, 0, 2, ""],
+    });
+    const ids = (query: string, lang: "en" | "fr" = "en") => searchCatalog(items.values(), query, lang, () => true, null).map((i) => i.id);
+    expect(ids("flask titan")).toEqual([13510]);
+    expect(ids("mongoose elixir")).toEqual([13452]);
+    expect(ids("elixir of mongoose")).toEqual([13452]);
+    expect(ids("mangouste elixir", "fr")).toEqual([13452]);
+    expect(ids("mangouste elixir")).toEqual([13452]);
+    expect(ids("d'agilite", "fr")).toEqual([9187]);
+    expect(ids("flask mongoose")).toEqual([]);
+  });
   it("filters by category", () => {
     expect(searchCatalog(catalog.values(), "", "en", listed, "herb").map((i) => i.id)).toEqual([13468]);
     expect(CATEGORIES.find((c) => c.id === "metal")!.match(7, 7)).toBe(true);

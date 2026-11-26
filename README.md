@@ -1,11 +1,11 @@
 # Goblin Ledger
 
 Live auction house price charts for **World of Warcraft Forever**, as a phone app (Android APK) and a web preview of it,
-in English and French. The Android app is the product; the website is a preview and companion, with no separate features.
+in English and French, for the US (Americas) auction houses. The Android app is the product; the website is a preview and companion, with no separate features.
 
-- **Watchlists**: nine prebuilt lists (Flipping, Alchemy & Herbalism, Mining & Blacksmithing, Tailoring,
-  Leatherworking & Skinning, Enchanting, Engineering, Cooking & Fishing, Raid consumables) plus your own. Price,
-  24h change (% or gold), sort, edit, reset.
+- **Watchlists**: twelve prebuilt lists (Flipping, Alchemy & Herbalism, Mining & Blacksmithing, Tailoring,
+  Leatherworking & Skinning, Enchanting, Engineering, Elementals, Cooking & Fishing, Raid consumables, Crates & writs,
+  Camp & stations) plus your own. Price, 24h change (% or gold), sort, edit, reset.
 - **Search**: every item seen on the Forever auction houses (~7,400), English or French names, item ID,
   category filters, recent items, add to a list in one tap.
 - **Chart**: candles, bars, line, area or Heikin Ashi; 1H / 4H / 1D / 1W; listed quantity, SMA 20, EMA 50,
@@ -14,8 +14,9 @@ in English and French. The Android app is the product; the website is a preview 
   item in the Alliance, Horde and Blackwater (neutral) houses after the house cut.
 - **Explore**: gainers, losers, most listed, below-average deals and a flip finder between your faction house
   and the neutral house.
-- **Alerts**: price above/below, checked while the app is open and on Android about every 30 minutes in the
-  background (Capacitor Background Runner, `public/runners/alerts.js`), with a phone notification.
+- **Alerts**: price above/below, and deal alerts on a whole watchlist (lowest buyout 20, 30 or 50% under the 7-day
+  average). Checked while the app is open and on Android about every 30 minutes in the background (Capacitor
+  Background Runner, `public/runners/alerts.js`), with a phone notification; browser notifications on the website.
 - Realm and faction picker (PvP and three other realm groups × Alliance / Horde / Blackwater), dark and light themes.
 
 Goblin Ledger is an independent fan project, not affiliated with Blizzard Entertainment. Charts use the open-source
