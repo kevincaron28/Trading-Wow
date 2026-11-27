@@ -1,0 +1,51 @@
+Android 15, Physical size: 1080x2400
+PASS version: installed 1.2.0 (10200)
+PASS tour: Back goes one step back
+PASS tour: Start closes it
+PASS search: the on-screen keyboard is open
+PASS search: the field has the focus
+PASS search: the page shrinks for the keyboard (842 to 530 px)
+PASS search: the field is in view (8 to 49 of 530)
+PASS search: the tab bar is hidden while typing
+PASS search: Back closes only the keyboard
+PASS alert: the on-screen keyboard is open
+PASS alert: the field has the focus
+PASS alert: the page shrinks for the keyboard (842 to 574 px)
+PASS alert: the field is in view (316 to 360 of 574)
+PASS alert: the tab bar is hidden while typing
+PASS alert: Back closes only the keyboard
+PASS share-item-link: Android's share window opened (com.android.intentresolver/.ChooserActivityLauncher)
+PASS share-item-link: Back returns to the app
+PASS share-chart-picture: Android's share window opened (com.android.intentresolver/.ChooserActivityLauncher)
+PASS share-chart-picture: Back returns to the app
+PASS help: Back closes the page
+PASS privacy: the policy is shown inside the app
+PASS privacy: it is the 27 November text
+PASS privacy: Back closes the page
+PASS feedback: the on-screen keyboard is open
+PASS feedback: the field has the focus
+PASS feedback: the page shrinks for the keyboard (842 to 530 px)
+PASS feedback: the field is in view (177 to 333 of 530)
+PASS feedback: the tab bar is hidden while typing
+PASS feedback: Back closes only the keyboard
+PASS feedback: the app details say 1.2.0
+PASS feedback: copy answers "Copied. Paste it in an e-mail to kevincaron28@gmail.com"
+PASS feedback-github: another app opened (com.android.chrome/org.chromium.chrome.browser.firstrun.FirstRunActivity)
+PASS feedback-github: back in the app
+INFO feedback-email: on top afterwards: com.google.android.gm/.welcome.WelcomeTourActivity
+PASS feedback-email: back in the app
+PASS feedback: the page is still there
+PASS feedback: Back closes the page
+PASS share-app: Android's share window opened (com.android.intentresolver/.ChooserActivityLauncher)
+PASS share-app: Back returns to the app
+PASS settings: Rate this app is listed
+PASS rate-store-page: another app opened (com.android.chrome/org.chromium.chrome.browser.firstrun.FirstRunActivity)
+PASS rate-store-page: back in the app
+PASS review: this is the play build
+INFO review request: refused: The rating window is not available
+PASS review: the native call exists
+PASS exit: first Back shows the hint and stays
+PASS exit: Back after the hint expired only shows it again
+PASS exit: two quick Backs leave the app (now com.google.android.apps.nexuslauncher/.NexusLauncherActivity)
+PASS no crash of the app in the log
+0 failure(s)
