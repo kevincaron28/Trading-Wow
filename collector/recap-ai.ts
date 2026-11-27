@@ -59,9 +59,9 @@ export interface Allowed {
 export interface Facts { json: Record<string, unknown>; allowed: Allowed }
 
 const round1 = (v: number) => Math.round(v * 10) / 10;
-/** Gold, silver and copper as the summary writes them: 18g 49s / 87s 94c / 12c (po/pa/pc in French); from 1,000 gold, gold only. */
+/** Gold, silver and copper as the summary writes them: 18g 49s / 87s 94c / 12c in every language; from 1,000 gold, gold only. */
 export function coinText(copper: number, lang: Lang): string {
-  const suf = lang === "fr" ? { g: "po", s: "pa", c: "pc" } : { g: "g", s: "s", c: "c" };
+  const suf = { g: "g", s: "s", c: "c" };
   const v = Math.round(Math.abs(copper));
   const g = Math.floor(v / 10_000);
   const s = Math.floor((v % 10_000) / 100);
@@ -184,7 +184,7 @@ export function loadContext(path: string = join(dirname(fileURLToPath(import.met
 
 /** The chat messages: a strict system prompt and the facts as JSON. */
 export function buildMessages(facts: Facts, kind: RecapFile["kind"], lang: Lang, context: string, retryNote?: string): { role: "system" | "user"; content: string }[] {
-  const language = lang === "fr" ? "Canadian French (Québec), with prices in po/pa/pc as given" : "English, with prices in g/s/c as given";
+  const language = lang === "fr" ? "Canadian French (Québec), with prices in g/s/c exactly as given (never po/pa/pc)" : "English, with prices in g/s/c as given";
   const period = kind === "daily" ? "day" : kind === "weekly" ? "week" : "month";
   const system = [
     `You write the market-close summary of a World of Warcraft: Forever auction house recap for the Goblin Ledger newsletter, in ${language}.`,
@@ -220,9 +220,9 @@ function parseNumber(raw: string, lang: Lang): Written | null {
 
 const NUM = String.raw`\d{1,3}(?:[,   ]\d{3})+(?:[.,]\d+)?|\d+(?:[.,]\d+)?`;
 
-/** Gold amounts such as "18g 49s", "21,219g", "87s 94c" (po/pa/pc in French), in copper with their precision. */
+/** Gold amounts such as "18g 49s", "21,219g", "87s 94c" (g/s/c in every language), in copper with their precision. */
 function moneyTokens(text: string, lang: Lang): { copper: number; half: number; span: [number, number] }[] {
-  const [g, s, c] = lang === "fr" ? ["po", "pa", "pc"] : ["g", "s", "c"];
+  const [g, s, c] = ["g", "s", "c"];
   const re = new RegExp(String.raw`(?:(${NUM})\s?${g}\b)?\s?(?:(\d{1,2})\s?${s}\b)?\s?(?:(\d{1,2})\s?${c}\b)?`, "g");
   const out: { copper: number; half: number; span: [number, number] }[] = [];
   for (const m of text.matchAll(re)) {
@@ -247,6 +247,7 @@ export function checkSummary(text: string, facts: Facts, lang: Lang): Check {
   const sentences = t.split(/(?<=[.!?])\s+/).filter((x) => x.trim());
   if (sentences.length < 2 || sentences.length > 4 || t.length > 520) problems.push(`length (${sentences.length} sentences, ${t.length} characters)`);
   if (/[*#_`|]|https?:/.test(t)) problems.push("markup or link");
+  if (/\d\s?(?:po|pa|pc)\b/i.test(t)) problems.push("money must be written in g, s and c");
 
   // Amounts of gold.
   let rest = t;

@@ -45,7 +45,7 @@ describe("background alert runner", () => {
     const r = loadRunner({ "113": { items: { "13468": [100_000, 150_000, 1, 1, 0, 1, -1] } } });
     await r.fire("syncAlerts", { alerts: [alert({ field: "min", price: 100_000 }), alert({ id: "x", house: 999 })], lang: "fr", names: {} });
     await r.fire("checkAlerts");
-    expect(r.notifications.map((n) => n.body)).toEqual(["#13468 descend sous 10po (10po)"]);
+    expect(r.notifications.map((n) => n.body)).toEqual(["#13468 descend sous 10g (10g)"]);
   });
 
   it("reports a watched list's deals once, even with no price alert, and hands them to the app", async () => {

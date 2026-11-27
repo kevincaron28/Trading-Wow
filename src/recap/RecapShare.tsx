@@ -60,7 +60,7 @@ const L = {
     buy: "Achat", target: "cible", now: "Maintenant", priceNow: "Prix sur la période", result: "Résultat", reached: "Atteinte", profitThen: "Profit au repérage", profitNow: "Profit maintenant",
     flipsSum: (f: number, r: number) => `${f} repérées · ${r} ont atteint leur cible`, craftsSum: (f: number, s: number) => `${f} repérés · ${s} encore rentables`,
     none: "Rien n'a rempli les critères sur la période.", notEnough: "Pas encore assez d'historique.",
-    rules: "Variations et records : objets vendus 10+ fois par jour, 500+ po échangées par jour, prix de 1 po ou plus.",
+    rules: "Variations et records : objets vendus 10+ fois par jour, 500g+ échangés par jour, prix de 1g ou plus.",
     flipRule: "Reventes : objets vendus 5+ fois par jour, après la taxe de 5 % de l'hôtel des ventes.", source: "Données de l'hôtel des ventes de Blizzard, relevées chaque heure",
     rebalance: "Prochain rééquilibrage des indices", was: "avant",
   },

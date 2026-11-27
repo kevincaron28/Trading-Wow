@@ -66,9 +66,11 @@ describe("recap summary guard", () => {
 
   it("reads French numbers and words", () => {
     const fr = factsFor(recap, { ...names, item: (id: number) => ({ 4407: "Lunette de précision", 20750: "Huile de sorcier", 15407: "Peau robuste traitée", 13512: "Flacon de pouvoir suprême", 11197: "Clé du gardien noir" } as Record<number, string>)[id]!, index: (id: string) => ({ gl100: "Ledger 100", herbs: "Herbes", elemental: "Éléments", leather: "Cuir" } as Record<string, string>)[id]! }, "fr", [], context.numbers, END + 1_800);
-    const text = "Le Ledger 100 a peu bougé sur la journée, en baisse de 0,4 % à 41,12. Les Éléments ont grimpé de 12,2 % tandis que le Cuir a reculé de 4,6 %. La Lunette de précision a bondi de 181,8 % à 85pa 74pc, et la Peau robuste traitée a été la plus échangée avec 21 219po par jour.";
+    const text = "Le Ledger 100 a peu bougé sur la journée, en baisse de 0,4 % à 41,12. Les Éléments ont grimpé de 12,2 % tandis que le Cuir a reculé de 4,6 %. La Lunette de précision a bondi de 181,8 % à 85s 74c, et la Peau robuste traitée a été la plus échangée avec 21 219g par jour.";
     expect(checkSummary(text, fr, "fr")).toEqual({ ok: true, problems: [] });
     expect(checkSummary(text.replace("le Cuir a reculé", "le Cuir a grimpé"), fr, "fr").ok).toBe(false);
+    // Money is g, s and c in every language: po/pa/pc is rejected.
+    expect(checkSummary(text.replace("21 219g", "21 219po"), fr, "fr").problems).toContain("money must be written in g, s and c");
   });
 
   it("asks for the data only, at a low temperature, in one request", async () => {

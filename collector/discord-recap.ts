@@ -162,7 +162,7 @@ export function buildMessage(r: RecapFile, lang: Lang, names: Names, images: rea
   const T = TEXT[lang];
   const num = (n: number) => n.toLocaleString(lang === "fr" ? "fr-CA" : "en-US").replace(/ | /g, " ");
   // 1,000 gold and up: whole gold with separators ("21,220g"), else the app's short form ("2.15g", "56.3s").
-  const money = (c: number) => (Math.abs(c) >= 10_000_000 ? `${num(Math.round(c / 10_000))}${lang === "fr" ? " po" : "g"}` : formatMoneyShort(c, lang));
+  const money = (c: number) => (Math.abs(c) >= 10_000_000 ? `${num(Math.round(c / 10_000))}g` : formatMoneyShort(c, lang));
   const pct = (v: number | null | undefined) => (v == null ? "" : ` (${pctText(v, lang, true)})`);
   const gl = r.indexes?.find(([id]) => id === "gl100");
   const color = gl == null ? COLORS.flat : gl[3] >= 0.5 ? COLORS.up : gl[3] <= -0.5 ? COLORS.down : COLORS.flat;
