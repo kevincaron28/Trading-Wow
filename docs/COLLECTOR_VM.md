@@ -113,90 +113,104 @@ Expected: `wrote 13 files to .../index; 13 old files kept in index/legacy/`, the
 
 ## Discord recaps
 
-The collector posts the daily, weekly and monthly recaps (`collector/discord-recap.ts`) to one Discord channel, as
-**Goblin Ledger** (name, icon and footer; nothing else is named). It posts after the hourly run that first covers 13:00 UTC:
+The daily, weekly and monthly recaps are posted to one Discord channel as **Goblin Ledger** (name, icon and footer;
+nothing else is named):
 - the daily recap every day at about 13:30 UTC (8:30 in Québec in winter, 9:30 in summer);
 - the weekly recap on Mondays;
 - the monthly recap on the 1st.
 
-Each post is an embed with the market notes, followed by up to four **recap cards** (`collector/recap-card.ts`,
-samples in `docs/recap-cards/`). The cards are 1000 px wide, in a dark market-close style with gold accents:
-1. The Ledger 100: its change, open/high/low/close and a line chart. Then the category heatmap with sparklines and,
-   for a week or a month, each index's range against its range since launch.
-2. Top gainers and losers with sparklines, and the most traded items as gold-a-day volume bars.
-3. Raid consumables, the best flips (items selling 5+ a day) and crafting margins.
-4. New highs and lows, the next index rebalance, and the basket changes made during the period.
+**How it runs.** After the hourly run that first covers 13:00 UTC has published the new recap to R2, the VM starts
+GitHub's **Post recap** workflow (`.github/workflows/recap-post.yml`) with a `repository_dispatch` event
+(`collector/discord-recap.ts dispatch`). It is an event, not a schedule: GitHub skipped scheduled runs for hours on 19
+November. The workflow then:
+1. builds the app and opens the recap pages (`recap.html`, `src/recap/`) in headless Chromium (Playwright,
+   `scripts/render-recap.mjs`): four 1200 px images drawn with the app's own styles, chart and rows;
+2. writes the summary (below) and posts the message with the images (`collector/discord-recap.ts post`).
 
-Prices are shown in gold, silver and copper (po/pa/pc in French), and item names in their quality colours. A page
-with nothing to show yet is left out. All cards together stay under 8 MB, Discord's file limit being 10 MB; each
-card is usually 50 to 200 KB.
+The VM draws nothing and holds no Discord or AI secret; it only needs its `GITHUB_TOKEN` (Contents: read and write)
+to start the workflow.
 
-The cards are drawn on the VM by resvg (`@resvg/resvg-js`, about 5 MB), using the DejaVu fonts in `assets/fonts`.
-`run.sh` installs resvg once into `/opt/goblin-ledger/render`, at the version pinned in `package.json`. Drawing a
-recap takes about a second, and the whole posting step peaks at about 110 MB of memory (the collector itself peaks at about 400 MB). If resvg is missing, the post falls back to text fields and a
-plain chart.
+**The post** (samples in `docs/recap-pages/`):
+- A short embed: the title (kind, date, house), a 2 to 3 sentence summary, four numbers (Ledger 100, the biggest
+  sector move, raid consumables sold a day, gold traded a day) and two links: the app ("📱 Tester Goblin Ledger
+  (Android)" during the closed test, "📱 Goblin Ledger sur Google Play" once public) and "🌐 Ouvrir le marché".
+- Four images, shown as one gallery: 1. the market (Ledger 100 chart, sector tiles, most traded), 2. top movers and
+  new highs and lows, 3. raid consumables, 4. flips and crafts.
+- Labels in French (or English), item names always in English, as players search the auction house.
+- Movers and records only list real markets: items selling 10+ a day, 500+ gold traded a day, priced 1 gold or more
+  (`MOVER_RULES` in `collector/weekly.ts`).
 
-Each recap is posted once. A recap that is more than 12 hours old is not posted (24 hours for weekly, 48 for
-monthly), so the channel gets no burst after an outage.
+Each recap is sent once: the VM keeps what it sent in `state/discord-posted.json`. A recap more than 12 hours old is
+never sent (24 hours for weekly, 48 for monthly), so the channel gets no burst after an outage. If the workflow fails,
+run it again by hand (below) with "Dry run" unticked.
 
-**Owner's steps (once, about 5 minutes):**
-1. In the Québec Gold Discord server, open the gold-making recap channel > **Edit Channel** (gear) > **Integrations** >
-   **Webhooks** > **New Webhook**. Name it `Goblin Ledger`. Optionally upload `public/icon-512.png` as its picture (the
-   collector also sends that icon with each post). Click **Copy Webhook URL**.
-2. On the VM, open the settings: `sudo nano /etc/goblin-ledger/collector.env`. Add this line and paste your URL after the `=`:
-   ```
-   DISCORD_RECAP_WEBHOOK=https://discord.com/api/webhooks/...
-   ```
-   Optional lines:
-   - `DISCORD_RECAP_HOUSES=113`: the auction houses to post, comma separated. 113 is PvP Horde; the IDs are in
-     `src/app/store.ts`, `REALM_GROUPS`.
-   - `DISCORD_RECAP_LANG=fr`: `fr` (the default) or `en`.
+**Settings.**
 
-   Save (Ctrl+O, Enter, Ctrl+X). No restart is needed: the next hourly run reads the file.
-3. The next day after 13:30 UTC, the channel has its first daily recap. To check, read the log:
-   `sudo journalctl -u goblin-collector --since today --no-pager | grep discord`.
+| Where | Name | What |
+| --- | --- | --- |
+| GitHub secret | `DISCORD_RECAP_WEBHOOK` | The channel's webhook URL |
+| GitHub secret | `RECAP_AI_API_KEY` | Optional: the summary model's key (below) |
+| GitHub variable | `RECAP_AI_BASE_URL`, `RECAP_AI_MODEL` | Optional: the summary model (below) |
+| GitHub variable | `GOBLIN_LINKS_LIVE` | `1` once the kcaron.top pages are online: the app link goes to the tester page (`https://kcaron.top/fr/goblin-ledger/testers/`, the English one for `en`), item names link to `https://kcaron.top/goblin-ledger/app/?house=113&item=<id>` and "Ouvrir le marché" to `...?house=113&tab=overview`. Unset: the closed test's opt-in page (`https://play.google.com/apps/testing/top.kcaron.goldline`), no market link, item names in plain text |
+| GitHub variable | `GOBLIN_APP_URL` | Optional: overrides the app link, for example `https://play.google.com/store/apps/details?id=top.kcaron.goldline` when the app is public (the label becomes "Goblin Ledger sur Google Play") |
+| GitHub variable | `GOBLIN_WEB_URL` | Optional: overrides the web app's address |
+| GitHub variable | `DISCORD_RECAP_LANG` | Optional: `fr` (default) or `en` |
+| VM, `collector.env` | `DISCORD_RECAP_DISPATCH=1` | Start the workflow after each run. Unset: nothing is posted |
+| VM, `collector.env` | `DISCORD_RECAP_HOUSES` | Optional: houses to post, comma separated (default `113`, PvP Horde; IDs in `src/app/store.ts`, `REALM_GROUPS`) |
+| VM, `collector.env` | `RECAP_DISPATCH_TOKEN` | Optional: a token for the dispatch, if `GITHUB_TOKEN` should not do it (fine-grained, Trading-Wow, Contents: read and write) |
+
+GitHub secrets and variables: Trading-Wow > Settings > Secrets and variables > Actions.
+
+**Owner's steps (once):**
+1. Webhook: in the Québec Gold Discord server, gold-making recap channel > **Edit Channel** > **Integrations** >
+   **Webhooks** > **New Webhook**, named `Goblin Ledger`. **Copy Webhook URL** and save it as the GitHub secret
+   `DISCORD_RECAP_WEBHOOK`. The webhook already made for the VM can be reused: save the same URL.
+2. Optional: the AI summary secret and variables (below).
+3. Dry run: Actions > **Post recap** > **Run workflow**, key = the latest daily recap's date (in
+   `https://data.kcaron.top/recap/113/list.json`), "Dry run" ticked. Open the run's artifact: the four images, the
+   message (`*-message.json`) and the summary (`*-summary.json`, with `source`: `ai`, `ai-retry` or `template`).
+4. On the VM, add `DISCORD_RECAP_DISPATCH=1` to `/etc/goblin-ledger/collector.env` (`sudo nano`), and remove the
+   old `DISCORD_RECAP_WEBHOOK` and `RECAP_AI_*` lines: the VM no longer uses them. No restart: the next run reads it.
+5. The next day after 13:30 UTC, check the channel, the run under Actions > Post recap, and the VM log:
+   `sudo journalctl -u goblin-collector --since today --no-pager | grep discord` (`workflow started for ...`).
 
 The webhook URL is a secret: anyone who has it can post in the channel. If it leaks, delete the webhook in Discord
-and make a new one. It is never printed in the logs, and the collector only sends it to `discord.com`. To stop the
-posts, remove the line from `collector.env`, or delete the webhook.
+and make a new one. It is never printed. To stop the posts, remove `DISCORD_RECAP_DISPATCH` on the VM, or delete the
+webhook.
 
-To preview a post without sending it, run `node collector/discord-recap.ts <dataDir> --dry-run` on a copy of the
-data. It writes the message, the cards and the summary to `<dataDir>/state/`.
+To preview on a PC: `npm run build`, then `node scripts/render-recap.mjs --key <date>` (images in `recap-images/`),
+then `node collector/discord-recap.ts post <dataDir> --house 113 --kind daily --key <date> --images recap-images
+--dry-run` with the recap's files downloaded into `<dataDir>` (as the workflow does).
 
 ## Recap summaries (AI)
 
-Each recap posted to Discord opens with a 3 to 5 sentence market-close summary: in the embed, and as the "Market
-wire" panel on card 1. The code is in `collector/recap-ai.ts`.
+Each recap posted to Discord opens with a 2 to 3 sentence market-close summary. The code is in
+`collector/recap-ai.ts`; it runs in the Post recap workflow.
 
-- **Without settings** (the default), the summary is the template one, built from the numbers by the same rules as
-  the app's notes.
+- **Without settings** (the default), the summary is the template one: the first three of the app's recap notes.
 - **With an AI model**, the model sees only the recap's facts (as JSON) and the reviewed notes in
-  `docs/WOW_FOREVER_CONTEXT.md`. It runs at temperature 0.2 and is told to use nothing else.
+  `docs/WOW_FOREVER_CONTEXT.md`. It runs at temperature 0.2 and is told to use nothing else, and to keep item names
+  in English.
 - **Accuracy guard.** Before anything is posted, the code checks the text:
   - every amount of gold, percentage and number must be in the data;
   - a percentage next to an item or index must be that one's own figure;
   - "rose" and "fell" must match the sign of the move;
   - every item named must be one the recap lists;
-  - the text must be 2 to 6 sentences, with no links or markup.
+  - the text must be 2 to 4 sentences, with no links or markup.
 
   A text that fails is asked for once more. If that also fails, or if the model is down, slow (30 s timeout) or out
-  of quota, the template summary is posted instead. An unchecked text is never posted.
+  of quota, the template summary is posted instead. An unchecked text is never posted. Item names the recap lists are
+  linked to the web app afterwards (when `GOBLIN_WEB_URL` is set).
 - **The log** says which path was used: `summary from ai`, `ai-retry` or `template`, with the reasons.
 - **Free tier.** Each recap makes one request, two at most when the guard rejects the first text. A 429 or 5xx is
   retried once after a pause. Posting one house uses about 1 to 3 requests a day, which fits the free tier of
   Google's Gemini API.
 
-Settings in `/etc/goblin-ledger/collector.env` (all three, or none):
-
-```
-RECAP_AI_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai
-RECAP_AI_MODEL=gemini-flash-latest
-RECAP_AI_API_KEY=<the Google AI Studio key>
-```
+Settings (GitHub, all three or none): the secret `RECAP_AI_API_KEY` (the Google AI Studio key) and the variables
+`RECAP_AI_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai` and `RECAP_AI_MODEL=gemini-flash-latest`.
 
 `gemini-flash-latest` is Google's alias for its newest Flash model. To pin a model, put its ID instead: the free
-models are listed in Google AI Studio under the key's project, under Rate limits. Guilded's old setting
-`gemini-2.0-flash` may be retired by now: check it in AI Studio before using it. When the model ID is wrong, the log
+models are listed in Google AI Studio under the key's project, under Rate limits. When the model ID is wrong, the log
 shows `model answered HTTP 404` and the template is posted.
 
 Keep `docs/WOW_FOREVER_CONTEXT.md` current: it says when the facts were last checked and how to update them. The
@@ -204,7 +218,7 @@ model may only use what it lists.
 
 ## Troubleshooting
 
-- **No Discord recap:** `sudo journalctl -u goblin-collector --since today --no-pager | grep -E 'recaps|discord'`. `HTTP 401`/`404` means the webhook was deleted: make a new one (Discord recaps, step 1).
+- **No Discord recap:** on the VM, `sudo journalctl -u goblin-collector --since today --no-pager | grep -E 'recaps|discord'` (`workflow started for ...`, or why not: `HTTP 401/403/404` from GitHub means the token cannot start workflows). Then GitHub > Actions > Post recap: `Discord answered HTTP 401` or `404` means the webhook was deleted (make a new one, Discord recaps, step 1). Run it again by hand to post.
 - **Prices are old (watchdog email):** read the log (table above).
   - `HTTP 401` from Battle.net: the client secret changed; update `collector.env`.
   - `Authentication failed` on push: the GitHub token expired; make a new one (step 3).

@@ -18,10 +18,10 @@ export function splitCopper(amount: number): Coins {
   };
 }
 
-/** Coin suffixes as the game shows them: g/s/c in English, po/pa/pc in French. */
+/** Coin suffixes: g/s/c in every language (the owner's rule: never po/pa/pc). */
 export const COIN_SUFFIX: Record<Lang, { gold: string; silver: string; copper: string }> = {
   en: { gold: "g", silver: "s", copper: "c" },
-  fr: { gold: "po", silver: "pa", copper: "pc" },
+  fr: { gold: "g", silver: "s", copper: "c" },
 };
 
 /** "12g 3s 40c": zero leading units are dropped, zero trailing ones too (but 0 shows "0c"). */

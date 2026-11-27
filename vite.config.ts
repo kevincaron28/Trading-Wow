@@ -10,6 +10,8 @@ export default defineConfig({
   build: {
     target: "es2022",
     chunkSizeWarningLimit: 700,
+    // recap.html: the recap share pages the Discord post screenshots (src/recap/).
+    rollupOptions: { input: { main: "index.html", recap: "recap.html" } },
   },
   test: {
     include: ["tests/**/*.test.ts", "tests/**/*.test.tsx"],

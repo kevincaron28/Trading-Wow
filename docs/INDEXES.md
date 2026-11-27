@@ -153,7 +153,7 @@ anciennes séries sont conservées dans `index/legacy/`.
   valeur, un objet compte au plus pour ×3 ou ÷3 de son prix à la révision.
 - **Poids.** Or échangé un jour typique (médiane des ventes estimées × prix), plafonné par objet. Avant le 18 nov., sans
   chiffres de ventes : l'or mis en vente un jour typique. Seuls les objets liquides entrent (au moins 5 ventes dans la
-  fenêtre, 1 par jour, 1 po échangée par jour).
+  fenêtre, 1 par jour, 1g échangé par jour).
 - **Base.** 100 le premier jour de données (5 nov. 2026, lancement de WoW Forever). Les hôtels sans prix antérieurs
   (Bourbe-Noire) partent de 100 à la fin de leur première journée de prix horaires. Un indice qui manque alors d'objets
   actifs part un jour suivant, jusqu'au 22 nov. (cinq journées de formation, comme au lancement), puis seulement à une

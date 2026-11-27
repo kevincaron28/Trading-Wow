@@ -23,6 +23,8 @@ export interface WeeklyRecap {
   raid?: { soldPerDay: number; prevSoldPerDay: number | null; change: number | null; rows: [number, number, number, number | null][] } | null;
   /** Price paths for sparklines (since 1.3): item -> prices across the period, null where unknown. */
   sparks?: Record<string, (number | null)[]>;
+  /** Gold traded a day over every liquid item, copper (since 1.4): the period and the one before, change %. */
+  volume?: { perDay: number; prevPerDay: number | null; change: number | null } | null;
 }
 
 export type RecapKind = "daily" | "weekly" | "monthly";

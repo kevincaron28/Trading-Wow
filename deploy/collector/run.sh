@@ -29,20 +29,6 @@ git -C "$APP" fetch -q origin "$REF"
 git -C "$APP" reset -q --hard FETCH_HEAD
 echo "collector code $(git -C "$APP" rev-parse --short HEAD) ($REF)"
 
-# Recap card renderer (collector/recap-card.ts): resvg, a small native module (about 5 MB), kept outside the app
-# checkout in its own folder and installed once per version (the version pinned in package.json). Without it the
-# Discord recaps fall back to text and a plain chart, so a failed install never stops the collection.
-RENDER="${GOBLIN_RENDER_DIR:-/opt/goblin-ledger/render}"
-RESVG_VERSION="$(node -p "require('$APP/package.json').devDependencies['@resvg/resvg-js']" 2>/dev/null || true)"
-if [ -n "$RESVG_VERSION" ] && [ "$(node -p "require('$RENDER/node_modules/@resvg/resvg-js/package.json').version" 2>/dev/null || true)" != "$RESVG_VERSION" ]; then
-  mkdir -p "$RENDER"
-  [ -f "$RENDER/package.json" ] || echo '{ "private": true }' > "$RENDER/package.json"
-  npm install --prefix "$RENDER" --no-audit --no-fund --omit=dev --save-exact "@resvg/resvg-js@$RESVG_VERSION" >/dev/null 2>&1 \
-    && echo "card renderer: resvg $RESVG_VERSION installed" \
-    || echo "card renderer install failed (recaps are posted without cards)"
-fi
-export GOBLIN_RENDER_DIR="$RENDER"
-
 git -C "$DATA" config user.name "goldline-collector"
 git -C "$DATA" config user.email "goldline-collector@users.noreply.github.com"
 # The data checkout is about 600 MB: keep git's packing small for this 1 GB VM (GitHub runners had 7 GB).

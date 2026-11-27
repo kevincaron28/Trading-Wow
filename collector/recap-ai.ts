@@ -18,7 +18,6 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Lang } from "../src/lib/i18n.ts";
 import { recapSummary, type RecapFile } from "../src/lib/weekly.ts";
-import { coinParts } from "./recap-card.ts";
 
 const RAID_LAUNCH = Date.UTC(2026, 11, 9) / 1000;
 
@@ -60,7 +59,21 @@ export interface Allowed {
 export interface Facts { json: Record<string, unknown>; allowed: Allowed }
 
 const round1 = (v: number) => Math.round(v * 10) / 10;
-const money = (c: number, lang: Lang) => coinParts(c, lang).map(([t]) => t).join("");
+/** Gold, silver and copper as the summary writes them: 18g 49s / 87s 94c / 12c in every language; from 1,000 gold, gold only. */
+export function coinText(copper: number, lang: Lang): string {
+  const suf = { g: "g", s: "s", c: "c" };
+  const v = Math.round(Math.abs(copper));
+  const g = Math.floor(v / 10_000);
+  const s = Math.floor((v % 10_000) / 100);
+  const c = v % 100;
+  const sign = copper < 0 ? "-" : "";
+  const grp = (n: number) => n.toLocaleString(lang === "fr" ? "fr-CA" : "en-US").replace(/[\u00a0\u202f]/g, " ");
+  if (g >= 1_000) return `${sign}${grp(g)}${suf.g}`;
+  if (g > 0) return `${sign}${g}${suf.g}${s ? ` ${s}${suf.s}` : ""}`;
+  if (s > 0) return `${sign}${s}${suf.s}${c ? ` ${c}${suf.c}` : ""}`;
+  return `${sign}${c}${suf.c}`;
+}
+const money = (c: number, lang: Lang) => coinText(c, lang);
 const day = (t: number, lang: Lang) => new Date(t * 1000).toLocaleDateString(lang === "fr" ? "fr-CA" : "en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
 
 /** The recap's facts for the prompt, and the guard's allowed values built from the very same numbers. */
@@ -171,11 +184,12 @@ export function loadContext(path: string = join(dirname(fileURLToPath(import.met
 
 /** The chat messages: a strict system prompt and the facts as JSON. */
 export function buildMessages(facts: Facts, kind: RecapFile["kind"], lang: Lang, context: string, retryNote?: string): { role: "system" | "user"; content: string }[] {
-  const language = lang === "fr" ? "Canadian French (Québec), with prices in po/pa/pc as given" : "English, with prices in g/s/c as given";
+  const language = lang === "fr" ? "Canadian French (Québec), with prices in g/s/c exactly as given (never po/pa/pc)" : "English, with prices in g/s/c as given";
   const period = kind === "daily" ? "day" : kind === "weekly" ? "week" : "month";
   const system = [
     `You write the market-close summary of a World of Warcraft: Forever auction house recap for the Goblin Ledger newsletter, in ${language}.`,
-    `Write 3 to 5 short sentences (at most 90 words), in the style of a market-close news wire: what the Ledger 100 index did over the ${period}, the notable sectors, the biggest movers and the most traded items, raid consumable demand, and an index rebalance if one is listed.`,
+    `Write 2 or 3 short sentences (at most 60 words), in the style of a market-close news wire: what the Ledger 100 index did over the ${period}, then the one or two most notable things among the sectors, the biggest movers, raid consumable demand and an index rebalance if one is listed. The detailed lists are shown in images next to your text, so do not list items.`,
+    "Item names are in English: write them exactly as given, never translated.",
     "Use ONLY the numbers, names and facts in the JSON and in the WoW Forever notes below. Copy every number, percentage and price exactly as written there (you may round a percentage to a whole number). Never compute new numbers, never add a cause, prediction, advice or event that is not stated. Say 'rose' only for a positive change and 'fell' only for a negative one.",
     "No headline, no lists, no emoji, no markdown. Plain sentences only.",
     context ? `WoW Forever notes (reviewed facts, the only outside facts you may use):\n${context}` : "",
@@ -206,9 +220,9 @@ function parseNumber(raw: string, lang: Lang): Written | null {
 
 const NUM = String.raw`\d{1,3}(?:[,   ]\d{3})+(?:[.,]\d+)?|\d+(?:[.,]\d+)?`;
 
-/** Gold amounts such as "18g 49s", "21,219g", "87s 94c" (po/pa/pc in French), in copper with their precision. */
+/** Gold amounts such as "18g 49s", "21,219g", "87s 94c" (g/s/c in every language), in copper with their precision. */
 function moneyTokens(text: string, lang: Lang): { copper: number; half: number; span: [number, number] }[] {
-  const [g, s, c] = lang === "fr" ? ["po", "pa", "pc"] : ["g", "s", "c"];
+  const [g, s, c] = ["g", "s", "c"];
   const re = new RegExp(String.raw`(?:(${NUM})\s?${g}\b)?\s?(?:(\d{1,2})\s?${s}\b)?\s?(?:(\d{1,2})\s?${c}\b)?`, "g");
   const out: { copper: number; half: number; span: [number, number] }[] = [];
   for (const m of text.matchAll(re)) {
@@ -231,8 +245,9 @@ export function checkSummary(text: string, facts: Facts, lang: Lang): Check {
   const t = text.trim();
   if (!t) return { ok: false, problems: ["empty"] };
   const sentences = t.split(/(?<=[.!?])\s+/).filter((x) => x.trim());
-  if (sentences.length < 2 || sentences.length > 6 || t.length > 900) problems.push(`length (${sentences.length} sentences, ${t.length} characters)`);
+  if (sentences.length < 2 || sentences.length > 4 || t.length > 520) problems.push(`length (${sentences.length} sentences, ${t.length} characters)`);
   if (/[*#_`|]|https?:/.test(t)) problems.push("markup or link");
+  if (/\d\s?(?:po|pa|pc)\b/i.test(t)) problems.push("money must be written in g, s and c");
 
   // Amounts of gold.
   let rest = t;
@@ -331,9 +346,9 @@ export async function complete(cfg: AiConfig, messages: { role: string; content:
 
 export interface Summary { text: string; source: "ai" | "ai-retry" | "template"; problems: string[] }
 
-/** The template summary: the deterministic notes (the first 5), as sentences. */
+/** The template summary: the deterministic notes (the first 3), as sentences. */
 export function templateSummary(r: RecapFile, names: SummaryNames, lang: Lang, now: number): string {
-  return recapSummary(r, r.kind, lang, names.item, names.index, now).slice(0, 5).join(" ");
+  return recapSummary(r, r.kind, lang, names.item, names.index, now).slice(0, 3).join(" ");
 }
 
 /** The checked summary of a recap: the model's text when it passes the guard (once retried), else the template. */

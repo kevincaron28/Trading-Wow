@@ -1,0 +1,97 @@
+name: Post recap
+
+# Posts one daily, weekly or monthly recap to the Discord channel: the recap pages (recap.html, src/recap/) rendered
+# with Playwright, and a short message (collector/discord-recap.ts). docs/COLLECTOR_VM.md, "Discord recaps".
+#
+# Started by the collector VM after it publishes a new recap to R2 (a repository_dispatch event "recap-published",
+# collector/discord-recap.ts dispatch), not by a schedule: GitHub skipped schedules for hours on 19 Nov. Also started by
+# hand (Actions > Post recap > Run workflow) for a dry run, which posts nothing and keeps the images and the message as
+# an artifact, or to post a recap again.
+#
+# Secrets: DISCORD_RECAP_WEBHOOK (the channel's webhook), RECAP_AI_API_KEY (optional, the summary model's key).
+# Variables (optional): RECAP_AI_BASE_URL, RECAP_AI_MODEL, GOBLIN_LINKS_LIVE, GOBLIN_APP_URL, GOBLIN_WEB_URL, DISCORD_RECAP_LANG.
+
+on:
+  repository_dispatch:
+    types: [recap-published]
+  workflow_dispatch:
+    inputs:
+      house:
+        description: Auction house (113 = PvP Horde)
+        default: "113"
+      kind:
+        description: daily, weekly or monthly
+        default: daily
+      key:
+        description: The recap's date (YYYY-MM-DD; recap/<house>/list.json lists them)
+        required: true
+      dry_run:
+        description: Dry run (render and write the message, post nothing)
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+# One run per recap at a time: a second event for the same recap waits instead of posting alongside.
+concurrency:
+  group: recap-${{ github.event.client_payload.house || inputs.house }}-${{ github.event.client_payload.kind || inputs.kind }}-${{ github.event.client_payload.key || inputs.key }}
+  cancel-in-progress: false
+
+jobs:
+  post:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      # Inputs and the dispatch payload go through the environment (never into the script text) and are checked below.
+      HOUSE: ${{ github.event.client_payload.house || inputs.house }}
+      KIND: ${{ github.event.client_payload.kind || inputs.kind }}
+      KEY: ${{ github.event.client_payload.key || inputs.key }}
+      DRY: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run && '--dry-run' || '' }}
+      DATA: https://data.kcaron.top/
+    steps:
+      - name: Check the recap event
+        run: |
+          [[ "$HOUSE" =~ ^[0-9]{1,4}$ && "$KIND" =~ ^(daily|weekly|monthly)$ && "$KEY" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]] || { echo "bad recap event"; exit 1; }
+          echo "recap $HOUSE $KIND $KEY ${DRY:-(post)}"
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Chromium and fonts
+        run: |
+          npx playwright install --with-deps chromium
+          sudo apt-get install -y -qq fonts-inter >/dev/null
+      - name: Build the app (the recap pages read the data from R2)
+        run: npx vite build
+      - name: Download the recap and what the message needs
+        run: |
+          mkdir -p data/recap/$HOUSE data/index
+          for f in meta.json items.json index/meta.json index/$HOUSE.json recap/$HOUSE/$KIND-$KEY.json; do
+            curl -fsS --retry 3 -o "data/$f" "${DATA}$f?t=$(date +%s)"
+          done
+      - name: Render the recap pages
+        run: node scripts/render-recap.mjs --house "$HOUSE" --kind "$KIND" --key "$KEY" --lang "${DISCORD_RECAP_LANG:-fr}" --out recap-images
+        env:
+          DISCORD_RECAP_LANG: ${{ vars.DISCORD_RECAP_LANG }}
+      - name: Post to Discord
+        run: node collector/discord-recap.ts post data --house "$HOUSE" --kind "$KIND" --key "$KEY" --images recap-images $DRY
+        env:
+          DISCORD_RECAP_WEBHOOK: ${{ secrets.DISCORD_RECAP_WEBHOOK }}
+          DISCORD_RECAP_LANG: ${{ vars.DISCORD_RECAP_LANG }}
+          RECAP_AI_API_KEY: ${{ secrets.RECAP_AI_API_KEY }}
+          RECAP_AI_BASE_URL: ${{ vars.RECAP_AI_BASE_URL }}
+          RECAP_AI_MODEL: ${{ vars.RECAP_AI_MODEL }}
+          # Links (collector/discord-recap.ts linksFromEnv): GOBLIN_LINKS_LIVE=1 once the kcaron.top tester page and web app
+          # are online; until then the closed test's opt-in page and item names in plain text. The two URLs override.
+          GOBLIN_LINKS_LIVE: ${{ vars.GOBLIN_LINKS_LIVE }}
+          GOBLIN_APP_URL: ${{ vars.GOBLIN_APP_URL }}
+          GOBLIN_WEB_URL: ${{ vars.GOBLIN_WEB_URL }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: recap-${{ env.HOUSE }}-${{ env.KIND }}-${{ env.KEY }}
+          path: recap-images/
+          retention-days: 14

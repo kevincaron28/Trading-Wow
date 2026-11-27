@@ -13,14 +13,14 @@ describe("money", () => {
     expect(formatMoney(10_005)).toBe("1g 5c");
     expect(formatMoney(0)).toBe("0c");
     expect(formatMoney(-250)).toBe("-2s 50c");
-    expect(formatMoney(123_456, "fr")).toBe("12po 34pa 56pc");
+    expect(formatMoney(123_456, "fr")).toBe("12g 34s 56c");
     expect(formatMoney(25_000_000)).toBe("2,500g");
-    expect(formatMoney(25_000_000, "fr")).toBe("2 500po");
+    expect(formatMoney(25_000_000, "fr")).toBe("2 500g");
   });
 
   it("shortens axis labels", () => {
     expect(formatMoneyShort(123_456)).toBe("12.35g");
-    expect(formatMoneyShort(123_456, "fr")).toBe("12,35po");
+    expect(formatMoneyShort(123_456, "fr")).toBe("12,35g");
     expect(formatMoneyShort(4_500)).toBe("45s");
     expect(formatMoneyShort(80)).toBe("80c");
     expect(formatMoneyShort(25_000_000)).toBe("2500g");
@@ -37,7 +37,7 @@ describe("axis labels", () => {
   it("shows at most two coin units", () => {
     expect(formatMoneyAxis(122_577)).toBe("12g 25s");
     expect(formatMoneyAxis(12_345_678)).toBe("1,234g");
-    expect(formatMoneyAxis(2_577, "fr")).toBe("25pa 77pc");
+    expect(formatMoneyAxis(2_577, "fr")).toBe("25s 77c");
     expect(formatMoneyAxis(77)).toBe("77c");
     expect(formatMoneyAxis(800_000)).toBe("80g");
     expect(formatMoneyAxis(2_500)).toBe("25s");
