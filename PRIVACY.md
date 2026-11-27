@@ -1,14 +1,14 @@
 # Goblin Ledger privacy policy
 
-*Last updated: 26 November 2026* · [Version française plus bas](#politique-de-confidentialité-de-goblin-ledger)
+*Last updated: 27 November 2026* · [Version française plus bas](#politique-de-confidentialité-de-goblin-ledger)
 
 Goblin Ledger (listed on Google Play as "Goblin Ledger: WoW Forever AH") is a free app that shows World of Warcraft Forever auction house prices. It is made by Kevin Caron, an
 independent developer in Québec, Canada.
 
 ## What Goblin Ledger collects
 
-**Nothing.** Goblin Ledger has no accounts, no sign-in, no analytics, no advertising and no tracking. The developer
-receives no data about you or your device.
+**Nothing.** Goblin Ledger has no accounts, no sign-in, no analytics, no advertising and no tracking. The app sends
+the developer no data about you or your device. The developer only receives what you choose to send (see Feedback).
 
 ## What stays on your phone
 
@@ -33,6 +33,17 @@ from them; their own privacy policies apply ([Cloudflare](https://www.cloudflare
 [GitHub](https://docs.github.com/site-policy/privacy-policies/github-general-privacy-statement),
 [Blizzard](https://www.blizzard.com/legal/privacy), [Google](https://policies.google.com/privacy)). Goblin Ledger sends them no personal information.
 
+## Feedback, ratings and sharing
+
+- **Feedback.** "Report a problem or send feedback" prepares a message that you send yourself, by e-mail or as a public
+  issue on GitHub. It can include the app version, your phone model and Android version, the auction house and the
+  language shown in the app: you see them first and can leave them out. The developer uses what you send only to answer
+  you and fix the app, and deletes your e-mail if you ask.
+- **Ratings.** "Rate this app" opens the store page. The Google Play version may also ask Google Play to show its rating
+  window. Ratings and reviews go to Google; the app does not receive them.
+- **Sharing.** Sharing the app, a link or a chart picture opens your phone's share menu; the app you choose receives what
+  you share.
+
 ## Notifications
 
 If you create price alerts or deal alerts, Android (or your browser, on the web version) may ask permission to show
@@ -54,15 +65,16 @@ World of Warcraft is a trademark of Blizzard Entertainment, Inc.
 
 # Politique de confidentialité de Goblin Ledger
 
-*Dernière mise à jour : 26 novembre 2026*
+*Dernière mise à jour : 27 novembre 2026*
 
 Goblin Ledger (sur Google Play : « Goblin Ledger: WoW Forever AH ») est une application gratuite qui affiche les prix de l'hôtel des ventes de World of Warcraft Forever.
 Elle est conçue par Kevin Caron, développeur indépendant au Québec (Canada).
 
 ## Ce que Goblin Ledger recueille
 
-**Rien.** Goblin Ledger n'a ni compte, ni connexion, ni statistiques d'utilisation, ni publicité, ni pistage. Le
-développeur ne reçoit aucune donnée sur vous ou votre appareil.
+**Rien.** Goblin Ledger n'a ni compte, ni connexion, ni statistiques d'utilisation, ni publicité, ni pistage.
+L'application n'envoie au développeur aucune donnée sur vous ou votre appareil. Le développeur ne reçoit que ce que vous
+choisissez de lui envoyer (voir Commentaires).
 
 ## Ce qui reste sur votre téléphone
 
@@ -88,6 +100,17 @@ leurs propres politiques de confidentialité s'appliquent ([Cloudflare](https://
 [GitHub](https://docs.github.com/site-policy/privacy-policies/github-general-privacy-statement),
 [Blizzard](https://www.blizzard.com/legal/privacy), [Google](https://policies.google.com/privacy?hl=fr)). Goblin Ledger
 ne leur envoie aucun renseignement personnel.
+
+## Commentaires, évaluations et partage
+
+- **Commentaires.** « Signaler un problème ou commenter » prépare un message que vous envoyez vous-même, par courriel ou
+  comme ticket public sur GitHub. Il peut inclure la version de l'application, le modèle du téléphone et la version
+  d'Android, l'hôtel des ventes et la langue affichés : vous les voyez d'abord et pouvez les retirer. Le développeur
+  n'utilise votre envoi que pour vous répondre et corriger l'application, et supprime votre courriel sur demande.
+- **Évaluations.** « Évaluer l'application » ouvre la page de la boutique. La version Google Play peut aussi demander à
+  Google Play d'afficher sa fenêtre d'évaluation. Les notes et avis vont à Google; l'application ne les reçoit pas.
+- **Partage.** Partager l'application, un lien ou une image de graphique ouvre le menu de partage du téléphone;
+  l'application que vous choisissez reçoit ce que vous partagez.
 
 ## Notifications
 
