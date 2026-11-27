@@ -30,10 +30,15 @@ const DAY = 86_400;
 export const WEEK_HOURS = 168;
 const SMOOTH_HOURS = 7;
 const LIMIT = 5;
-/** Movers: same liquidity bar as the Market tab (5+ sold a day, 20 gold traded a day, 20+ listed, at most x3 or /3). */
+/** Flips and the most traded list: items that sell at least 5 a day. */
 const MIN_SOLD = 5;
-const MIN_VALUE = 200_000;
-const MIN_LISTED = 20;
+/**
+ * Movers and records: real markets only. 10+ sold a day, 500 gold traded a day, 20+ listed, priced 1 gold or more at
+ * both ends, at most x3 or /3. On the 26 Nov 2026 PvP Horde day the Market tab's bar (5 sold, 20 gold a day) let 647
+ * items through, most of them under 12 silver (half of them), so cheap food and scrolls filled the list with +180%
+ * moves worth a few gold. 500 gold a day is about the top quarter of those items; 56 were left.
+ */
+export const MOVER_RULES = { minSold: 10, minValue: 5_000_000, minListed: 20, minPrice: 10_000 } as const;
 const MAX_RATIO = 3;
 /** A record must beat the old one by 2% and have at least 7 earlier days behind it. */
 const RECORD_MARGIN = 0.02;
@@ -72,6 +77,8 @@ export interface WeeklyFile {
   /** Price paths for the recap card's sparklines (since 1.3): item -> SPARK_POINTS prices across the period, null
    * where no price is known. Only the items the recap lists. */
   sparks?: Record<string, (number | null)[]>;
+  /** Gold traded a day over every liquid item, copper (since 1.4): the period and the one before, change %. */
+  volume?: { perDay: number; prevPerDay: number | null; change: number | null } | null;
 }
 
 /** Points per sparkline. */
@@ -201,7 +208,7 @@ export function buildRecap(input: WeeklyInput, startH: number, endH: number): We
   const busy = (id: number) => {
     const q = now.get(id);
     if (q == null || !isLiquid(q, input.classOf(id))) return null;
-    return q.listed >= MIN_LISTED && traded(q) >= MIN_SOLD && traded(q) * q.market >= MIN_VALUE ? q : null;
+    return q.listed >= MOVER_RULES.minListed && traded(q) >= MOVER_RULES.minSold && traded(q) * q.market >= MOVER_RULES.minValue ? q : null;
   };
 
   // Indexes: value at the end against the value at or before the start.
@@ -224,7 +231,7 @@ export function buildRecap(input: WeeklyInput, startH: number, endH: number): We
     if (a != null && a > 0) startPrices.set(id, a);
     const q = busy(id);
     const b = smoothAt(h, endH);
-    if (!q || a == null || b == null || a <= 0) continue;
+    if (!q || a == null || b == null || a < MOVER_RULES.minPrice || b < MOVER_RULES.minPrice) continue;
     const ratio = b / a;
     if (ratio > MAX_RATIO || ratio < 1 / MAX_RATIO) continue;
     moves.push([id, a, b, (ratio - 1) * 100, Math.round(traded(q))]);
@@ -251,6 +258,7 @@ export function buildRecap(input: WeeklyInput, startH: number, endH: number): We
     const bottom = period.reduce((a, b) => (b[1] < a[1] ? b : a));
     const sold = Math.round(traded(q));
     // A record more than x3 beyond the old one is a relisted stack, not a market move.
+    if (q.market < MOVER_RULES.minPrice) continue;
     if (top[1] > pMax * (1 + RECORD_MARGIN) && top[1] <= pMax * MAX_RATIO) highs.push([id, top[1], top[0] * DAY, pMax, prior.length, sold]);
     if (bottom[1] < pMin * (1 - RECORD_MARGIN) && bottom[1] >= pMin / MAX_RATIO) lows.push([id, bottom[1], bottom[0] * DAY, pMin, prior.length, sold]);
   }
@@ -281,6 +289,25 @@ export function buildRecap(input: WeeklyInput, startH: number, endH: number): We
       rows.push([id, Math.round(sold * q.market), Math.round(sold), q.market, change != null && Math.abs(change) <= (MAX_RATIO - 1) * 100 ? change : null]);
     }
     tradedRows = rows.sort((a, b) => b[1] - a[1]).slice(0, LIMIT);
+  }
+
+  // Market volume: gold traded a day over every liquid item (estimated units sold each hour times that hour's market
+  // price), against the period before.
+  let volume: WeeklyFile["volume"] = null;
+  if (replayable) {
+    const days = Math.max(1, covered) / 24;
+    const prevFrom = replayFrom - covered;
+    const prevCovered = ownSinceH <= prevFrom;
+    const gold = (h: ItemHistory, from: number, to: number) => rowsIn(h, from, to).reduce((x, r) => x + Math.max(0, r[5] ?? 0) * r[2], 0);
+    let cur = 0;
+    let prev = 0;
+    for (const [id, h] of input.histories) {
+      const q = now.get(id);
+      if (!q || !isLiquid(q, input.classOf(id))) continue;
+      cur += gold(h, replayFrom, endH) / days;
+      if (prevCovered) prev += gold(h, prevFrom, replayFrom) / days;
+    }
+    volume = { perDay: Math.round(cur), prevPerDay: prevCovered ? Math.round(prev) : null, change: prevCovered && prev > 0 ? (cur / prev - 1) * 100 : null };
   }
 
   // Raid consumables (flasks, elixirs, potions): units sold per day in the period against the period before.
@@ -409,6 +436,7 @@ export function buildRecap(input: WeeklyInput, startH: number, endH: number): We
     traded: tradedRows,
     sparks,
     raid,
+    volume,
   };
 }
 

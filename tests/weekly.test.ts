@@ -47,13 +47,17 @@ describe("weekly recap (collector)", () => {
     expect(short.highs).toBeNull();
   });
 
-  it("ranks risers and fallers by their 7-day change, leaving out thin markets and relisted stacks", () => {
+  it("ranks risers and fallers by their 7-day change, leaving out thin, cheap and small markets and relisted stacks", () => {
     const from = END - WEEK_HOURS - 30;
     const w = buildWeekly(input([
-      [1, { h: hours(from, (x) => (x <= END - WEEK_HOURS ? 10_000 : 15_000), 10), d: [] }],
-      [2, { h: hours(from, (x) => (x <= END - WEEK_HOURS ? 10_000 : 8_000), 10), d: [] }],
-      [3, { h: hours(from, (x) => (x <= END - WEEK_HOURS ? 10_000 : 40_000), 10), d: [] }],
-      [4, { h: hours(from, (x) => (x <= END - WEEK_HOURS ? 10_000 : 12_000), 0), d: [] }],
+      [1, { h: hours(from, (x) => (x <= END - WEEK_HOURS ? 100_000 : 150_000), 10), d: [] }],
+      [2, { h: hours(from, (x) => (x <= END - WEEK_HOURS ? 100_000 : 80_000), 10), d: [] }],
+      [3, { h: hours(from, (x) => (x <= END - WEEK_HOURS ? 100_000 : 400_000), 10), d: [] }],
+      [4, { h: hours(from, (x) => (x <= END - WEEK_HOURS ? 100_000 : 120_000), 0), d: [] }],
+      // Cheap food: 2,400 sold a day, but under 1 gold, so a +150% move is worth a few gold.
+      [5, { h: hours(from, (x) => (x <= END - WEEK_HOURS ? 2_000 : 5_000), 100), d: [] }],
+      // 1 gold, but 240 sold a day is 240 gold traded: under the 500 gold a day bar.
+      [6, { h: hours(from, (x) => (x <= END - WEEK_HOURS ? 10_000 : 15_000), 10), d: [] }],
     ]))!;
     expect(w.risers!.map((r) => r[0])).toEqual([1]);
     expect(w.risers![0]![3]).toBeCloseTo(50);
@@ -64,14 +68,14 @@ describe("weekly recap (collector)", () => {
   it("finds new highs and lows against at least 7 earlier days, early history included", () => {
     const startDay = Math.floor(((END - WEEK_HOURS + 1) * 3_600) / 86_400);
     const early = new Map<number, number>();
-    for (let d = startDay - 10; d < startDay; d++) early.set(d, 10_000);
+    for (let d = startDay - 10; d < startDay; d++) early.set(d, 100_000);
     const w = buildWeekly(input([
-      [1, { h: hours(END - 3 * DAY_H, () => 13_000, 10), d: [] }],
-      [2, { h: hours(END - 3 * DAY_H, () => 7_000, 10), d: [] }],
-      [3, { h: hours(END - 3 * DAY_H, () => 10_100, 10), d: [] }],
+      [1, { h: hours(END - 3 * DAY_H, () => 130_000, 10), d: [] }],
+      [2, { h: hours(END - 3 * DAY_H, () => 70_000, 10), d: [] }],
+      [3, { h: hours(END - 3 * DAY_H, () => 101_000, 10), d: [] }],
     ], { early: new Map([[1, early], [2, early], [3, early]]) }))!;
     expect(w.highs!.map((r) => r[0])).toEqual([1]);
-    expect(w.highs![0]![3]).toBe(10_000);
+    expect(w.highs![0]![3]).toBe(100_000);
     expect(w.highs![0]![4]).toBe(10);
     expect(w.lows!.map((r) => r[0])).toEqual([2]);
   });

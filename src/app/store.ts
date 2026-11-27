@@ -150,6 +150,22 @@ export function openChart(itemId: number): void {
   setState((s) => ({ tab: "chart", chartItem: itemId, compareItem: null, recent: [itemId, ...s.recent.filter((id) => id !== itemId)].slice(0, 12) }));
 }
 
+/**
+ * Links into the web app (the Discord recap links every item): ?house=113&item=22457 opens that item's chart on that
+ * auction house, ?house=113&tab=overview the Market tab. A link names the house, so it also skips the first-run picker.
+ */
+export function linkState(search: string): Partial<State> | null {
+  const q = new URLSearchParams(search);
+  const house = Number(q.get("house"));
+  const item = Number(q.get("item"));
+  const tab = q.get("tab");
+  const out: Partial<State> = {};
+  for (const g of REALM_GROUPS) for (const [f, id] of Object.entries(g.houses)) if (id === house) Object.assign(out, { realm: g.id, faction: f as Faction, onboarded: true });
+  if (Number.isInteger(item) && item > 0) Object.assign(out, { tab: "chart", chartItem: item, compareItem: null });
+  else if (tab === "overview" || tab === "explore" || tab === "watchlist") out.tab = tab;
+  return Object.keys(out).length ? out : null;
+}
+
 export function activeWatchlist(s: State): WatchlistDef {
   return s.watchlists.find((w) => w.id === s.activeList) ?? s.watchlists[0]!;
 }

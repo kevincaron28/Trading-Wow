@@ -3,7 +3,7 @@ import { inflateSync } from "node:zlib";
 import { addToList, finishRecap, periods, type RecapList } from "../collector/recaps";
 import { buildRecap, type WeeklyInput } from "../collector/weekly";
 import { INDEXES, basketChanges, chooseBasket, isQuarterly, lastRebalance, nextRebalance, type Period, type Series } from "../collector/indexes";
-import { buildMessage, due, periodLabel, validWebhook } from "../collector/discord-recap";
+import { buildMessage, due, linkItems, periodLabel, validWebhook, webLink } from "../collector/discord-recap";
 import { crc32, lineChartPng } from "../collector/png-chart";
 import { recapSummary, type RecapFile } from "../src/lib/weekly";
 import type { HourRow } from "../collector/store";
@@ -139,17 +139,36 @@ describe("Discord recap post", () => {
   };
   const names = { item: (id: number) => (id === 7 ? "Black Lotus" : `Item ${id}`), index: (id: string) => (id === "gl100" ? "Ledger 100" : "Herbs"), house: "PvP Horde" };
 
-  it("posts as Goblin Ledger only, with the sections and the chart", () => {
-    const msg = buildMessage(recap, "en", names, ["chart.png"], recap.end + 1800) as { username: string; embeds: { title: string; image?: { url: string }; fields: { name: string; value: string }[]; description: string }[] };
+  it("posts a short message as Goblin Ledger only: summary, four numbers, links, then the images", () => {
+    const images = ["1-overview.png", "2-movers.png", "3-raid.png", "4-desk.png"];
+    type Msg = { username: string; embeds: { title?: string; url?: string; image?: { url: string }; fields?: { name: string; value: string; inline: boolean }[]; description?: string }[] };
+    const msg = buildMessage(recap, "en", names, images, recap.end + 1800, undefined, "https://example.com/ledger/") as Msg;
     expect(msg.username).toBe("Goblin Ledger");
     const embed = msg.embeds[0]!;
     expect(embed.title).toBe("Weekly recap · 23 Nov – 30 Nov 2026 · PvP Horde");
-    expect(embed.image?.url).toBe("attachment://chart.png");
-    expect(embed.fields.map((f) => f.name)).toEqual(["Indexes", "Top risers", "Top fallers", "Most traded", "Best flips (5+ sold a day)", "Raid consumables"]);
-    expect(embed.description).toContain("Raid consumables: sales up 25% on the period before.");
+    expect(embed.image?.url).toBe("attachment://1-overview.png");
+    // The other images share the main embed's URL: Discord shows them as one gallery.
+    expect(msg.embeds.slice(1).map((e) => [e.url, e.image?.url])).toEqual(images.slice(1).map((f) => [embed.url, `attachment://${f}`]));
+    expect(embed.url).toBe("https://example.com/ledger/?house=113&tab=overview");
+    expect(embed.fields!.every((f) => f.inline)).toBe(true);
+    expect(embed.fields!.map((f) => f.name).filter((n) => n !== "\u200b")).toEqual(["Ledger 100", "Biggest sector move", "Raid consumables"]);
+    expect(embed.description).toContain("[Goblin Ledger on Google Play](https://play.google.com/store/apps/details?id=top.kcaron.goldline)");
+    expect(embed.description).toContain("[Open the market](https://example.com/ledger/?house=113&tab=overview)");
     const text = JSON.stringify(msg);
-    expect(text).not.toMatch(/guilded|goldline/i);
-    expect(JSON.stringify(buildMessage(recap, "fr", names, [], recap.end))).not.toMatch(/guilded|goldline/i);
+    expect(text).not.toMatch(/guilded/i);
+    // Without a web address: no market link, no item links, the images one per embed.
+    const plain = buildMessage(recap, "fr", names, images, recap.end) as Msg;
+    expect(plain.embeds[0]!.description).not.toContain("Ouvrir le marché");
+    expect(plain.embeds).toHaveLength(4);
+    expect(JSON.stringify(plain)).not.toMatch(/guilded/i);
+  });
+
+  it("links item names in the summary to their page, longest names first", () => {
+    const link = (id: number) => webLink("https://example.com/", 113, id);
+    const out = linkItems("Elixir of the Mongoose rose; Mongoose fell.", [{ id: 2, name: "Mongoose" }, { id: 1, name: "Elixir of the Mongoose" }], link);
+    expect(out).toBe("[Elixir of the Mongoose](https://example.com/?house=113&item=1) rose; [Mongoose](https://example.com/?house=113&item=2) fell.");
+    expect(webLink("javascript:alert(1)", 113, 1)).toBeNull();
+    expect(webLink(undefined, 113)).toBeNull();
   });
 
   it("labels the month by name", () => {

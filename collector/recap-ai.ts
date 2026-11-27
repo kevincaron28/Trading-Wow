@@ -175,7 +175,8 @@ export function buildMessages(facts: Facts, kind: RecapFile["kind"], lang: Lang,
   const period = kind === "daily" ? "day" : kind === "weekly" ? "week" : "month";
   const system = [
     `You write the market-close summary of a World of Warcraft: Forever auction house recap for the Goblin Ledger newsletter, in ${language}.`,
-    `Write 3 to 5 short sentences (at most 90 words), in the style of a market-close news wire: what the Ledger 100 index did over the ${period}, the notable sectors, the biggest movers and the most traded items, raid consumable demand, and an index rebalance if one is listed.`,
+    `Write 2 or 3 short sentences (at most 60 words), in the style of a market-close news wire: what the Ledger 100 index did over the ${period}, then the one or two most notable things among the sectors, the biggest movers, raid consumable demand and an index rebalance if one is listed. The detailed lists are shown in images next to your text, so do not list items.`,
+    "Item names are in English: write them exactly as given, never translated.",
     "Use ONLY the numbers, names and facts in the JSON and in the WoW Forever notes below. Copy every number, percentage and price exactly as written there (you may round a percentage to a whole number). Never compute new numbers, never add a cause, prediction, advice or event that is not stated. Say 'rose' only for a positive change and 'fell' only for a negative one.",
     "No headline, no lists, no emoji, no markdown. Plain sentences only.",
     context ? `WoW Forever notes (reviewed facts, the only outside facts you may use):\n${context}` : "",
@@ -231,7 +232,7 @@ export function checkSummary(text: string, facts: Facts, lang: Lang): Check {
   const t = text.trim();
   if (!t) return { ok: false, problems: ["empty"] };
   const sentences = t.split(/(?<=[.!?])\s+/).filter((x) => x.trim());
-  if (sentences.length < 2 || sentences.length > 6 || t.length > 900) problems.push(`length (${sentences.length} sentences, ${t.length} characters)`);
+  if (sentences.length < 2 || sentences.length > 4 || t.length > 520) problems.push(`length (${sentences.length} sentences, ${t.length} characters)`);
   if (/[*#_`|]|https?:/.test(t)) problems.push("markup or link");
 
   // Amounts of gold.
@@ -331,9 +332,9 @@ export async function complete(cfg: AiConfig, messages: { role: string; content:
 
 export interface Summary { text: string; source: "ai" | "ai-retry" | "template"; problems: string[] }
 
-/** The template summary: the deterministic notes (the first 5), as sentences. */
+/** The template summary: the deterministic notes (the first 3), as sentences. */
 export function templateSummary(r: RecapFile, names: SummaryNames, lang: Lang, now: number): string {
-  return recapSummary(r, r.kind, lang, names.item, names.index, now).slice(0, 5).join(" ");
+  return recapSummary(r, r.kind, lang, names.item, names.index, now).slice(0, 3).join(" ");
 }
 
 /** The checked summary of a recap: the model's text when it passes the guard (once retried), else the template. */

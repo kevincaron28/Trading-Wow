@@ -32,7 +32,6 @@ const COLORS = { up: 0x3fb950, down: 0xf85149, flat: 0xd4a72c };
 /** A recap older than this is not posted any more (hours after its end). */
 export const FRESH_HOURS: Record<RecapKind, number> = { daily: 12, weekly: 24, monthly: 48 };
 const KINDS: readonly RecapKind[] = ["daily", "weekly", "monthly"];
-const ROWS = 5;
 
 const REALMS: Record<string, Record<Lang, string>> = {
   pvp: { en: "PvP", fr: "JcJ" },
@@ -49,17 +48,15 @@ const FACTIONS: Record<string, Record<Lang, string>> = {
 const TEXT = {
   en: {
     daily: "Daily recap", weekly: "Weekly recap", monthly: "Monthly recap",
-    indexes: "Indexes", risers: "Top risers", fallers: "Top fallers", traded: "Most traded", flips: "Best flips (5+ sold a day)",
-    crafts: "Crafting margins", raid: "Raid consumables", highs: "New highs", lows: "New lows",
-    perDay: "/day", soldDay: "sold/day", vs: "vs", none: "None", footer: "Goblin Ledger · WoW Forever auction house prices · not financial advice",
-    then: "then", now: "now",
+    ledger: "Ledger 100", sector: "Biggest sector move", raid: "Raid consumables", volume: "Gold traded",
+    perDay: "/day", play: "Goblin Ledger on Google Play", market: "Open the market",
+    footer: "Goblin Ledger · WoW Forever auction house prices · not financial advice",
   },
   fr: {
     daily: "Récap du jour", weekly: "Récap de la semaine", monthly: "Récap du mois",
-    indexes: "Indices", risers: "Plus fortes hausses", fallers: "Plus fortes baisses", traded: "Les plus échangés", flips: "Meilleures reventes (5+ ventes/jour)",
-    crafts: "Marges d'artisanat", raid: "Consommables de raid", highs: "Nouveaux sommets", lows: "Nouveaux creux",
-    perDay: "/jour", soldDay: "ventes/jour", vs: "contre", none: "Aucun", footer: "Goblin Ledger · Prix de l'hôtel des ventes de WoW Forever · pas un conseil financier",
-    then: "alors", now: "maintenant",
+    ledger: "Ledger 100", sector: "Secteur le plus actif", raid: "Consommables de raid", volume: "Or échangé",
+    perDay: "/j", play: "Goblin Ledger sur Google Play", market: "Ouvrir le marché",
+    footer: "Goblin Ledger · Prix de l'hôtel des ventes de WoW Forever · pas un conseil financier",
   },
 } as const;
 
@@ -70,7 +67,6 @@ export interface Names {
 }
 
 const trim = (s: string, n: number) => (s.length <= n ? s : `${s.slice(0, n - 1)}…`);
-const field = (name: string, lines: string[] | null) => (lines && lines.length ? { name, value: trim(lines.join("\n"), 1024), inline: false } : null);
 
 /** The period as people say it: "26 Nov 2026", "23–30 Nov 2026", "November 2026". */
 export function periodLabel(r: Pick<RecapFile, "kind" | "start" | "end">, lang: Lang): string {
@@ -84,53 +80,81 @@ export function periodLabel(r: Pick<RecapFile, "kind" | "start" | "end">, lang: 
   return `${d(r.start, { day: "numeric", month: "short" })} – ${d(r.end, { day: "numeric", month: "short", year: "numeric" })}`;
 }
 
+/** Goblin Ledger on Google Play: every post links it. */
+export const PLAY_URL = "https://play.google.com/store/apps/details?id=top.kcaron.goldline";
+
+/** A page of the web app: an item's chart (?house=113&item=22457) or the Market tab. Null without a web address. */
+export function webLink(base: string | undefined, house: number, item?: number): string | null {
+  if (!base || !/^https:\/\/[^\s()]+$/.test(base)) return null;
+  const u = new URL(base);
+  u.searchParams.set("house", String(house));
+  if (item != null) u.searchParams.set("item", String(item));
+  else u.searchParams.set("tab", "overview");
+  return u.toString();
+}
+
+/** Item names in a text, as Markdown links to their page (longest names first, each linked once). */
+export function linkItems(text: string, items: { id: number; name: string }[], link: (id: number) => string | null): string {
+  let out = text;
+  const done = new Set<string>();
+  for (const { id, name } of [...items].sort((a, b) => b.name.length - a.name.length)) {
+    const url = link(id);
+    if (!url || name.length < 3 || done.has(name)) continue;
+    // The first mention outside a link made for a longer name ("Elixir of the Mongoose" before "Mongoose").
+    let at = out.indexOf(name);
+    while (at >= 0 && out.lastIndexOf("[", at) > out.lastIndexOf("]", at)) at = out.indexOf(name, at + 1);
+    if (at < 0) continue;
+    out = `${out.slice(0, at)}[${name}](${url})${out.slice(at + name.length)}`;
+    done.add(name);
+  }
+  return out;
+}
+
 /**
- * The Discord message for one recap (webhook payload_json). `images` are the attached files: the recap cards
- * (card-1.png, card-2.png...: the first embed carries the title, the notes and card 1, then one embed per card), or
- * the plain chart.png when the cards cannot be drawn, with the text fields instead.
+ * The Discord message for one recap (webhook payload_json): short enough to read at a glance. A title with the period
+ * and the house, the 2-3 sentence summary (item names linked to their page), four key numbers, and the links to the
+ * app and the market. The details are the attached images (`images`: the recap pages, rendered from the app): the
+ * first in the main embed, the others in embeds sharing its URL, which Discord shows as one gallery.
  */
-export function buildMessage(r: RecapFile, lang: Lang, names: Names, images: readonly string[], now: number = Date.now() / 1000, summary?: { text: string; source: string }): Record<string, unknown> {
-  const cards = images.length > 0 && images[0] !== "chart.png";
+export function buildMessage(r: RecapFile, lang: Lang, names: Names, images: readonly string[], now: number = Date.now() / 1000, summary?: { text: string; source: string }, web?: string): Record<string, unknown> {
   const T = TEXT[lang];
-  const num = (n: number) => n.toLocaleString(lang === "fr" ? "fr-CA" : "en-US").replace(/ | /g, " ");
+  const num = (n: number) => n.toLocaleString(lang === "fr" ? "fr-CA" : "en-US").replace(/ | /g, " ");
   // 1,000 gold and up: whole gold with separators ("21,220g"), else the app's short form ("2.15g", "56.3s").
-  const money = (c: number) => (Math.abs(c) >= 10_000_000 ? `${num(Math.round(c / 10_000))}${lang === "fr" ? "po" : "g"}` : formatMoneyShort(c, lang));
-  const pct = (v: number | null | undefined) => (v == null ? "–" : pctText(v, lang, true));
-  const notes = recapSummary(r, r.kind, lang, names.item, names.index, now);
+  const money = (c: number) => (Math.abs(c) >= 10_000_000 ? `${num(Math.round(c / 10_000))}${lang === "fr" ? " po" : "g"}` : formatMoneyShort(c, lang));
+  const pct = (v: number | null | undefined) => (v == null ? "" : ` (${pctText(v, lang, true)})`);
   const gl = r.indexes?.find(([id]) => id === "gl100");
   const color = gl == null ? COLORS.flat : gl[3] >= 0.5 ? COLORS.up : gl[3] <= -0.5 ? COLORS.down : COLORS.flat;
-  const rows = <R,>(list: R[] | null | undefined, fn: (x: R) => string) => (list == null ? null : list.length ? list.slice(0, ROWS).map(fn) : [T.none]);
-  const idx = r.indexes ? [...r.indexes].sort((a, b) => (a[0] === "gl100" ? -1 : b[0] === "gl100" ? 1 : Math.abs(b[3]) - Math.abs(a[3]))).slice(0, 6) : null;
-  const fields = [
-    field(T.indexes, idx && idx.map(([id, , b, c]) => `**${names.index(id)}** ${b.toFixed(2)} (${pct(c)})`)),
-    field(T.risers, rows(r.risers, (x) => `${names.item(x[0])}: ${money(x[1])} → ${money(x[2])} (**${pct(x[3])}**)`)),
-    field(T.fallers, rows(r.fallers, (x) => `${names.item(x[0])}: ${money(x[1])} → ${money(x[2])} (**${pct(x[3])}**)`)),
-    field(T.traded, rows(r.traded, (x) => `${names.item(x[0])}: ~${money(x[1])}${T.perDay} · ${num(x[2])} ${T.soldDay}`)),
-    field(T.flips, rows(r.flips?.rows, (x) => `${names.item(x[0])}: ${money(x[2])} → ${money(x[3])} (+${money(x[4])})${x[8] != null ? ` · ${num(x[8])} ${T.soldDay}` : ""}`)),
-    field(T.crafts, rows(r.crafts?.rows, (x) => `${names.item(x[0])}: ${money(x[2])} ${T.then}${x[4] != null ? `, ${money(x[4])} ${T.now} (${pct(x[5])})` : ""}`)),
-    field(T.raid, r.raid ? [
-      `${num(r.raid.soldPerDay)} ${T.soldDay}${r.raid.change != null ? ` (${pct(r.raid.change)} ${T.vs} ${num(r.raid.prevSoldPerDay!)})` : ""}`,
-      ...r.raid.rows.slice(0, ROWS).map((x) => `${names.item(x[0])}: ${num(x[1])} ${T.soldDay} · ${money(x[2])}${x[3] != null ? ` (${pct(x[3])})` : ""}`),
-    ] : null),
-    field(T.highs, r.highs && r.highs.length ? r.highs.slice(0, 3).map((x) => `${names.item(x[0])}: ${money(x[1])} (${pct((x[1] / x[3] - 1) * 100)})`) : null),
-    field(T.lows, r.lows && r.lows.length ? r.lows.slice(0, 3).map((x) => `${names.item(x[0])}: ${money(x[1])} (${pct((x[1] / x[3] - 1) * 100)})`) : null),
-  ].filter((f): f is NonNullable<typeof f> => f != null);
+  const market = webLink(web, r.house);
+  const itemLink = (id: number) => webLink(web, r.house, id);
+  // Every item the recap lists can be linked where the summary names it.
+  const listed = new Set<number>();
+  for (const rows of [r.risers, r.fallers, r.highs, r.lows, r.traded, r.raid?.rows, r.flips?.rows, r.crafts?.rows]) for (const x of rows ?? []) listed.add(x[0]);
+  const text = summary?.text ?? recapSummary(r, r.kind, lang, names.item, names.index, now).slice(0, 3).join(" ");
+  const sector = r.indexes?.filter(([id]) => id !== "gl100").sort((a, b) => Math.abs(b[3]) - Math.abs(a[3]))[0];
+  const points = (v: number) => (lang === "fr" ? v.toFixed(2).replace(".", ",") : v.toFixed(2));
+  type Field = { name: string; value: string; inline: boolean };
+  const fields: Field[] = ([
+    gl && { name: T.ledger, value: `**${points(gl[2])}**${pct(gl[3])}`, inline: true },
+    sector && { name: T.sector, value: `**${names.index(sector[0])}**${pct(sector[3])}`, inline: true },
+    r.raid && { name: T.raid, value: `**${num(r.raid.soldPerDay)}**${T.perDay}${pct(r.raid.change)}`, inline: true },
+    r.volume && { name: T.volume, value: `**${money(r.volume.perDay)}**${T.perDay}${pct(r.volume.change)}`, inline: true },
+  ] as (Field | null | undefined)[]).filter((f): f is Field => !!f);
+  // Two by two: Discord puts 3 inline fields in a row, so an empty one closes the first row after two.
+  if (fields.length === 4) fields.splice(2, 0, { name: "​", value: "​", inline: true });
+  const links = [`📱 [${T.play}](${PLAY_URL})`, market && `🌐 [${T.market}](${market})`].filter(Boolean).join("  ·  ");
   const embed: Record<string, unknown> = {
     author: { name: BRAND, icon_url: AVATAR_URL },
     title: trim(`${T[r.kind]} · ${periodLabel(r, lang)} · ${names.house}`, 256),
-    // A checked AI summary first, then the notes; the template summary is the notes themselves.
-    description: trim(summary && summary.source !== "template" ? `${summary.text}\n\n${notes.map((l) => `• ${l}`).join("\n")}` : notes.join("\n"), 4000),
+    description: trim(`${linkItems(text, [...listed].map((id) => ({ id, name: names.item(id) })), itemLink)}\n\n${links}`, 4000),
     color,
-    fields: cards ? [] : fields,
+    fields,
     footer: { text: T.footer },
     timestamp: new Date(r.end * 1000).toISOString(),
   };
+  if (market) embed.url = market;
   if (images[0]) embed.image = { url: `attachment://${images[0]}` };
-  // Discord's limit is 6000 characters for all embeds of a message: drop the last fields until it fits.
-  const size = () => JSON.stringify([embed.title, embed.description, (embed.fields as unknown[]), embed.footer]).length;
-  while (size() > 5800 && (embed.fields as unknown[]).length) (embed.fields as unknown[]).pop();
-  // Discord takes up to 10 embeds a message: each further card is its own embed, so it shows full width.
-  const more = cards ? images.slice(1, 10).map((f) => ({ color, image: { url: `attachment://${f}` } })) : [];
+  // Embeds with the same URL are drawn as one embed with an image gallery (up to 4 images).
+  const more = market ? images.slice(1, 4).map((f) => ({ url: market, image: { url: `attachment://${f}` } })) : images.slice(1, 10).map((f) => ({ color, image: { url: `attachment://${f}` } }));
   return { username: BRAND, avatar_url: AVATAR_URL, embeds: [embed, ...more], allowed_mentions: { parse: [] } };
 }
 
@@ -191,7 +215,8 @@ async function main(): Promise<void> {
     if (!existsSync(listPath)) continue;
     const info = meta.houses.find((h) => h.id === house);
     const names: Names & { quality: (id: number) => number } = {
-      item: (id) => (lang === "fr" ? items[id]?.[1] || items[id]?.[0] : items[id]?.[0]) ?? `#${id}`,
+      // Item names stay in English in every language (what players type in the auction house).
+      item: (id) => items[id]?.[0] ?? `#${id}`,
       quality: (id) => Number(items[id]?.[2] ?? 1),
       index: (id) => indexMeta.indexes.find((d) => d.id === id)?.name[lang] ?? id,
       house: info ? `${REALMS[info.realm]?.[lang] ?? info.realm} ${FACTIONS[info.faction]?.[lang] ?? info.faction}` : `#${house}`,
@@ -205,7 +230,7 @@ async function main(): Promise<void> {
       const series = Object.fromEntries(Object.entries(indexes).map(([id, x]) => [id, x.hourly]));
       const changes: CardChange[] = Object.entries(indexes).flatMap(([id, x]) => (x.changes ?? []).map((c) => ({ index: id, at: c.at, kind: c.kind, added: c.added.map(([i]) => i), removed: c.removed.map(([i]) => i) })));
       // The market summary: the model's text when it passes the accuracy guard, else the template (never unchecked).
-      const catalog = Object.values(items).map((r) => (lang === "fr" ? r[1] || r[0] : r[0]));
+      const catalog = Object.values(items).map((r) => r[0]);
       const summary = await summarize(recap, { ...names, catalog }, lang, changes, ai, { now: dry ? recap.end + 1_800 : now });
       console.log(`discord: ${house} ${kind} ${key} summary from ${summary.source}${summary.problems.length ? ` (${summary.problems.slice(0, 4).join("; ")})` : ""}`);
       let files: { name: string; png: Buffer }[] = [];
@@ -219,7 +244,7 @@ async function main(): Promise<void> {
         const png = lineChartPng(inPeriod, 800, 260, inPeriod[0]);
         if (png) files = [{ name: "chart.png", png }];
       }
-      const payload = buildMessage(recap, lang, names, files.map((f) => f.name), now, summary);
+      const payload = buildMessage(recap, lang, names, files.map((f) => f.name), now, summary, process.env.GOBLIN_WEB_URL);
       if (dry) {
         mkdirSync(join(dataDir, "state"), { recursive: true });
         writeFileSync(join(dataDir, "state", `discord-${house}-${kind}.json`), JSON.stringify(payload, null, 2));
