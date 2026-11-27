@@ -51,6 +51,10 @@ export interface State {
   logScale: boolean;
   /** First-run setup finished. */
   onboarded: boolean;
+  /** Items the user added to watchlists so far (ready-made list contents do not count). */
+  itemsAdded: number;
+  /** Google Play was already asked for its rating window. */
+  reviewAsked: boolean;
   /** Version of the built-in list contents already merged into the saved lists. */
   listsVersion: number;
   /** Draw the material cost line on charts of craftable items (0.13). */
@@ -59,7 +63,7 @@ export interface State {
 
 const KEY = "goldline:v2";
 const PERSISTED: (keyof State)[] = [
-  "lang", "realm", "faction", "theme", "chartItem", "timeframe", "chartType", "indicators", "priceField", "changeMode", "changeWindow", "timeZone", "watchlists", "activeList", "alerts", "dealWatches", "recent", "drawings", "logScale", "onboarded", "listsVersion", "showMaterials",
+  "lang", "realm", "faction", "theme", "chartItem", "timeframe", "chartType", "indicators", "priceField", "changeMode", "changeWindow", "timeZone", "watchlists", "activeList", "alerts", "dealWatches", "recent", "drawings", "logScale", "onboarded", "itemsAdded", "reviewAsked", "listsVersion", "showMaterials",
 ];
 
 function initial(): State {
@@ -88,6 +92,8 @@ function initial(): State {
     range: "all",
     logScale: false,
     onboarded: false,
+    itemsAdded: 0,
+    reviewAsked: false,
     listsVersion: LISTS_VERSION,
     showMaterials: true,
   };
@@ -171,11 +177,15 @@ export function activeWatchlist(s: State): WatchlistDef {
 }
 
 export function toggleInList(listId: string, itemId: number): void {
-  setState((s) => ({
-    watchlists: s.watchlists.map((w) =>
-      w.id !== listId ? w : { ...w, items: w.items.includes(itemId) ? w.items.filter((id) => id !== itemId) : [...w.items, itemId] },
-    ),
-  }));
+  setState((s) => {
+    const adding = s.watchlists.some((w) => w.id === listId && !w.items.includes(itemId));
+    return {
+      itemsAdded: s.itemsAdded + (adding ? 1 : 0),
+      watchlists: s.watchlists.map((w) =>
+        w.id !== listId ? w : { ...w, items: w.items.includes(itemId) ? w.items.filter((id) => id !== itemId) : [...w.items, itemId] },
+      ),
+    };
+  });
 }
 
 /** Move one item inside a watchlist (indices into its items array). */
@@ -194,6 +204,7 @@ export function reorderInList(listId: string, from: number, to: number): void {
 /** Copy an item to another list (appended when missing); with `move`, also remove it from the source list. */
 export function copyToList(fromListId: string, toListId: string, itemId: number, move = false): void {
   setState((s) => ({
+    itemsAdded: s.itemsAdded + (!move && s.watchlists.some((w) => w.id === toListId && !w.items.includes(itemId)) ? 1 : 0),
     watchlists: s.watchlists.map((w) => {
       if (w.id === toListId && !w.items.includes(itemId)) return { ...w, items: [...w.items, itemId] };
       if (move && w.id === fromListId && w.id !== toListId) return { ...w, items: w.items.filter((id) => id !== itemId) };

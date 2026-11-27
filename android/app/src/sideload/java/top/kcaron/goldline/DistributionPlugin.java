@@ -24,6 +24,11 @@ public class DistributionPlugin extends Plugin {
     }
 
     @PluginMethod
+    public void requestReview(PluginCall call) {
+        call.reject("The rating window is only available in the Google Play build");
+    }
+
+    @PluginMethod
     public void installApk(PluginCall call) {
         String path = call.getString("path");
         if (path == null) { call.reject("path is required"); return; }

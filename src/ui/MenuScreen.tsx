@@ -1,18 +1,34 @@
+import { useState } from "preact/hooks";
 import { Capacitor } from "@capacitor/core";
-import { LANGS, t } from "../lib/i18n";
+import { LANGS, t, type MessageKey } from "../lib/i18n";
 import { REALM_GROUPS, setState, useStore } from "../app/store";
 import { clearCache, houseUpdated } from "../data/live";
 import { bumpRefresh, useMeta } from "./data";
 import { HouseBadge } from "./WatchlistScreen";
-import { relativeTime } from "./parts";
 import { DEVICE_TZ, TIME_ZONES, deviceZone, zoneLabel } from "../lib/time";
-import { ISSUES_URL, privacyUrl } from "../lib/links";
-
+import { appPageUrl } from "../lib/links";
+import { openStorePage } from "../app/rate";
+import { shareLink } from "../app/shareLink";
+import { FeedbackPage } from "./FeedbackPage";
+import { HelpPage } from "./HelpPage";
+import { PrivacyPage } from "./PrivacyPage";
+import { Icon, relativeTime } from "./parts";
 import { UpdateSection } from "./UpdateBanner";
 
 export function MenuScreen() {
   const s = useStore();
   const meta = useMeta();
+  const [page, setPage] = useState<null | "help" | "feedback" | "privacy">(null);
+  const [shareNote, setShareNote] = useState("");
+  const share = () => {
+    setShareNote("");
+    void shareLink({ title: "Goblin Ledger", text: t(s.lang, "shareAppText"), url: appPageUrl(s.lang) }).then((r) => {
+      if (r !== "shared") setShareNote(t(s.lang, r === "copied" ? "linkCopied" : "shareFailed"));
+    });
+  };
+  const entry = (label: MessageKey, onClick: () => void) => (
+    <li><button type="button" onClick={onClick}><span>{t(s.lang, label)}</span><Icon name="chevronRight" size={18} /></button></li>
+  );
   return (
     <section class="screen">
       <header class="topbar"><h1 class="title">{t(s.lang, "settings")}</h1></header>
@@ -83,18 +99,35 @@ export function MenuScreen() {
         <button type="button" class="btn" onClick={() => { clearCache(); bumpRefresh(); }}>{t(s.lang, "refresh")}</button>
       </div>
 
+      <div class="menu-section">
+        <p class="sheet-label">{t(s.lang, "helpSection")}</p>
+        <ul class="menu-list">
+          {entry("help", () => setPage("help"))}
+          {entry("reportProblem", () => setPage("feedback"))}
+        </ul>
+      </div>
+
+      <div class="menu-section">
+        <p class="sheet-label">Goblin Ledger</p>
+        <ul class="menu-list">
+          {Capacitor.isNativePlatform() && entry("rateApp", () => void openStorePage())}
+          {entry("shareApp", share)}
+          {entry("privacyPolicy", () => setPage("privacy"))}
+        </ul>
+        {shareNote && <p class="small" role="status">{shareNote}</p>}
+      </div>
+
       <UpdateSection />
 
       <div class="menu-section">
         <p class="sheet-label">{t(s.lang, "about")}</p>
         <p class="small">{t(s.lang, "aboutText")}</p>
-        <p class="about-links">
-          <a href={privacyUrl(s.lang)} target="_blank" rel="noopener">{t(s.lang, "privacyPolicy")}</a>
-          <a href={ISSUES_URL} target="_blank" rel="noopener">{t(s.lang, "reportProblem")}</a>
-        </p>
         {!Capacitor.isNativePlatform() && <p class="small muted">{t(s.lang, "webPreview")}</p>}
         <p class="small muted">{t(s.lang, "chartsBy")} <a href="https://www.tradingview.com/" target="_blank" rel="noopener">tradingview.com</a></p>
       </div>
+      {page === "help" && <HelpPage onClose={() => setPage(null)} onFeedback={() => setPage("feedback")} />}
+      {page === "feedback" && <FeedbackPage onClose={() => setPage(null)} />}
+      {page === "privacy" && <PrivacyPage onClose={() => setPage(null)} />}
     </section>
   );
 }

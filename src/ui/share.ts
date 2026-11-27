@@ -12,6 +12,8 @@ export interface ShareChartOpts {
   lang: Lang;
   /** The chart screenshot canvas (ChartEngine.screenshot()). */
   chart: HTMLCanvasElement;
+  /** The item's chart on the web, sent along with the picture. */
+  link: string;
 }
 
 function cssVar(name: string, fallback: string): string {
@@ -70,14 +72,14 @@ export async function shareChart(o: ShareChartOpts): Promise<void> {
     const { Filesystem, Directory } = await import("@capacitor/filesystem");
     const { Share } = await import("@capacitor/share");
     const result = await Filesystem.writeFile({ path: fileName, data, directory: Directory.Cache });
-    await Share.share({ title, url: result.uri });
+    await Share.share({ title, text: `${title}\n${o.link}`, files: [result.uri] });
     return;
   }
   const blob = await toBlob(canvas);
   const file = new File([blob], fileName, { type: "image/png" });
   if (navigator.canShare?.({ files: [file] })) {
     try {
-      await navigator.share({ files: [file], title });
+      await navigator.share({ files: [file], title, text: `${title}\n${o.link}` });
     } catch (e) {
       if ((e as Error).name !== "AbortError") throw e;
     }
