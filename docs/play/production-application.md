@@ -4,9 +4,11 @@ Updated 27 November 2026. The owner submits the application; nothing here was su
 
 ## Status on 27 November 2026
 
-- 26 November, Play Console dashboard: 12 testers opted in for 5 days continuously. At 14 days "Apply for production" should unlock about **5 December 2026**.
+- 27 November, Play Console dashboard: "12 testers have currently been opted in for 6 days continuously". At 14 days "Apply for production" should unlock about **5 December 2026**.
 - Exactly 12 testers: one leaving breaks the requirement. Add more and keep them in until approval.
 - Testers join through `testers-community@googlegroups.com` (a testing provider).
+- The new store listing (en-US, fr-CA, fr-FR) is saved as a **draft** and not sent for review. The AI asset declaration for the new icon and feature graphic is still the owner's to answer, unless done since 26 November.
+- Testing feedback was not read: the page did not finish loading on 27 November.
 
 ## Before you apply
 
@@ -39,7 +41,7 @@ that are not on record for Goblin Ledger.
 
 **4. Summarise the feedback you received and how you collected it.**
 
-[OWNER] Write only feedback you received.
+[OWNER] Check Testing feedback in Play Console and the feedback email, then write only what you received. If there is nothing: "I offered a feedback email and Play's private feedback. I have received no written feedback so far."
 
 **5. Who is the intended audience?**
 
