@@ -18,7 +18,6 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Lang } from "../src/lib/i18n.ts";
 import { recapSummary, type RecapFile } from "../src/lib/weekly.ts";
-import { coinParts } from "./recap-card.ts";
 
 const RAID_LAUNCH = Date.UTC(2026, 11, 9) / 1000;
 
@@ -60,7 +59,21 @@ export interface Allowed {
 export interface Facts { json: Record<string, unknown>; allowed: Allowed }
 
 const round1 = (v: number) => Math.round(v * 10) / 10;
-const money = (c: number, lang: Lang) => coinParts(c, lang).map(([t]) => t).join("");
+/** Gold, silver and copper as the summary writes them: 18g 49s / 87s 94c / 12c (po/pa/pc in French); from 1,000 gold, gold only. */
+export function coinText(copper: number, lang: Lang): string {
+  const suf = lang === "fr" ? { g: "po", s: "pa", c: "pc" } : { g: "g", s: "s", c: "c" };
+  const v = Math.round(Math.abs(copper));
+  const g = Math.floor(v / 10_000);
+  const s = Math.floor((v % 10_000) / 100);
+  const c = v % 100;
+  const sign = copper < 0 ? "-" : "";
+  const grp = (n: number) => n.toLocaleString(lang === "fr" ? "fr-CA" : "en-US").replace(/[\u00a0\u202f]/g, " ");
+  if (g >= 1_000) return `${sign}${grp(g)}${suf.g}`;
+  if (g > 0) return `${sign}${g}${suf.g}${s ? ` ${s}${suf.s}` : ""}`;
+  if (s > 0) return `${sign}${s}${suf.s}${c ? ` ${c}${suf.c}` : ""}`;
+  return `${sign}${c}${suf.c}`;
+}
+const money = (c: number, lang: Lang) => coinText(c, lang);
 const day = (t: number, lang: Lang) => new Date(t * 1000).toLocaleDateString(lang === "fr" ? "fr-CA" : "en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
 
 /** The recap's facts for the prompt, and the guard's allowed values built from the very same numbers. */

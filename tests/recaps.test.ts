@@ -1,10 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { inflateSync } from "node:zlib";
 import { addToList, finishRecap, periods, type RecapList } from "../collector/recaps";
 import { buildRecap, type WeeklyInput } from "../collector/weekly";
 import { INDEXES, basketChanges, chooseBasket, isQuarterly, lastRebalance, nextRebalance, type Period, type Series } from "../collector/indexes";
-import { PLAY_URL, appLink, buildMessage, due, linkItems, periodLabel, validWebhook, webLink } from "../collector/discord-recap";
-import { crc32, lineChartPng } from "../collector/png-chart";
+import { PLAY_URL, appLink, buildMessage, due, linkItems, parseEvent, periodLabel, validWebhook, webLink } from "../collector/discord-recap";
 import { recapSummary, type RecapFile } from "../src/lib/weekly";
 import type { HourRow } from "../collector/store";
 
@@ -183,6 +181,13 @@ describe("Discord recap post", () => {
     expect(periodLabel({ kind: "monthly", start: Date.UTC(2026, 10, 1, 13) / 1000, end: Date.UTC(2026, 11, 1, 13) / 1000 }, "fr")).toBe("Novembre 2026");
   });
 
+  it("accepts only well-formed recap events (they come from a dispatch payload)", () => {
+    expect(parseEvent("113", "daily", "2026-11-26")).toEqual({ house: 113, kind: "daily", key: "2026-11-26" });
+    expect(parseEvent(113, "yearly", "2026-11-26")).toBeNull();
+    expect(parseEvent(113, "daily", "2026-11-26; rm -rf /")).toBeNull();
+    expect(parseEvent("1e9", "daily", "2026-11-26")).toBeNull();
+  });
+
   it("accepts only Discord webhook URLs", () => {
     expect(validWebhook("https://discord.com/api/webhooks/123/abc-DEF_9")).toBe(true);
     expect(validWebhook("https://example.com/api/webhooks/123/abc")).toBe(false);
@@ -195,17 +200,5 @@ describe("Discord recap post", () => {
     expect(due(list, 113, {}, 1000 * H + 1800)).toEqual([{ kind: "daily", key: "2026-11-26" }]);
     expect(due(list, 113, { "113:daily": "2026-11-26" }, 1000 * H + 1800)).toEqual([]);
     expect(due(list, 113, {}, 1000 * H + 13 * H)).toEqual([]);
-  });
-
-  it("draws a valid PNG chart", () => {
-    const png = lineChartPng([100, 101, 99, 103, 104], 200, 80, 100)!;
-    expect([...png.subarray(0, 8)]).toEqual([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
-    expect(png.readUInt32BE(16)).toBe(200);
-    expect(png.readUInt32BE(20)).toBe(80);
-    const idatLen = png.readUInt32BE(33);
-    expect(png.subarray(37, 41).toString("ascii")).toBe("IDAT");
-    expect(inflateSync(png.subarray(41, 41 + idatLen)).length).toBe((200 * 3 + 1) * 80);
-    expect(png.readUInt32BE(41 + idatLen)).toBe(crc32(png.subarray(37, 41 + idatLen)));
-    expect(lineChartPng([1])).toBeNull();
   });
 });

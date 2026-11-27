@@ -23,5 +23,5 @@ jobs:
       - run: npm test
       # The collector runs in plain Node (no bundler): every import needs its .ts extension. Vitest would not notice.
       - name: Collector modules load in Node
-        run: node --input-type=module -e 'for (const m of ["./collector/store.ts", "./collector/indexes.ts", "./collector/coverage.ts", "./collector/audit-catalog.ts", "./collector/import-auctionator.ts", "./collector/merge-history.ts", "./collector/weekly.ts", "./collector/recaps.ts", "./collector/discord-recap.ts", "./collector/recap-card.ts", "./collector/recap-ai.ts", "./collector/r2-publish.ts"]) await import(m)'
+        run: node --input-type=module -e 'for (const m of ["./collector/store.ts", "./collector/indexes.ts", "./collector/coverage.ts", "./collector/audit-catalog.ts", "./collector/import-auctionator.ts", "./collector/merge-history.ts", "./collector/weekly.ts", "./collector/recaps.ts", "./collector/discord-recap.ts", "./collector/recap-ai.ts", "./collector/r2-publish.ts"]) await import(m)'
       - run: npx vite build
