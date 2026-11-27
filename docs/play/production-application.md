@@ -4,9 +4,11 @@ Updated 27 November 2026. The owner submits the application; nothing here was su
 
 ## Status on 27 November 2026
 
-- 26 November, Play Console dashboard: 12 testers opted in for 5 days continuously. At 14 days "Apply for production" should unlock about **5 December 2026**.
+- 27 November, Play Console dashboard: "12 testers have currently been opted in for 6 days continuously". At 14 days "Apply for production" should unlock about **5 December 2026**.
 - Exactly 12 testers: one leaving breaks the requirement. Add more and keep them in until approval.
 - Testers join through `testers-community@googlegroups.com` (a testing provider).
+- The new store listing (en-US, fr-CA, fr-FR) is saved as a **draft** and not sent for review. The AI asset declaration for the new icon and feature graphic is still the owner's to answer, unless done since 26 November.
+- Testing feedback was not read: the page did not finish loading on 27 November.
 
 ## Before you apply
 
@@ -39,7 +41,7 @@ that are not on record for Goblin Ledger.
 
 **4. Summarise the feedback you received and how you collected it.**
 
-[OWNER] Write only feedback you received.
+[OWNER] Check Testing feedback in Play Console and the feedback email, then write only what you received. If there is nothing: "I offered a feedback email and Play's private feedback. I have received no written feedback so far."
 
 **5. Who is the intended audience?**
 
@@ -63,7 +65,7 @@ that are not on record for Goblin Ledger.
 
 > On the test provider's advice: privacy policy in the app, help and FAQ, a first-run tour, rate and share options, report a problem, keyboard and Back fixes. Also recaps, new indexes and deal alerts.
 
-Use this one only after checking each item in the released 1.2.0, and remove any that did not ship. The advice came from the provider's report on the owner's other app, applied here too.
+All these features are in `main` (Trading-Wow#71); use this answer only once the 1.2.0 build is on the test track. The advice came from the provider's report on the owner's other app, applied here too.
 
 **9. How did you decide the app is ready for production? (use once true)**
 
