@@ -130,10 +130,15 @@ async function leaves(name, open, required = true) {
 async function main() {
   adb("install", "-r", "-g", apk);
   shell("settings put secure show_ime_with_hard_keyboard 1");
+  // A slow runner's launcher can stop responding, and its dialog then takes the keys meant for the app. Crashes of the
+  // app are still caught by the crash log check at the end.
+  shell("settings put global hide_error_dialogs 1");
+  await sleep(30_000);
+  shell("am broadcast -a android.intent.action.CLOSE_SYSTEM_DIALOGS");
   note(`Android ${shell("getprop ro.build.version.release").trim()}, ${shell("wm size").trim()}`);
   shell("logcat -c");
   const pkg = shell(`dumpsys package ${APP}`);
-  const installed = `${pkg.match(/versionName=(S+)/)?.[1]} (${pkg.match(/versionCode=(d+)/)?.[1]})`;
+  const installed = `${pkg.match(/versionName=(\S+)/)?.[1]} (${pkg.match(/versionCode=(\d+)/)?.[1]})`;
   check(installed === "1.2.0 (10200)", `version: installed ${installed}`);
   shell(`am start -W -n ${APP}/.MainActivity`);
   await connect();
