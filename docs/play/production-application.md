@@ -65,7 +65,7 @@ that are not on record for Goblin Ledger.
 
 > On the test provider's advice: privacy policy in the app, help and FAQ, a first-run tour, rate and share options, report a problem, keyboard and Back fixes. Also recaps, new indexes and deal alerts.
 
-Use this one only after checking each item in the released 1.2.0, and remove any that did not ship. The advice came from the provider's report on the owner's other app, applied here too.
+All these features are in `main` (Trading-Wow#71); use this answer only once the 1.2.0 build is on the test track. The advice came from the provider's report on the owner's other app, applied here too.
 
 **9. How did you decide the app is ready for production? (use once true)**
 
