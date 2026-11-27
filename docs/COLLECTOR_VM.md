@@ -151,8 +151,9 @@ run it again by hand (below) with "Dry run" unticked.
 | GitHub secret | `DISCORD_RECAP_WEBHOOK` | The channel's webhook URL |
 | GitHub secret | `RECAP_AI_API_KEY` | Optional: the summary model's key (below) |
 | GitHub variable | `RECAP_AI_BASE_URL`, `RECAP_AI_MODEL` | Optional: the summary model (below) |
-| GitHub variable | `GOBLIN_APP_URL` | The app link. Unset: the closed test's opt-in page, `https://play.google.com/apps/testing/top.kcaron.goldline`. Set it to the kcaron.top tester page once it exists, and to `https://play.google.com/store/apps/details?id=top.kcaron.goldline` when the app is public (the label follows) |
-| GitHub variable | `GOBLIN_WEB_URL` | The web app's address. Unset: no market link and item names in plain text. Set: item names link to `<address>?house=113&item=<id>`, the market to `?house=113&tab=overview` |
+| GitHub variable | `GOBLIN_LINKS_LIVE` | `1` once the kcaron.top pages are online: the app link goes to the tester page (`https://kcaron.top/fr/goblin-ledger/testers/`, the English one for `en`), item names link to `https://kcaron.top/goblin-ledger/app/?house=113&item=<id>` and "Ouvrir le marché" to `...?house=113&tab=overview`. Unset: the closed test's opt-in page (`https://play.google.com/apps/testing/top.kcaron.goldline`), no market link, item names in plain text |
+| GitHub variable | `GOBLIN_APP_URL` | Optional: overrides the app link, for example `https://play.google.com/store/apps/details?id=top.kcaron.goldline` when the app is public (the label becomes "Goblin Ledger sur Google Play") |
+| GitHub variable | `GOBLIN_WEB_URL` | Optional: overrides the web app's address |
 | GitHub variable | `DISCORD_RECAP_LANG` | Optional: `fr` (default) or `en` |
 | VM, `collector.env` | `DISCORD_RECAP_DISPATCH=1` | Start the workflow after each run. Unset: nothing is posted |
 | VM, `collector.env` | `DISCORD_RECAP_HOUSES` | Optional: houses to post, comma separated (default `113`, PvP Horde; IDs in `src/app/store.ts`, `REALM_GROUPS`) |

@@ -15,7 +15,7 @@
  *
  * Settings (environment): DISCORD_RECAP_WEBHOOK (the channel's webhook, a secret: never printed, sent only to
  * Discord), DISCORD_RECAP_LANG (fr, default, or en), DISCORD_RECAP_HOUSES (dispatch: houses, default 113),
- * GOBLIN_APP_URL and GOBLIN_WEB_URL (the post's links, see Links), RECAP_AI_* (recap-ai.ts). Dispatch:
+ * GOBLIN_LINKS_LIVE, GOBLIN_APP_URL and GOBLIN_WEB_URL (the post's links, see linksFromEnv), RECAP_AI_* (recap-ai.ts). Dispatch:
  * RECAP_DISPATCH_TOKEN or else GITHUB_TOKEN (Contents: read and write on the repository), RECAP_DISPATCH_REPO
  * (default kevincaron28/Trading-Wow). Branding: Goblin Ledger only.
  */
@@ -86,6 +86,24 @@ export function periodLabel(r: Pick<RecapFile, "kind" | "start" | "end">, lang: 
 
 /** Goblin Ledger on Google Play, the app link once the app is public. */
 export const PLAY_URL = "https://play.google.com/store/apps/details?id=top.kcaron.goldline";
+/** The closed test's opt-in page: the app link until the kcaron.top tester page is live. */
+export const OPT_IN_URL = "https://play.google.com/apps/testing/top.kcaron.goldline";
+/** The kcaron.top pages, used once GOBLIN_LINKS_LIVE=1: the web app (item pages, the market) and the tester page. */
+export const KCARON_WEB_URL = "https://kcaron.top/goblin-ledger/app/";
+export const KCARON_TESTERS_URL: Record<Lang, string> = { en: "https://kcaron.top/goblin-ledger/testers/", fr: "https://kcaron.top/fr/goblin-ledger/testers/" };
+
+/**
+ * The post's links from the environment. GOBLIN_APP_URL and GOBLIN_WEB_URL win when set. Otherwise
+ * GOBLIN_LINKS_LIVE=1 (once the kcaron.top pages are online) uses the kcaron.top tester page and web app; without it,
+ * the closed test's opt-in page and no web links (item names in plain text), so nothing links to a missing page.
+ */
+export function linksFromEnv(env: Record<string, string | undefined>, lang: Lang): Links {
+  const live = env.GOBLIN_LINKS_LIVE === "1";
+  return {
+    app: env.GOBLIN_APP_URL || (live ? KCARON_TESTERS_URL[lang] : OPT_IN_URL),
+    web: env.GOBLIN_WEB_URL || (live ? KCARON_WEB_URL : undefined),
+  };
+}
 
 /** Where the post's app link goes and what it says. */
 export interface Links {
@@ -315,7 +333,7 @@ async function mainPost(dataDir: string, dry: boolean): Promise<void> {
   const files = existsSync(imageDir) ? readdirSync(imageDir).filter((f) => f.startsWith(prefix) && f.endsWith(".png")).sort().slice(0, 4).map((name) => ({ name, png: readFileSync(join(imageDir, name)) })) : [];
   if (!files.length) console.error(`discord: no recap images in ${imageDir}; posting the text only`);
   if (files.reduce((n, f) => n + f.png.length, 0) > MAX_UPLOAD) throw new Error("the images are over Discord's 10 MB upload limit");
-  const payload = buildMessage(recap, lang, names, files.map((f) => f.name), now, summary, { web: process.env.GOBLIN_WEB_URL, app: process.env.GOBLIN_APP_URL });
+  const payload = buildMessage(recap, lang, names, files.map((f) => f.name), now, summary, linksFromEnv(process.env, lang));
   if (dry) {
     mkdirSync(imageDir, { recursive: true });
     writeFileSync(join(imageDir, `${prefix}message.json`), JSON.stringify(payload, null, 2));

@@ -9,7 +9,7 @@ name: Post recap
 # an artifact, or to post a recap again.
 #
 # Secrets: DISCORD_RECAP_WEBHOOK (the channel's webhook), RECAP_AI_API_KEY (optional, the summary model's key).
-# Variables (optional): RECAP_AI_BASE_URL, RECAP_AI_MODEL, GOBLIN_APP_URL, GOBLIN_WEB_URL, DISCORD_RECAP_LANG.
+# Variables (optional): RECAP_AI_BASE_URL, RECAP_AI_MODEL, GOBLIN_LINKS_LIVE, GOBLIN_APP_URL, GOBLIN_WEB_URL, DISCORD_RECAP_LANG.
 
 on:
   repository_dispatch:
@@ -84,9 +84,10 @@ jobs:
           RECAP_AI_API_KEY: ${{ secrets.RECAP_AI_API_KEY }}
           RECAP_AI_BASE_URL: ${{ vars.RECAP_AI_BASE_URL }}
           RECAP_AI_MODEL: ${{ vars.RECAP_AI_MODEL }}
-          # The closed test's sign-up until the kcaron.top tester page exists; the Play listing once the app is public.
-          GOBLIN_APP_URL: ${{ vars.GOBLIN_APP_URL || 'https://play.google.com/apps/testing/top.kcaron.goldline' }}
-          # Empty until the web app is online: no market link, item names in plain text.
+          # Links (collector/discord-recap.ts linksFromEnv): GOBLIN_LINKS_LIVE=1 once the kcaron.top tester page and web app
+          # are online; until then the closed test's opt-in page and item names in plain text. The two URLs override.
+          GOBLIN_LINKS_LIVE: ${{ vars.GOBLIN_LINKS_LIVE }}
+          GOBLIN_APP_URL: ${{ vars.GOBLIN_APP_URL }}
           GOBLIN_WEB_URL: ${{ vars.GOBLIN_WEB_URL }}
       - uses: actions/upload-artifact@v4
         if: always()

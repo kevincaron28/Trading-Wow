@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { addToList, finishRecap, periods, type RecapList } from "../collector/recaps";
 import { buildRecap, type WeeklyInput } from "../collector/weekly";
 import { INDEXES, basketChanges, chooseBasket, isQuarterly, lastRebalance, nextRebalance, type Period, type Series } from "../collector/indexes";
-import { PLAY_URL, appLink, buildMessage, due, linkItems, parseEvent, periodLabel, validWebhook, webLink } from "../collector/discord-recap";
+import { KCARON_WEB_URL, OPT_IN_URL, PLAY_URL, appLink, linksFromEnv, buildMessage, due, linkItems, parseEvent, periodLabel, validWebhook, webLink } from "../collector/discord-recap";
 import { recapSummary, type RecapFile } from "../src/lib/weekly";
 import type { HourRow } from "../collector/store";
 
@@ -167,6 +167,14 @@ describe("Discord recap post", () => {
     expect(appLink("javascript:alert(1)", "en").url).toBe(PLAY_URL);
     const msg = buildMessage(recap, "fr", names, [], recap.end, undefined, { app: "https://example.com/testers/" }) as { embeds: { description: string }[] };
     expect(msg.embeds[0]!.description).toContain("📱 [Tester Goblin Ledger (Android)](https://example.com/testers/)");
+  });
+
+  it("keeps the fallback links until the kcaron.top pages are switched on", () => {
+    expect(linksFromEnv({}, "fr")).toEqual({ app: OPT_IN_URL, web: undefined });
+    expect(linksFromEnv({ GOBLIN_LINKS_LIVE: "1" }, "fr")).toEqual({ app: "https://kcaron.top/fr/goblin-ledger/testers/", web: KCARON_WEB_URL });
+    expect(linksFromEnv({ GOBLIN_LINKS_LIVE: "1" }, "en").app).toBe("https://kcaron.top/goblin-ledger/testers/");
+    expect(linksFromEnv({ GOBLIN_LINKS_LIVE: "1", GOBLIN_APP_URL: PLAY_URL }, "fr").app).toBe(PLAY_URL);
+    expect(webLink(KCARON_WEB_URL, 113, 22457)).toBe("https://kcaron.top/goblin-ledger/app/?house=113&item=22457");
   });
 
   it("links item names in the summary to their page, longest names first", () => {
