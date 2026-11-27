@@ -29,6 +29,8 @@ import { ChangePill, Icon, ItemIcon, Loading, Money, Sheet, formatPct , ErrorMsg
 import { SearchScreen } from "./SearchScreen";
 import { HouseBadge } from "./WatchlistScreen";
 import { shareChart } from "./share";
+import { shareLink } from "../app/shareLink";
+import { itemUrl } from "../lib/links";
 
 const L = {
   en: { share: "Share chart", lines: "Lines", placeLine: "Place price line", log: "Log", tapChart: "Tap the chart to place a line", alertHere: "Alert at this price", del: "Delete", noLines: "No lines yet. Use the line tool, then tap the chart.", alertMade: "Alert created", max: `Max ${MAX_LINES} lines`, ranges: { "1d": "1D", "1w": "1W", "1m": "1M", "3m": "3M", "1y": "1Y", all: "All" } as Record<ChartRange, string> },
@@ -56,7 +58,8 @@ export function ChartScreen() {
   const item = catalog.data?.get(s.chartItem);
   const quote = quotes.data?.get(s.chartItem);
   const list = activeWatchlist(s);
-  const [sheet, setSheet] = useState<null | "indicators" | "type" | "alert" | "compare" | "lines">(null);
+  const [sheet, setSheet] = useState<null | "indicators" | "type" | "alert" | "compare" | "lines" | "share">(null);
+  const [shareNote, setShareNote] = useState("");
   const [placing, setPlacing] = useState(false);
   const [lineMsg, setLineMsg] = useState("");
   const itemKey = String(s.chartItem);
@@ -133,14 +136,21 @@ export function ChartScreen() {
   // Early history is stored per date (UTC); hourly prices are moments shown in the active time zone.
   const dateFmt = (t: number) => formatDate(t, s.lang, "UTC");
   const [sharing, setSharing] = useState(false);
+  const onShareLink = () => {
+    void shareLink({ title: `${name} - Goblin Ledger`, text: name, url: itemUrl(house, s.chartItem) }).then((r) => {
+      if (r === "shared") setSheet(null);
+      else setShareNote(t(s.lang, r === "copied" ? "linkCopied" : "shareFailed"));
+    });
+  };
   const onShare = () => {
+    setSheet(null);
     if (sharing) return;
     const chart = engine.current?.screenshot();
     if (!chart) return;
     setSharing(true);
     const realm = REALM_GROUPS.find((r) => r.id === s.realm) ?? REALM_GROUPS[0]!;
     const faction = s.faction === "blackwater" ? t(s.lang, "blackwaterShort") : t(s.lang, s.faction);
-    void shareChart({ itemId: s.chartItem, name, price: quote?.[s.priceField], houseLabel: `US · ${realm.label[s.lang]} · ${faction}`, lang: s.lang, chart }).catch(() => {}).finally(() => setSharing(false));
+    void shareChart({ itemId: s.chartItem, name, price: quote?.[s.priceField], houseLabel: `US · ${realm.label[s.lang]} · ${faction}`, lang: s.lang, chart, link: itemUrl(house, s.chartItem) }).catch(() => {}).finally(() => setSharing(false));
   };
 
   return (
@@ -163,7 +173,7 @@ export function ChartScreen() {
           <button type="button" class={`icon-btn ${inList ? "accent" : ""}`} aria-pressed={inList} aria-label={`${t(s.lang, "addTo")} ${list.name[s.lang]}`} onClick={() => toggleInList(list.id, s.chartItem)}>
             <Icon name="star" filled={inList} />
           </button>
-          <button type="button" class={`icon-btn ${sharing ? "busy" : ""}`} aria-busy={sharing} aria-label={sharing ? t(s.lang, "preparing") : lt.share} title={lt.share} onClick={onShare}>
+          <button type="button" class={`icon-btn ${sharing ? "busy" : ""}`} aria-busy={sharing} aria-label={sharing ? t(s.lang, "preparing") : lt.share} title={lt.share} onClick={() => { setShareNote(""); setSheet("share"); }}>
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12M7 8l5-5 5 5" /><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7" /></svg>
           </button>
           <button type="button" class="icon-btn" aria-label={t(s.lang, "setAlert")} onClick={() => setSheet("alert")}>
@@ -326,6 +336,16 @@ export function ChartScreen() {
           {lines.length >= MAX_LINES && <p class="muted small">{lt.max}</p>}
         </Sheet>
       )}
+      {sheet === "share" && (
+        <Sheet title={name} onClose={() => setSheet(null)}>
+          <ul class="menu-list">
+            <li><button type="button" onClick={onShareLink}>{t(s.lang, "shareLinkOnly")}</button></li>
+            <li><button type="button" onClick={onShare}>{t(s.lang, "sharePicture")}</button></li>
+          </ul>
+          {shareNote && <p class="line-msg" role="status">{shareNote}</p>}
+          <p class="muted small break">{itemUrl(house, s.chartItem)}</p>
+        </Sheet>
+      )}
       {sheet === "compare" && <SearchScreen onClose={() => setSheet(null)} onPick={(id) => setState({ compareItem: id === s.chartItem ? null : id })} />}
     </section>
   );
@@ -380,7 +400,7 @@ function AlertSheet({ itemId, name, current, onClose }: { itemId: number; name: 
       </div>
       <label class="field">
         <span>{t(s.lang, "alertPrice")}</span>
-        <input type="text" inputMode="decimal" value={gold} onInput={(e) => setGold((e.target as HTMLInputElement).value)} />
+        <input type="text" inputMode="decimal" enterKeyHint="done" value={gold} onInput={(e) => setGold((e.target as HTMLInputElement).value)} onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()} />
       </label>
       {current != null && <p class="muted small">{t(s.lang, "market")}: <Money copper={current} lang={s.lang} /></p>}
       <button type="button" class="btn wide" disabled={!(price > 0)} onClick={() => {

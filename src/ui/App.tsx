@@ -1,4 +1,4 @@
-import { useEffect, useState } from "preact/hooks";
+import { useEffect, useRef, useState } from "preact/hooks";
 import { Capacitor, SystemBars, SystemBarsStyle } from "@capacitor/core";
 import { houseUpdated, isOffline, loadCatalog, loadMeta, loadQuotes, onOfflineChange } from "../data/live";
 import { nextUpdate } from "../lib/live";
@@ -12,7 +12,9 @@ import { formatMoney } from "../lib/money";
 import type { Quote } from "../lib/quotes";
 import { getState, houseId, setState, useStore, type Tab } from "../app/store";
 import { ensureNotificationPermission, popBackgroundFired, syncBackgroundAlerts } from "../app/background";
-import { handleBack } from "../app/back";
+import { EXIT_WINDOW_MS, exitOnBack, handleBack } from "../app/back";
+import { watchKeyboard } from "../app/keyboard";
+import { askForReview, reviewDue } from "../app/rate";
 import { bumpRefresh } from "./data";
 import { AlertsScreen } from "./AlertsScreen";
 import { ChartScreen } from "./ChartScreen";
@@ -114,8 +116,26 @@ export function App() {
   const [toast, setToast] = useState<{ title: string; text: string } | null>(null);
   const [offline, setOfflineState] = useState(isOffline());
   useEffect(() => onOfflineChange(setOfflineState), []);
+  const [exitHint, setExitHint] = useState(0);
+  useEffect(() => watchKeyboard(), []);
+  useEffect(() => {
+    if (!exitHint) return;
+    const id = setTimeout(() => setExitHint(0), EXIT_WINDOW_MS);
+    return () => clearTimeout(id);
+  }, [exitHint]);
 
-  // Android back button: close the open search/sheet, else go back to the market overview, else leave the app.
+  // Google Play's rating window: only after an add made since the app opened (never at launch), once the search is closed.
+  const addsAtStart = useRef(getState().itemsAdded);
+  useEffect(() => {
+    if (searching || !reviewDue(getState(), addsAtStart.current)) return;
+    const id = setTimeout(() => {
+      void askForReview().then((asked) => asked && setState({ reviewAsked: true }));
+    }, 1_500);
+    return () => clearTimeout(id);
+  }, [s.itemsAdded, searching]);
+
+  // Android back button: close the open search, sheet or page, else go to the market overview, else leave the app on a
+  // second press.
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) return;
     let remove: (() => void) | undefined;
@@ -123,7 +143,8 @@ export function App() {
       NativeApp.addListener("backButton", () => {
         if (handleBack()) return;
         if (getState().tab !== "overview") setState({ tab: "overview" });
-        else void NativeApp.exitApp();
+        else if (exitOnBack(Date.now())) void NativeApp.exitApp();
+        else setExitHint(Date.now());
       }).then((h) => (remove = () => void h.remove())),
     );
     return () => remove?.();
@@ -249,6 +270,7 @@ export function App() {
       </nav>
       {searching && <SearchScreen onClose={() => setSearching(false)} />}
       {!s.onboarded && <Onboarding />}
+      {exitHint > 0 && <p class="snackbar" role="status">{t(s.lang, "backToExit")}</p>}
       {toast && (
         <div class="toast" role="status" onClick={() => setToast(null)}>
           <b>{toast.title}</b>

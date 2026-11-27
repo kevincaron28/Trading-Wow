@@ -64,6 +64,8 @@ dependencies {
     androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
     androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
     implementation project(':capacitor-cordova-android-plugins')
+    // Google Play's in-app rating window (DistributionPlugin.requestReview, Play build only).
+    playImplementation "com.google.android.play:review:2.0.2"
 }
 
 apply from: 'capacitor.build.gradle'

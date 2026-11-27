@@ -55,8 +55,10 @@ export function planUpdate(m: UpdateManifest, current: { jsVersion: string; nati
 interface DistributionPlugin {
   getChannel(): Promise<{ channel: "play" | "sideload"; canInstall: boolean }>;
   installApk(options: { path: string }): Promise<{ needsPermission: boolean }>;
+  /** Google Play's in-app rating window (Play build, since 1.2.0). */
+  requestReview(): Promise<void>;
 }
-const Distribution = registerPlugin<DistributionPlugin>("Distribution");
+export const Distribution = registerPlugin<DistributionPlugin>("Distribution");
 
 export type UpdateState =
   | { status: "idle" | "checking" | "current" | "error"; message?: string }
