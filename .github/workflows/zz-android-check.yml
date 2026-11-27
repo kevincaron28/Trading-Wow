@@ -1,0 +1,72 @@
+name: Temporary Android check
+
+# Lives only on a ci-check/ branch: compiles both Android builds and drives the debug app on an emulator.
+# No secrets are used. Results and screenshots are pushed to ci-check-results/tester-feedback.
+on:
+  push:
+    branches: ["ci-check/**"]
+
+permissions:
+  contents: read
+
+jobs:
+  emulator:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - run: npm ci
+      - run: npm run build
+      - run: npx cap sync android
+      - name: Compile both builds
+        run: cd android && ./gradlew --no-daemon assemblePlayDebug assembleSideloadDebug
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Check on an emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          profile: pixel_6
+          script: node .github/android-smoke.mjs android/app/build/outputs/apk/play/debug/app-play-debug.apk android-shots
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: android-shots
+          path: android-shots
+
+  publish:
+    needs: emulator
+    if: always()
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: android-shots
+          path: android-shots
+      - name: Push the results branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -q --orphan results
+          git rm -rfq --cached .
+          git add -f android-shots
+          git commit -qm "Android emulator check results"
+          git push -qf origin results:ci-check-results/tester-feedback
