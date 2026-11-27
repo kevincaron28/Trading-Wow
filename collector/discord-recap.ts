@@ -49,13 +49,13 @@ const TEXT = {
   en: {
     daily: "Daily recap", weekly: "Weekly recap", monthly: "Monthly recap",
     ledger: "Ledger 100", sector: "Biggest sector move", raid: "Raid consumables", volume: "Gold traded",
-    perDay: "/day", play: "Goblin Ledger on Google Play", market: "Open the market",
+    perDay: "/day", play: "Goblin Ledger on Google Play", tester: "Test Goblin Ledger (Android)", market: "Open the market",
     footer: "Goblin Ledger · WoW Forever auction house prices · not financial advice",
   },
   fr: {
     daily: "Récap du jour", weekly: "Récap de la semaine", monthly: "Récap du mois",
     ledger: "Ledger 100", sector: "Secteur le plus actif", raid: "Consommables de raid", volume: "Or échangé",
-    perDay: "/j", play: "Goblin Ledger sur Google Play", market: "Ouvrir le marché",
+    perDay: "/j", play: "Goblin Ledger sur Google Play", tester: "Tester Goblin Ledger (Android)", market: "Ouvrir le marché",
     footer: "Goblin Ledger · Prix de l'hôtel des ventes de WoW Forever · pas un conseil financier",
   },
 } as const;
@@ -80,8 +80,26 @@ export function periodLabel(r: Pick<RecapFile, "kind" | "start" | "end">, lang: 
   return `${d(r.start, { day: "numeric", month: "short" })} – ${d(r.end, { day: "numeric", month: "short", year: "numeric" })}`;
 }
 
-/** Goblin Ledger on Google Play: every post links it. */
+/** Goblin Ledger on Google Play, the app link once the app is public. */
 export const PLAY_URL = "https://play.google.com/store/apps/details?id=top.kcaron.goldline";
+
+/** Where the post's app link goes and what it says. */
+export interface Links {
+  /** The web app (GOBLIN_WEB_URL): item pages and the market. */
+  web?: string;
+  /**
+   * The app link (GOBLIN_APP_URL): during the closed test, the "become a tester" page ("Tester Goblin Ledger
+   * (Android)"); the day the app is public, the Play listing ("Goblin Ledger sur Google Play"). Default: the listing.
+   */
+  app?: string;
+}
+
+/** The app link and its label: the Play listing is named as such, any other page is the tester sign-up. */
+export function appLink(url: string | undefined, lang: Lang): { label: string; url: string } {
+  const T = TEXT[lang];
+  const u = url && /^https:\/\/[^\s()]+$/.test(url) ? url : PLAY_URL;
+  return { label: u.startsWith("https://play.google.com/store/apps/details") ? T.play : T.tester, url: u };
+}
 
 /** A page of the web app: an item's chart (?house=113&item=22457) or the Market tab. Null without a web address. */
 export function webLink(base: string | undefined, house: number, item?: number): string | null {
@@ -116,7 +134,9 @@ export function linkItems(text: string, items: { id: number; name: string }[], l
  * app and the market. The details are the attached images (`images`: the recap pages, rendered from the app): the
  * first in the main embed, the others in embeds sharing its URL, which Discord shows as one gallery.
  */
-export function buildMessage(r: RecapFile, lang: Lang, names: Names, images: readonly string[], now: number = Date.now() / 1000, summary?: { text: string; source: string }, web?: string): Record<string, unknown> {
+export function buildMessage(r: RecapFile, lang: Lang, names: Names, images: readonly string[], now: number = Date.now() / 1000, summary?: { text: string; source: string }, links: Links = {}): Record<string, unknown> {
+  const web = links.web;
+  const app = appLink(links.app, lang);
   const T = TEXT[lang];
   const num = (n: number) => n.toLocaleString(lang === "fr" ? "fr-CA" : "en-US").replace(/ | /g, " ");
   // 1,000 gold and up: whole gold with separators ("21,220g"), else the app's short form ("2.15g", "56.3s").
@@ -141,11 +161,11 @@ export function buildMessage(r: RecapFile, lang: Lang, names: Names, images: rea
   ] as (Field | null | undefined)[]).filter((f): f is Field => !!f);
   // Two by two: Discord puts 3 inline fields in a row, so an empty one closes the first row after two.
   if (fields.length === 4) fields.splice(2, 0, { name: "​", value: "​", inline: true });
-  const links = [`📱 [${T.play}](${PLAY_URL})`, market && `🌐 [${T.market}](${market})`].filter(Boolean).join("  ·  ");
+  const linkLine = [`📱 [${app.label}](${app.url})`, market && `🌐 [${T.market}](${market})`].filter(Boolean).join("  ·  ");
   const embed: Record<string, unknown> = {
     author: { name: BRAND, icon_url: AVATAR_URL },
     title: trim(`${T[r.kind]} · ${periodLabel(r, lang)} · ${names.house}`, 256),
-    description: trim(`${linkItems(text, [...listed].map((id) => ({ id, name: names.item(id) })), itemLink)}\n\n${links}`, 4000),
+    description: trim(`${linkItems(text, [...listed].map((id) => ({ id, name: names.item(id) })), itemLink)}\n\n${linkLine}`, 4000),
     color,
     fields,
     footer: { text: T.footer },
@@ -244,7 +264,7 @@ async function main(): Promise<void> {
         const png = lineChartPng(inPeriod, 800, 260, inPeriod[0]);
         if (png) files = [{ name: "chart.png", png }];
       }
-      const payload = buildMessage(recap, lang, names, files.map((f) => f.name), now, summary, process.env.GOBLIN_WEB_URL);
+      const payload = buildMessage(recap, lang, names, files.map((f) => f.name), now, summary, { web: process.env.GOBLIN_WEB_URL, app: process.env.GOBLIN_APP_URL });
       if (dry) {
         mkdirSync(join(dataDir, "state"), { recursive: true });
         writeFileSync(join(dataDir, "state", `discord-${house}-${kind}.json`), JSON.stringify(payload, null, 2));

@@ -3,7 +3,7 @@ import { inflateSync } from "node:zlib";
 import { addToList, finishRecap, periods, type RecapList } from "../collector/recaps";
 import { buildRecap, type WeeklyInput } from "../collector/weekly";
 import { INDEXES, basketChanges, chooseBasket, isQuarterly, lastRebalance, nextRebalance, type Period, type Series } from "../collector/indexes";
-import { buildMessage, due, linkItems, periodLabel, validWebhook, webLink } from "../collector/discord-recap";
+import { PLAY_URL, appLink, buildMessage, due, linkItems, periodLabel, validWebhook, webLink } from "../collector/discord-recap";
 import { crc32, lineChartPng } from "../collector/png-chart";
 import { recapSummary, type RecapFile } from "../src/lib/weekly";
 import type { HourRow } from "../collector/store";
@@ -142,7 +142,7 @@ describe("Discord recap post", () => {
   it("posts a short message as Goblin Ledger only: summary, four numbers, links, then the images", () => {
     const images = ["1-overview.png", "2-movers.png", "3-raid.png", "4-desk.png"];
     type Msg = { username: string; embeds: { title?: string; url?: string; image?: { url: string }; fields?: { name: string; value: string; inline: boolean }[]; description?: string }[] };
-    const msg = buildMessage(recap, "en", names, images, recap.end + 1800, undefined, "https://example.com/ledger/") as Msg;
+    const msg = buildMessage(recap, "en", names, images, recap.end + 1800, undefined, { web: "https://example.com/ledger/" }) as Msg;
     expect(msg.username).toBe("Goblin Ledger");
     const embed = msg.embeds[0]!;
     expect(embed.title).toBe("Weekly recap · 23 Nov – 30 Nov 2026 · PvP Horde");
@@ -161,6 +161,14 @@ describe("Discord recap post", () => {
     expect(plain.embeds[0]!.description).not.toContain("Ouvrir le marché");
     expect(plain.embeds).toHaveLength(4);
     expect(JSON.stringify(plain)).not.toMatch(/guilded/i);
+  });
+
+  it("links the app as the Play listing, or as the tester page during the closed test", () => {
+    expect(appLink(undefined, "fr")).toEqual({ label: "Goblin Ledger sur Google Play", url: PLAY_URL });
+    expect(appLink("https://example.com/testers/", "fr")).toEqual({ label: "Tester Goblin Ledger (Android)", url: "https://example.com/testers/" });
+    expect(appLink("javascript:alert(1)", "en").url).toBe(PLAY_URL);
+    const msg = buildMessage(recap, "fr", names, [], recap.end, undefined, { app: "https://example.com/testers/" }) as { embeds: { description: string }[] };
+    expect(msg.embeds[0]!.description).toContain("📱 [Tester Goblin Ledger (Android)](https://example.com/testers/)");
   });
 
   it("links item names in the summary to their page, longest names first", () => {
