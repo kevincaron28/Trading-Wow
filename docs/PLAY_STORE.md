@@ -30,57 +30,136 @@ cd android && JAVA_HOME="D:/GuildedAndroidLab/jdk/jdk-21.0.13+9" ANDROID_HOME="D
 
 ## Store listing
 
+Rewritten 27 November 2026 for search and conversion; the research behind it is in [play/aso.md](play/aso.md). It
+describes the app from 1.1.2 plus `main`: send it for review together with the 1.2.0 release.
+
 **App name (Play title, ≤30, English and French):** Goblin Ledger: WoW Forever AH
 
 The app, the website and the text below use the brand name, Goblin Ledger. The package stays `top.kcaron.goldline`.
 
-**Short description (EN, ≤80):** US WoW Forever auction prices: charts, watchlists, flips, crafts and alerts.
+**Short description (EN, ≤80):** Track WoW auction house prices: US Forever charts, alerts, flips and crafts.
 
-**Short description (FR-CA, ≤80):** Prix des HV américains de WoW Forever : graphiques, listes, reventes, alertes.
+**Short description (FR-CA and FR-FR, ≤80):** Prix de l’hôtel des ventes WoW Forever (US) : graphiques, alertes, reventes.
 
-**Full description (EN):**
+**Full description (EN, 3489 characters):**
 
-Goblin Ledger turns the World of Warcraft Forever auction house into live price charts, for the US (Americas) region.
+```text
+Check WoW auction house prices from your phone and know what to buy, craft or resell before you log in. Goblin Ledger is a price tracker for the World of Warcraft Forever auction house on US (Americas) realms, refreshed about every hour from Blizzard's official auction data. Prices read the way they do in game, in gold, silver and copper (g/s/c).
 
-• Live prices for all 12 US Forever auction houses (PvP, Normal, RP and RP-PvP realms; Alliance, Horde and neutral Blackwater), updated about every hour from Blizzard's official auction data
-• Market tab: price index, biggest movers, flips, profitable crafts, materials to stock up on before the raids, and a weekly recap
-• Twelve ready-made watchlists: flipping, alchemy and herbalism, mining and blacksmithing, tailoring, leatherworking and skinning, enchanting, engineering, elementals, cooking and fishing, raid consumables, crates and writs, camp and stations; plus your own lists
-• Search over 7,000 items in English or French, by name, ID or category
-• Full charts: candles, bars, line, area and Heikin Ashi; 1 hour, 4 hours, 1 day and 1 week
-• Indicators: listed quantity, moving averages, Bollinger bands, RSI and MACD; compare two items
-• Market price, lowest buyout, 24-hour change, 7-day average, estimated sales per day, and the same item in the other auction houses after the house cut
-• Crafting: material cost and profit per item, a material cost line on the chart, and profitable recipes by profession
-• Explore: browse by category, price indexes, gainers and losers, top sellers, most listed, below-average deals and a flip finder between your faction and the neutral auction house, with a minimum-sales filter
-• Price alerts and watchlist deal alerts, with notifications
-• Dark and light themes, English and French
+■ Know the market in a minute
+• See a price index, how many items are rising or falling, sales compared with a usual day and the gold traded
+• Spot the biggest movers over 24 hours or 7 days
+• Find consumables and materials selling below their 7-day average, to stock up on before raid night
 
-Sales figures are estimates from auctions that disappear before expiring. Profit figures leave out deposits.
+■ Catch up with recaps
+• Daily, weekly and monthly recaps of your auction house, with earlier ones kept
+• Index performance, top risers and fallers, most traded items, raid consumables, flips and crafting margins
+• A weekly view with new price highs and lows
 
-No account, no ads, no tracking: your lists and alerts stay on your phone.
+■ Spend your gold where it pays
+• Flips: items listed well under their usual price, with the profit after the auction house cut
+• Flip finder between your faction and the neutral Blackwater auction house
+• Gainers, losers, top sellers, most listed and below-average deals
+• A sales-per-day filter keeps deals and flips to items that actually move
+
+■ Craft only what makes money
+• Material cost and profit per item, using the cheapest recipe
+• Profitable crafts by profession, from alchemy to tailoring
+• A material cost line on the chart shows when crafting beats buying
+
+■ Read the price history
+• Candles, bars, line, area and Heikin Ashi charts, from 1-hour to 1-week candles
+• Listed quantity, moving averages, Bollinger bands, RSI and MACD
+• Compare two items, draw price lines, switch to a log scale and share a chart as an image
+• Market price, lowest buyout, 24-hour change, 7-day average, estimated sales per day and days of supply
+• The same item in other auction houses, after the cut
+
+■ Get told when the price is right
+• Price alerts when an item rises above or falls below your target
+• Deal alerts when something on a watchlist is listed 20, 30 or 50% under its 7-day average
+• On Android, alerts are also checked in the background about every 30 minutes; your phone decides the exact time
+
+■ Follow what you trade
+• Twelve ready-made watchlists: flipping, professions, elementals, raid consumables, crates and writs, camp and stations
+• Build your own lists, reorder them and sort by name, price, sales or change
+• Search over 7,000 items by English or French name, item ID, category or several words in any order
+
+■ Follow whole markets
+• Price indexes for the most traded items, herbs, ores and bars, cloth, leather, enchanting materials, elementals, consumables and raid prep
+• See what is in each basket, its weight and how it moved the index
+
+■ Made for your realm
+• WoW auction house prices for all 12 US Forever houses: PvP, Normal, RP and RP-PvP, for Alliance, Horde and neutral Blackwater
+• English or French, dark or light theme, your choice of time zone
+• Offline, the app shows the last prices saved on your phone
+
+■ Honest numbers, private by design
+• The auction house shows listings, not sales: sales figures are estimates from auctions that disappear before expiring
+• Profit figures leave out deposits
+• No account, no ads, no tracking: your lists and alerts stay on your phone
 
 Goblin Ledger is an independent fan project and is not affiliated with or endorsed by Blizzard Entertainment. World of Warcraft is a trademark of Blizzard Entertainment, Inc.
+```
 
-**Full description (FR-CA):**
+**Full description (FR-CA and FR-FR, 3690 characters):**
 
-Goblin Ledger transforme l'hôtel des ventes de World of Warcraft Forever en graphiques de prix en direct, pour la région des États-Unis (Amériques).
+```text
+Consultez les prix de l’hôtel des ventes WoW sur votre téléphone et sachez quoi acheter, fabriquer ou revendre avant de vous connecter. Goblin Ledger suit les prix de l’HV de World of Warcraft Forever pour les royaumes des États-Unis (Amériques), mis à jour environ chaque heure à partir des données officielles de Blizzard. Les prix s’affichent comme en jeu, en or, argent et cuivre (g/s/c).
 
-• Prix en direct des 12 hôtels des ventes américains de Forever (royaumes JcJ, Normal, JdR et JdR-JcJ; Alliance, Horde et Bourbe-Noire neutre), mis à jour environ chaque heure à partir des données officielles de Blizzard
-• Onglet Marché : indice des prix, plus fortes variations, reventes, fabrications rentables, matériaux à accumuler avant les raids et récap de la semaine
-• Douze listes de suivi prêtes à l'emploi : revente, alchimie et herboristerie, minage et forge, couture, travail du cuir et dépeçage, enchantement, ingénierie, éléments, cuisine et pêche, consommables de raid, caisses et ordres, camp et ateliers; plus vos propres listes
-• Recherche parmi plus de 7 000 objets en français ou en anglais, par nom, ID ou catégorie
-• Graphiques complets : chandeliers, barres, ligne, aire et Heikin Ashi; 1 heure, 4 heures, 1 jour et 1 semaine
-• Indicateurs : quantité en vente, moyennes mobiles, bandes de Bollinger, RSI et MACD; comparaison de deux objets
-• Prix du marché, achat immédiat le plus bas, variation sur 24 heures, moyenne sur 7 jours, ventes estimées par jour et le même objet dans les autres hôtels des ventes après commission
-• Fabrication : coût des matériaux et profit par objet, ligne du coût des matériaux sur le graphique et recettes rentables par métier
-• Explorer : catégories, indices de prix, hausses et baisses, plus vendus, plus en vente, aubaines sous la moyenne et chercheur de reventes entre votre faction et l'hôtel neutre, avec un filtre de ventes minimales
-• Alertes de prix et alertes d'aubaines sur vos listes, avec notifications
-• Thèmes sombre et clair, français et anglais
+■ Le marché en une minute
+• Indice des prix, objets en hausse et en baisse, ventes comparées à une journée habituelle, or échangé
+• Les plus fortes variations sur 24 heures ou 7 jours
+• Consommables et matériaux sous leur moyenne de 7 jours, à accumuler avant le raid
 
-Les ventes sont estimées à partir des enchères disparues avant d'expirer. Les profits excluent les dépôts.
+■ Les récaps
+• Récaps quotidiens, hebdomadaires et mensuels de votre hôtel des ventes, avec les précédents
+• Indices, meilleures hausses et baisses, objets les plus échangés, consommables de raid, reventes et marges d’artisanat
+• Une vue de la semaine avec les nouveaux sommets et creux
 
-Aucun compte, aucune publicité, aucun pistage : vos listes et alertes restent sur votre téléphone.
+■ Placez votre or là où il rapporte
+• Reventes : objets bien sous leur prix habituel, avec le profit après la commission
+• Chercheur de reventes entre votre faction et l’hôtel neutre de Bourbe-Noire
+• Hausses, baisses, plus vendus, plus en vente et aubaines sous la moyenne
+• Un filtre de ventes par jour limite les aubaines et reventes aux objets qui partent vraiment
+
+■ Fabriquez ce qui paie
+• Coût des matériaux et profit par objet, avec la recette la moins chère
+• Fabrications rentables par métier, de l’alchimie à la couture
+• Une ligne de coût sur le graphique montre quand fabriquer bat l’achat
+
+■ L’historique des prix
+• Chandeliers, barres, ligne, aire et Heikin Ashi, en chandelles d’une heure à une semaine
+• Quantité en vente, moyennes mobiles, bandes de Bollinger, RSI et MACD
+• Comparez deux objets, tracez des lignes de prix, passez en échelle log et partagez un graphique en image
+• Prix du marché, achat immédiat le plus bas, variation sur 24 heures, moyenne sur 7 jours, ventes estimées par jour et jours de stock
+• Le même objet dans les autres hôtels des ventes, après commission
+
+■ Des alertes au bon prix
+• Alertes quand un objet monte au-dessus ou descend sous votre cible
+• Alertes d’aubaines quand un objet d’une liste est affiché 20, 30 ou 50 % sous sa moyenne de 7 jours
+• Sur Android, les alertes sont aussi vérifiées en arrière-plan environ toutes les 30 minutes; le téléphone choisit le moment
+
+■ Vos listes de suivi
+• Douze listes prêtes : revente, métiers, éléments, consommables de raid, caisses et ordres, camp et ateliers
+• Créez vos listes, réorganisez-les et triez par nom, prix, ventes ou variation
+• Plus de 7 000 objets à chercher par nom français ou anglais, ID, catégorie ou plusieurs mots
+
+■ Des marchés entiers
+• Indices de prix : objets les plus échangés, herbes, minerais et lingots, tissus, cuirs, enchantement, éléments, consommables et préparation de raid
+• Le contenu de chaque panier, les poids et l’effet de chaque objet
+
+■ Pour votre royaume
+• Les prix des 12 hôtels des ventes américains de Forever : JcJ, Normal, JdR et JdR-JcJ; Alliance, Horde et Bourbe-Noire neutre
+• Français ou anglais, thème sombre ou clair, fuseau horaire au choix
+• Hors ligne, l’application montre les derniers prix enregistrés
+
+■ Chiffres honnêtes, vie privée respectée
+• L’hôtel des ventes montre des annonces, pas des ventes : les ventes sont estimées à partir des enchères disparues avant d’expirer
+• Les profits excluent les dépôts
+• Aucun compte, aucune publicité, aucun pistage : vos listes et alertes restent sur votre téléphone
 
 Goblin Ledger est un projet de fan indépendant, sans affiliation avec Blizzard Entertainment. World of Warcraft est une marque de commerce de Blizzard Entertainment, Inc.
+```
 
 **Category:** Tools. **Tags:** finance-free. **Contact:** the developer account's email; website <https://kcaron.top>.
 
