@@ -40,7 +40,8 @@ concurrency:
 
 jobs:
   post:
-    runs-on: ubuntu-latest
+    # Pinned: Playwright 1.56 has no Chromium for ubuntu-latest (26.04) yet.
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     env:
       # Inputs and the dispatch payload go through the environment (never into the script text) and are checked below.
