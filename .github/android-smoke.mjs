@@ -114,11 +114,27 @@ async function chooser(name, open) {
   check(inApp(), `${name}: Back returns to the app`);
 }
 
+/** A button that hands over to another app: note which one opened, then come back. */
+async function leaves(name, open, required = true) {
+  await open();
+  await sleep(5000);
+  const activity = top();
+  shot(name);
+  if (required) check(activity !== "" && !inApp(), `${name}: another app opened (${activity})`);
+  else note(`INFO ${name}: on top afterwards: ${activity}`);
+  if (!inApp()) await back(1500);
+  if (!inApp()) { shell(`am start -W -n ${APP}/.MainActivity`); await sleep(2000); }
+  check(inApp(), `${name}: back in the app`);
+}
+
 async function main() {
   adb("install", "-r", "-g", apk);
   shell("settings put secure show_ime_with_hard_keyboard 1");
   note(`Android ${shell("getprop ro.build.version.release").trim()}, ${shell("wm size").trim()}`);
   shell("logcat -c");
+  const pkg = shell(`dumpsys package ${APP}`);
+  const installed = `${pkg.match(/versionName=(S+)/)?.[1]} (${pkg.match(/versionCode=(d+)/)?.[1]})`;
+  check(installed === "1.2.0 (10200)", `version: installed ${installed}`);
   shell(`am start -W -n ${APP}/.MainActivity`);
   await connect();
   await until(`!!document.querySelector(".onboarding")`, "the first-run walkthrough");
@@ -171,16 +187,29 @@ async function main() {
   await clickText(".menu-list button", "Privacy policy");
   shot("privacy");
   check(top().startsWith(`${APP}/`) && (await exists(".policy h2")), "privacy: the policy is shown inside the app");
+  const policy = await js(`document.querySelector(".page").textContent`);
+  check(/27 November 2026/.test(policy) && /Feedback, ratings and sharing/.test(policy), "privacy: it is the 27 November text");
   await back();
   check(inApp() && !(await exists(".page")), "privacy: Back closes the page");
   await clickText(".menu-list button", "Report a problem");
   await keyboard(".feedback textarea", "feedback");
   shot("feedback");
+  check(await js(`document.querySelector(".details-preview").textContent.includes("Goblin Ledger 1.2.0")`), "feedback: the app details say 1.2.0");
+  await js(`(() => { const e = document.querySelector(".feedback textarea"); e.value = "Emulator check message"; e.dispatchEvent(new Event("input", { bubbles: true })); })()`);
+  await sleep(700);
+  await clickText(".feedback button", "Copy the message", 1500);
+  const said = await js(`document.querySelector(".feedback [role=status]")?.textContent ?? ""`);
+  shot("feedback-copied");
+  check(said.startsWith("Copied"), `feedback: copy answers "${said}"`);
+  await leaves("feedback-github", () => clickText(".feedback button", "Post on GitHub", 200));
+  await leaves("feedback-email", () => clickText(".feedback button", "Send by e-mail", 200), false);
+  check(await exists(".feedback textarea"), "feedback: the page is still there");
   await back();
   check(inApp() && !(await exists(".page")), "feedback: Back closes the page");
   await chooser("share-app", () => clickText(".menu-list button", "Share this app", 200));
   const rate = await js(`[...document.querySelectorAll(".menu-list button")].some((x) => x.textContent.includes("Rate this app"))`);
   check(rate, "settings: Rate this app is listed");
+  await leaves("rate-store-page", () => clickText(".menu-list button", "Rate this app", 200));
 
   // The rating plugin answers (Play cannot show its window to an app that Play did not install).
   const channel = await js(`window.Capacitor.Plugins.Distribution.getChannel().then((r) => r.channel)`);
