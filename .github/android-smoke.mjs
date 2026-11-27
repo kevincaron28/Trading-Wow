@@ -202,7 +202,12 @@ async function main() {
   check(await js(`document.querySelector(".details-preview").textContent.includes("Goblin Ledger 1.2.0")`), "feedback: the app details say 1.2.0");
   await js(`(() => { const e = document.querySelector(".feedback textarea"); e.value = "Emulator check message"; e.dispatchEvent(new Event("input", { bubbles: true })); })()`);
   await sleep(700);
-  await clickText(".feedback button", "Copy the message", 1500);
+  // The clipboard only accepts a write that comes from a real touch, so this button is tapped, not clicked by script.
+  const origin = webViewOrigin();
+  const at = await js(`(() => { const e = [...document.querySelectorAll(".feedback button")].find((x) => x.textContent.trim() === "Copy the message"); e.scrollIntoView({ block: "center" }); const r = e.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2, dpr: devicePixelRatio }; })()`);
+  await sleep(800);
+  shell(`input tap ${Math.round(origin.x + at.x * at.dpr)} ${Math.round(origin.y + at.y * at.dpr)}`);
+  await sleep(2000);
   const said = await js(`document.querySelector(".feedback [role=status]")?.textContent ?? ""`);
   shot("feedback-copied");
   check(said.startsWith("Copied"), `feedback: copy answers "${said}"`);
